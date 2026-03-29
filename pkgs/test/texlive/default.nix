@@ -461,7 +461,6 @@ rec {
         "bundledoc"
         "cachepic"
         "checklistings"
-        "dtxgen"
         "dvipos"
         "extractres"
         "fig4latex"
@@ -660,13 +659,11 @@ rec {
         # requires kpsewhich
         "memoize-extract.pl"
         "memoize-extract.py"
-        "git-latexdiff"
 
         # require other texlive binaries in PATH
         "allcm"
         "allec"
         "chkweb"
-        "dtxgen"
         "explcheck"
         "extractbb"
         "fontinst"
@@ -682,7 +679,6 @@ rec {
         "pdftex-quiet"
         "pslatex"
         "rumakeindex"
-        "runtexfile"
         "texconfig"
         "texconfig-sys"
         "texexec"

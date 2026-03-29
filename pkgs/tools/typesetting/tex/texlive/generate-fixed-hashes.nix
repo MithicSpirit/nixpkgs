@@ -63,13 +63,8 @@ in
   # you should build newHashes first, before evaluating (and building) fixedHashesNix
   newHashes = map computeHash (filter (fod: !fod ? outputHash) fods);
 
-  fixedHashesNix =
-    runCommand "fixed-hashes.nix"
-      {
-        unformatted = writeText "fixed-hashes.nix" "{${concatMapStrings hashLine sorted}}";
-        nativeBuildInputs = [ pkgs.nixfmt ];
-      }
-      ''
-        cat "$unformatted" | nixfmt > "$out"
-      '';
+  fixedHashesNix = writeText "fixed-hashes.nix" ''
+    {
+    ${concatMapStrings hashLine sorted}}
+  '';
 }
