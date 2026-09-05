@@ -1,7 +1,6 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
   poetry-core,
   pytestCheckHook,
@@ -12,16 +11,14 @@
 
 buildPythonPackage rec {
   pname = "onecache";
-  version = "0.7.0";
+  version = "0.8.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "sonic182";
     repo = "onecache";
-    rev = "refs/tags/${version}";
-    hash = "sha256-go/3HntSLzzTmHS9CxGPHT6mwXl+6LuWFmkGygGIjqU=";
+    tag = version;
+    hash = "sha256-jhyszGKzmMdtPfnjc3VllfF6Zd0MkV66CpL6HiAof/A=";
   };
 
   build-system = [ poetry-core ];
@@ -32,7 +29,7 @@ buildPythonPackage rec {
     pytest-asyncio
   ];
 
-  disabledTests = lib.optionals stdenv.isDarwin [
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
     # test fails due to unknown reason on darwin
     "test_lru_and_ttl_refresh"
   ];

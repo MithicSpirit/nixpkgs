@@ -1,43 +1,46 @@
 {
   lib,
-  aiohttp,
   aiohttp-socks,
+  aiohttp,
   beautifulsoup4,
   buildPythonPackage,
   dateparser,
+  dnspython,
   fetchFromGitHub,
+  lookyloo-models,
+  orjson,
   playwright-stealth,
   playwright,
   poetry-core,
-  puremagic,
+  pure-magic-rs,
   pydub,
-  pythonOlder,
+  pyfaup-rs,
   pytz,
   requests,
+  rfc3161-client,
   setuptools,
   speechrecognition,
   tzdata,
   w3lib,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "playwrightcapture";
-  version = "1.25.14";
+  version = "1.40.8";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "Lookyloo";
     repo = "PlaywrightCapture";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-1MTU/teBs2HisW0L0o5RyAAi8wlkrVFwc/K70O4YfKg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-UWWHU0ePW8ThHbC1jumpYot8k/yZLeBou9nsIEbObEA=";
   };
 
   pythonRelaxDeps = [
     "aiohttp"
     "aiohttp-socks"
     "beautifulsoup4"
+    "orjson"
     "playwright"
     "setuptools"
     "tzdata"
@@ -45,23 +48,27 @@ buildPythonPackage rec {
 
   build-system = [ poetry-core ];
 
-
   dependencies = [
     aiohttp
     aiohttp-socks
     beautifulsoup4
     dateparser
+    dnspython
+    lookyloo-models
+    orjson
     playwright
     playwright-stealth
-    puremagic
+    pure-magic-rs
+    pyfaup-rs
     pytz
     requests
+    rfc3161-client
     setuptools
     tzdata
     w3lib
   ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     recaptcha = [
       speechrecognition
       pydub
@@ -74,11 +81,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "playwrightcapture" ];
 
-  meta = with lib; {
+  meta = {
     description = "Capture a URL with Playwright";
     homepage = "https://github.com/Lookyloo/PlaywrightCapture";
-    changelog = "https://github.com/Lookyloo/PlaywrightCapture/releases/tag/v${version}";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/Lookyloo/PlaywrightCapture/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

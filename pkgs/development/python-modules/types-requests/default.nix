@@ -9,12 +9,13 @@
 
 buildPythonPackage rec {
   pname = "types-requests";
-  version = "2.32.0.20240712";
+  version = "2.32.4.20260107";
   pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-kMB5/wXlSfa/UOAukQIQuYuP8evdGOGchzzSN3N8E1g=";
+    pname = "types_requests";
+    inherit version;
+    hash = "sha256-AYoRrBWPgBv6hIV93sFlB1Djk9+KAEqKmuKpvsb8sk8=";
   };
 
   build-system = [ setuptools ];
@@ -29,10 +30,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "requests-stubs" ];
 
-  meta = with lib; {
+  meta = {
     description = "Typing stubs for requests";
     homepage = "https://github.com/python/typeshed";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

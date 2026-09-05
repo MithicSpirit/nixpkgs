@@ -1,38 +1,40 @@
 {
   lib,
   rustPlatform,
-  fetchCrate,
-  stdenv,
-  darwin,
+  fetchFromGitHub,
+  versionCheckHook,
   nix-update-script,
-  testers,
-  systemctl-tui,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "systemctl-tui";
-  version = "0.3.7";
+  version = "0.8.0";
+  __structuredAttrs = true;
 
-  src = fetchCrate {
-    inherit pname version;
-    hash = "sha256-i0yCVXip1RcvKqxidflgW4wJFxAmUPRO04CeETzUgms=";
+  src = fetchFromGitHub {
+    owner = "rgwood";
+    repo = "systemctl-tui";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-vsllvCDHQy9EH0X1RRp5N3DISTrWFi6rywUp3wL42ks=";
   };
 
-  cargoHash = "sha256-4gY9pQO2ljbyviaL20ikEqwdAHS4bqpzE6YyaBW/b7c=";
+  cargoHash = "sha256-kb56IKlwPW5VMdFMz+6tgfqBTeqJbDECO2LXNAQleuI=";
 
-  buildInputs = lib.optionals stdenv.isDarwin [ darwin.apple_sdk.frameworks.AppKit ];
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+  doInstallCheck = true;
 
   passthru = {
-    updateScript = nix-update-script;
-    tests.version = testers.testVersion { package = systemctl-tui; };
+    updateScript = nix-update-script { };
   };
 
   meta = {
     description = "Simple TUI for interacting with systemd services and their logs";
     homepage = "https://crates.io/crates/systemctl-tui";
-    changelog = "https://github.com/rgwood/systemctl-tui/releases/tag/v${version}";
+    changelog = "https://github.com/rgwood/systemctl-tui/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ siph ];
     mainProgram = "systemctl-tui";
   };
-}
+})

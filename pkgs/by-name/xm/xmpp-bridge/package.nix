@@ -1,19 +1,20 @@
-{ lib
-, fetchFromGitHub
-, stdenv
-, pkg-config
-, libstrophe
-, installShellFiles
+{
+  lib,
+  fetchFromGitHub,
+  stdenv,
+  pkg-config,
+  libstrophe,
+  installShellFiles,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "xmpp-bridge";
   version = "0.6.0";
 
   src = fetchFromGitHub {
     owner = "majewsky";
     repo = "xmpp-bridge";
-    rev = "v${version}";
+    rev = "v${finalAttrs.version}";
     hash = "sha256-JXhVi2AiV/PmWPfoQJl/N92GAZQ9UxReAiCkiDxgdFY=";
   };
 
@@ -26,7 +27,7 @@ stdenv.mkDerivation rec {
     libstrophe
   ];
 
-  strictDeps  = true;
+  strictDeps = true;
 
   # Makefile is hardcoded to install to /usr, install manually
   installPhase = ''
@@ -45,5 +46,6 @@ stdenv.mkDerivation rec {
     mainProgram = "xmpp-bridge";
     maintainers = with lib.maintainers; [ gigahawk ];
     platforms = lib.platforms.unix;
+    broken = stdenv.hostPlatform.isDarwin;
   };
-}
+})

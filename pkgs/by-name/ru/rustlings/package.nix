@@ -6,27 +6,28 @@
   cargo,
   rustc,
   clippy,
+  gcc,
   makeWrapper,
 }:
-let
+
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "rustlings";
-  version = "6.3.0";
-in
-rustPlatform.buildRustPackage {
-  inherit pname version;
+  version = "6.5.0";
+
   src = fetchFromGitHub {
     owner = "rust-lang";
     repo = "rustlings";
-    rev = "v${version}";
-    hash = "sha256-te7DYgbEtWWSSvO28ajkJucRb3c9L8La1wfGW0WSxW0=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-dUQIzNPxmKbhew9VjFIW7bY0D1IkuJ5+hRY2/CwmYhY=";
   };
 
-  cargoHash = "sha256-Vq4Os4CKkEz4HggIZhlbIo9Cu+BVJPdybL1CNvz5wEQ=";
+  cargoHash = "sha256-AvwulWEqZMywaG7lEmT8nn9s2hda+bbIV1rnVXnKH8o=";
 
   # Disabled test that does not work well in an isolated environment
   checkFlags = [
     "--skip=run_compilation_success"
     "--skip=run_test_success"
+    "--skip=init"
   ];
 
   nativeBuildInputs = [
@@ -40,6 +41,7 @@ rustPlatform.buildRustPackage {
         cargo
         rustc
         clippy
+        gcc
       ]
     }
   '';
@@ -52,4 +54,4 @@ rustPlatform.buildRustPackage {
     maintainers = with lib.maintainers; [ luftmensch-luftmensch ];
     mainProgram = "rustlings";
   };
-}
+})

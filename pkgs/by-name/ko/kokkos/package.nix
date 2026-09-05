@@ -1,20 +1,21 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, gitUpdater
-, cmake
-, python3
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  gitUpdater,
+  cmake,
+  python3,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "kokkos";
-  version = "4.3.01";
+  version = "5.2.0";
 
   src = fetchFromGitHub {
     owner = "kokkos";
     repo = "kokkos";
     rev = finalAttrs.version;
-    hash = "sha256-x496DKEBMNUUZ2rBNT2MPBV8Obi5aUKQuHwjLiNPMhk=";
+    hash = "sha256-+henisuI6Nzww3SIbfuB/23qiNSeYGOt4Ww5IGD9cO8=";
   };
 
   nativeBuildInputs = [
@@ -33,13 +34,15 @@ stdenv.mkDerivation (finalAttrs: {
   doCheck = true;
   passthru.updateScript = gitUpdater { };
 
-  meta = with lib; {
+  meta = {
     description = "C++ Performance Portability Programming EcoSystem";
     homepage = "https://github.com/kokkos/kokkos";
     changelog = "https://github.com/kokkos/kokkos/blob/${finalAttrs.src.rev}/CHANGELOG.md";
-    license = with licenses; [ asl20-llvm ];
-    maintainers = with maintainers; [ Madouura ];
-    platforms = platforms.unix;
-    broken = stdenv.isDarwin;
+    license = with lib.licenses; [
+      asl20
+      llvm-exception
+    ];
+    platforms = lib.platforms.unix;
+    broken = stdenv.hostPlatform.isDarwin;
   };
 })

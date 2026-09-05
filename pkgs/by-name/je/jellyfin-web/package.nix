@@ -1,55 +1,53 @@
 {
   lib,
   stdenv,
-  overrideSDK,
   fetchFromGitHub,
   buildNpmPackage,
-  jellyfin,
+  nodejs_22,
   nix-update-script,
   pkg-config,
   xcbuild,
   pango,
   giflib,
-  darwin,
+  jellyfin,
 }:
-let
-  # node-canvas builds code that requires aligned_alloc,
-  # which on Darwin requires at least the 10.15 SDK
-  stdenv' =
-    if stdenv.isDarwin then
-      overrideSDK stdenv {
-        darwinMinVersion = "10.15";
-        darwinSdkVersion = "11.0";
-      }
-    else
-      stdenv;
-  buildNpmPackage' = buildNpmPackage.override { stdenv = stdenv'; };
-in
-buildNpmPackage' rec {
+buildNpmPackage (finalAttrs: {
   pname = "jellyfin-web";
-  version = "10.9.10";
+  version = "10.11.11";
 
   src =
-    assert version == jellyfin.version;
+    assert finalAttrs.version == jellyfin.version;
     fetchFromGitHub {
       owner = "jellyfin";
       repo = "jellyfin-web";
-      rev = "v${version}";
-      hash = "sha256-6t/kCuMbSug1q1EdQFAMqf/sWa+LAO46OUG0FL84UiE=";
+      tag = "v${finalAttrs.version}";
+      hash = "sha256-3Gyg0eSbOXO0wgdgzuOtD8nDmSM37z7Bc0fKcbo9ffA=";
     };
 
-  npmDepsHash = "sha256-R4myooMkKdvOFvyNqKIlZ2GozNOkg8YNTvomkt4aRIU=";
+  nodejs = nodejs_22;
+
+  postPatch = ''
+    substituteInPlace webpack.common.js \
+      --replace-fail "git describe --always --dirty" "echo ${finalAttrs.src.rev}"
+  '';
+
+  npmDepsHash = "sha256-4kZo50xY/SvjpHToeIt0E91yeM7ab6Q6XtBMU5zSrF4=";
+
+  preBuild = ''
+    # using sass-embedded fails at executing node_modules/sass-embedded-linux-x64/dart-sass/src/dart
+    rm -r node_modules/sass-embedded*
+  '';
 
   npmBuildScript = [ "build:production" ];
 
-  nativeBuildInputs = [ pkg-config ] ++ lib.optionals stdenv.isDarwin [ xcbuild ];
+  nativeBuildInputs = [ pkg-config ] ++ lib.optionals stdenv.hostPlatform.isDarwin [ xcbuild ];
 
-  buildInputs =
-    [ pango ]
-    ++ lib.optionals stdenv.isDarwin [
-      giflib
-      darwin.apple_sdk.frameworks.CoreText
-    ];
+  buildInputs = [
+    pango
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    giflib
+  ];
 
   installPhase = ''
     runHook preInstall
@@ -62,15 +60,15 @@ buildNpmPackage' rec {
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     description = "Web Client for Jellyfin";
     homepage = "https://jellyfin.org/";
-    license = licenses.gpl2Plus;
-    maintainers = with maintainers; [
+    license = lib.licenses.gpl2Plus;
+    maintainers = with lib.maintainers; [
       nyanloutre
       minijackson
       purcell
       jojosch
     ];
   };
-}
+})

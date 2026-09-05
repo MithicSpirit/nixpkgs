@@ -1,7 +1,6 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
 
   # build-system
@@ -13,22 +12,21 @@
   pandas,
   scipy,
 
-  # checks
+  # tests
+  pytest-cov-stub,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "mizani";
-  version = "0.12.1";
+  version = "0.14.4";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "has2k1";
     repo = "mizani";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-a/+yZ7oUZG0fKgBUMwIf3XHUjac8Gsh3AosDVuUVoJU=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-aBBT0zrBFi2LW1pU83sxeRJh0B2IXa/0UNyXMfWSyAI=";
   };
 
   build-system = [ setuptools-scm ];
@@ -40,20 +38,18 @@ buildPythonPackage rec {
     scipy
   ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
-
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace " --cov=mizani --cov-report=xml" ""
-  '';
+  nativeCheckInputs = [
+    pytest-cov-stub
+    pytestCheckHook
+  ];
 
   pythonImportsCheck = [ "mizani" ];
 
   meta = {
     description = "Scales for Python";
     homepage = "https://github.com/has2k1/mizani";
-    changelog = "https://github.com/has2k1/mizani/releases/tag/v${version}";
+    changelog = "https://github.com/has2k1/mizani/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.bsd3;
     maintainers = with lib.maintainers; [ samuela ];
   };
-}
+})

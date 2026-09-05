@@ -1,20 +1,27 @@
-{ lib, fetchFromGitHub }:
+{
+  lib,
+  fetchFromGitHub,
+  stdenv,
+}:
 rec {
-  version = "9.1.0689";
+  version = "9.2.0782";
 
-  outputs = [ "out" "xxd" ];
+  outputs = [
+    "out"
+    "xxd"
+  ];
 
   src = fetchFromGitHub {
     owner = "vim";
     repo = "vim";
     rev = "v${version}";
-    hash = "sha256-87y/STnGB2Yf64TMwCd6VCFF2kvy+DmNyaXVKPIc86E=";
+    hash = "sha256-D4IyDgl1JdmumDzO0uMg2LhoSnFUeqhcMJ6ImC17wzs=";
   };
 
   enableParallelBuilding = true;
   enableParallelInstalling = false;
 
-  hardeningDisable = [ "fortify" ];
+  hardeningDisable = if stdenv.cc.isClang then [ "strictflexarrays1" ] else [ "fortify" ];
 
   # Use man from $PATH; escape sequences are still problematic.
   postPatch = ''
@@ -32,13 +39,19 @@ rec {
     done
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Most popular clone of the VI editor";
-    homepage    = "http://www.vim.org";
-    license     = licenses.vim;
-    maintainers = with maintainers; [ das_j equirosa philiptaron ];
-    platforms   = platforms.unix;
+    homepage = "https://www.vim.org";
+    license = lib.licenses.vim;
+    maintainers = with lib.maintainers; [
+      equirosa
+      philiptaron
+    ];
+    platforms = lib.platforms.unix;
     mainProgram = "vim";
-    outputsToInstall = [ "out" "xxd" ];
+    outputsToInstall = [
+      "out"
+      "xxd"
+    ];
   };
 }

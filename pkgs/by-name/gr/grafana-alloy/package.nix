@@ -1,127 +1,163 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, fetchYarnDeps
-, buildGoModule
-, systemd
-, yarn
-, fixup-yarn-lock
-, nodejs
-, grafana-alloy
-, nixosTests
-, nix-update-script
-, installShellFiles
-, testers
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  fetchNpmDeps,
+  buildGoModule,
+  buildNpmPackage,
+  systemd,
+  installShellFiles,
+  versionCheckHook,
+  nixosTests,
+  nix-update-script,
+  lld,
+  useLLD ? stdenv.hostPlatform.isArmv7,
 }:
 
-buildGoModule rec {
+let
+  beylaVersion = "v3.9.8";
+in
+
+buildGoModule (finalAttrs: {
   pname = "grafana-alloy";
-  version = "1.3.1";
+  version = "1.17.1";
 
   src = fetchFromGitHub {
-    rev = "v${version}";
     owner = "grafana";
     repo = "alloy";
-    hash = "sha256-6YjQUIHZmuguzqTeaLgkrM/WdBPZu/KUXUDOmEB7rNQ=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-4HjOerOe+v8GkKgID/oBm5Rt7nQiHjucAQkSYGY5zZs=";
   };
 
+  npmDeps = fetchNpmDeps {
+    src = "${finalAttrs.src}/internal/web/ui";
+    hash = "sha256-eGyKXsZzyDovsMY2U1uAOn22nyRTYGJT+kEh61857Ls=";
+  };
+
+  frontend = buildNpmPackage {
+    pname = "alloy-frontend";
+    inherit (finalAttrs) version src;
+
+    sourceRoot = "${finalAttrs.src.name}/internal/web/ui";
+
+    inherit (finalAttrs) npmDeps;
+
+    installPhase = ''
+      runHook preInstall
+
+      mkdir -p $out
+      cp -av dist $out/share
+
+      runHook postInstall
+    '';
+  };
+
+  patchPhase = ''
+    cp -av ${finalAttrs.frontend}/share internal/web/ui/dist
+
+    goSumBeylaVersion="$(grep beyla go.sum | head -1 | cut -d ' ' -f2)"
+    if [[ "$goSumBeylaVersion" != "${beylaVersion}" ]];then
+      echo "beyla version in go.sum ($goSumBeylaVersion) doesn't match the one set in the expression (${beylaVersion}), needs updating."
+      exit 1
+    fi
+  '';
+
+  modRoot = "collector";
+
   proxyVendor = true;
-  vendorHash = "sha256-eMtwmADYbvpIm4FHTHieQ1i4xCty5xCwsZ/JD9r94/8=";
+  vendorHash = "sha256-C6qVdSfTwmjseCjXKn5f9Q9mn3EBg31CQlLk5QY4YRY=";
 
-  nativeBuildInputs = [ fixup-yarn-lock yarn nodejs installShellFiles ];
+  subPackages = [ "." ];
 
-  ldflags =
-    let
-      prefix = "github.com/grafana/alloy/internal/build";
-    in
-    [
-      "-s"
-      "-w"
-      # https://github.com/grafana/alloy/blob/3201389252d2c011bee15ace0c9f4cdbcb978f9f/Makefile#L110
-      "-X ${prefix}.Branch=v${version}"
-      "-X ${prefix}.Version=${version}"
-      "-X ${prefix}.Revision=v${version}"
-      "-X ${prefix}.BuildUser=nix"
-      "-X ${prefix}.BuildDate=1970-01-01T00:00:00Z"
-    ];
+  ldflags = [
+    "-s"
+    "-w"
+    "-X github.com/grafana/alloy/internal/build.Version=${finalAttrs.version}"
+    "-X github.com/grafana/alloy/internal/build.Branch=v${finalAttrs.version}"
+    "-X github.com/grafana/alloy/internal/build.Revision=v${finalAttrs.version}"
+    "-X github.com/grafana/alloy/internal/build.BuildUser=nix@nixpkgs"
+    "-X github.com/grafana/alloy/internal/build.BuildDate=1970-01-01T00:00:00Z"
+    "-X github.com/grafana/beyla/pkg/buildinfo=${beylaVersion}"
+  ];
 
   tags = [
+    "embedalloyui"
+    "gore2regex"
     "netgo"
-    "builtinassets"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
     "promtail_journal_enabled"
   ];
 
-  subPackages = [
-    "."
-  ];
+  env =
+    lib.optionalAttrs useLLD {
+      NIX_CFLAGS_LINK = "-fuse-ld=lld";
+    }
+    // lib.optionalAttrs (stdenv.hostPlatform.isLinux) {
+      # Uses go-systemd, which uses libsystemd headers.
+      # https://github.com/coreos/go-systemd/issues/351
+      NIX_CFLAGS_COMPILE = "-I${lib.getDev systemd}/include";
+    };
 
-  yarnOfflineCache = fetchYarnDeps {
-    yarnLock = "${src}/internal/web/ui/yarn.lock";
-    hash = "sha256-Jk+zqR/+NBde9ywncIEJM4kgavqiDvcIAjxJCSMrZDc=";
-  };
+  nativeBuildInputs = [
+    installShellFiles
+  ]
+  ++ lib.optionals useLLD [ lld ];
 
-  preBuild = ''
-    pushd internal/web/ui
+  postInstall =
+    "mv -v $out/bin/otel_engine $out/bin/alloy"
+    + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
 
-    # Yarn wants a real home directory to write cache, config, etc to
-    export HOME=$NIX_BUILD_TOP/fake_home
+      installShellCompletion --cmd alloy \
+        --bash <($out/bin/alloy completion bash) \
+        --fish <($out/bin/alloy completion fish) \
+        --zsh <($out/bin/alloy completion zsh)
+    '';
 
-    fixup-yarn-lock yarn.lock
-    yarn config --offline set yarn-offline-mirror ${yarnOfflineCache}
-    yarn install --offline --frozen-lockfile --ignore-platform --ignore-scripts --no-progress --non-interactive
-
-    patchShebangs node_modules/
-
-    yarn --offline build
-
-    popd
-  '';
-
-  # uses go-systemd, which uses libsystemd headers
-  # https://github.com/coreos/go-systemd/issues/351
-  NIX_CFLAGS_COMPILE = lib.optionals stdenv.isLinux [ "-I${lib.getDev systemd}/include" ];
-
-  checkFlags = [
-    "-tags nonetwork" # disable network tests
-    "-tags nodocker" # disable docker tests
-  ];
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  versionCheckProgramArg = "-v";
 
   # go-systemd uses libsystemd under the hood, which does dlopen(libsystemd) at
-  # runtime.
-  # Add to RUNPATH so it can be found.
-  postFixup = lib.optionalString stdenv.isLinux ''
+  # runtime. Add to RPATH so it can be found.
+  postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
     patchelf \
-      --set-rpath "${lib.makeLibraryPath [ (lib.getLib systemd) ]}:$(patchelf --print-rpath $out/bin/alloy)" \
+      --set-rpath "${
+        lib.makeLibraryPath [ (lib.getLib systemd) ]
+      }:$(patchelf --print-rpath $out/bin/alloy)" \
       $out/bin/alloy
-  '';
-
-  postInstall = ''
-    installShellCompletion --cmd alloy \
-      --bash <($out/bin/alloy completion bash) \
-      --fish <($out/bin/alloy completion fish) \
-      --zsh <($out/bin/alloy completion zsh)
   '';
 
   passthru = {
     tests = {
       inherit (nixosTests) alloy;
-      version = testers.testVersion {
-        version = "v${version}";
-        package = grafana-alloy;
-      };
     };
-    updateScript = nix-update-script { };
-    # alias for nix-update to be able to find and update this attribute
-    offlineCache = yarnOfflineCache;
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version-regex"
+        "v(.+)"
+      ];
+    };
+    # For nix-update to be able to find and update the hash.
+    inherit (finalAttrs) npmDeps;
   };
 
-  meta = with lib; {
-    description = "Open source OpenTelemetry Collector distribution with built-in Prometheus pipelines and support for metrics, logs, traces, and profiles";
-    mainProgram = "alloy";
-    license = licenses.asl20;
+  meta = {
+    description = "OpenTelemetry Collector distribution with programmable pipelines";
+    longDescription = ''
+      Grafana Alloy is an open source OpenTelemetry Collector distribution with
+      built-in Prometheus pipelines and support for metrics, logs, traces, and
+      profiles.
+    '';
     homepage = "https://grafana.com/oss/alloy";
-    changelog = "https://github.com/grafana/alloy/blob/${src.rev}/CHANGELOG.md";
-    maintainers = with maintainers; [ azahi flokli emilylange hbjydev ];
+    changelog = "https://github.com/grafana/alloy/blob/${finalAttrs.src.rev}/CHANGELOG.md";
+    license = lib.licenses.asl20;
     platforms = lib.platforms.unix;
+    maintainers = with lib.maintainers; [
+      azahi
+      flokli
+      hbjydev
+    ];
+    mainProgram = "alloy";
   };
-}
+})

@@ -3,37 +3,36 @@
   stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  git,
+  gitMinimal,
   pytestCheckHook,
-  pythonOlder,
   ruamel-yaml,
-  tomli,
+  setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "pre-commit-hooks";
-  version = "4.6.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.8";
+  version = "6.0.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "pre-commit";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-p/pPpuuNjVxHSPyi4RL2DJlj9weSq8QinugQ4zmv9Ck=";
+    repo = "pre-commit-hooks";
+    tag = "v${version}";
+    hash = "sha256-pxtsnRryTguNGYbdiQ55UhuRyJTQvFfaqVOTcCz2jgk=";
   };
 
-  propagatedBuildInputs = [ ruamel-yaml ] ++ lib.optionals (pythonOlder "3.11") [ tomli ];
+  build-system = [ setuptools ];
+
+  dependencies = [ ruamel-yaml ];
 
   nativeCheckInputs = [
-    git
+    gitMinimal
     pytestCheckHook
   ];
 
   # Note: this is not likely to ever work on Darwin
   # https://github.com/pre-commit/pre-commit-hooks/pull/655
-  doCheck = !stdenv.isDarwin;
+  doCheck = !stdenv.hostPlatform.isDarwin;
 
   # the tests require a functional git installation which requires a valid HOME
   # directory.
@@ -47,11 +46,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "pre_commit_hooks" ];
 
-  meta = with lib; {
+  meta = {
     description = "Some out-of-the-box hooks for pre-commit";
     homepage = "https://github.com/pre-commit/pre-commit-hooks";
-    changelog = "https://github.com/pre-commit/pre-commit-hooks/blob/v${version}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ kalbasit ];
+    changelog = "https://github.com/pre-commit/pre-commit-hooks/blob/${src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ kalbasit ];
   };
 }

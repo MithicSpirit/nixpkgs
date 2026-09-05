@@ -4,26 +4,28 @@
   fetchFromGitHub,
   pkg-config,
   installShellFiles,
+  getconf,
   dbus,
   libseccomp,
   systemd,
   stdenv,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "youki";
-  version = "0.4.0";
+  version = "0.7.0";
 
   src = fetchFromGitHub {
-    owner = "containers";
-    repo = pname;
-    rev = "v${version}";
-    hash = "sha256-dkVnNtBfvjf47p1N5/syHqjlDVnbKRDqNJ98ym5B+mg=";
+    owner = "youki-dev";
+    repo = "youki";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-EiBQDMiqqDrJ+FpMbdNZW1DtKxTpVMSfibQlHXs+iLM=";
   };
 
   nativeBuildInputs = [
     pkg-config
     installShellFiles
+    getconf
   ];
 
   buildInputs = [
@@ -42,21 +44,24 @@ rustPlatform.buildRustPackage rec {
   cargoBuildFlags = [
     "-p"
     "youki"
+    "--features"
+    "systemd"
   ];
+
   cargoTestFlags = [
     "-p"
     "youki"
   ];
 
-  cargoHash = "sha256-Nv1LAkWYwWb0Izvd7UlKU4wx3vVkmO9Rcpt6AuTwObU=";
+  cargoHash = "sha256-v4yyEhJ5Gm0Z9Zs8CQiU+EKgRujeCqKfxt2C4OPdF5M=";
 
-  meta = with lib; {
+  meta = {
     description = "Container runtime written in Rust";
-    homepage = "https://containers.github.io/youki/";
-    changelog = "https://github.com/containers/youki/releases/tag/v${version}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ builditluc ];
-    platforms = platforms.linux;
+    homepage = "https://youki-dev.github.io/youki/";
+    changelog = "https://github.com/youki-dev/youki/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ builditluc ];
+    platforms = lib.platforms.linux;
     mainProgram = "youki";
   };
-}
+})

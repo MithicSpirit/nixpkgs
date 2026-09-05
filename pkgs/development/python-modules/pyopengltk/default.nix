@@ -7,10 +7,9 @@
   pyopengl,
   writers,
   tkinter,
-  pyopengltk,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pyopengltk";
   version = "0.0.4";
   pyproject = true;
@@ -35,9 +34,9 @@ buildPythonPackage rec {
 
   passthru.tests = {
     cube = writers.writePython3 "cube" {
-      libraries = [ pyopengltk ];
+      libraries = [ finalAttrs.finalPackage ];
       doCheck = false;
-    } (builtins.readFile "${src}/examples/cube.py");
+    } (builtins.readFile "${finalAttrs.src}/examples/cube.py");
   };
 
   meta = {
@@ -46,6 +45,6 @@ buildPythonPackage rec {
     maintainers = with lib.maintainers; [ sigmanificient ];
     license = lib.licenses.mit;
     # not supported yet, see: https://github.com/jonwright/pyopengltk/issues/12
-    broken = stdenv.isDarwin;
+    broken = stdenv.hostPlatform.isDarwin;
   };
-}
+})

@@ -7,7 +7,6 @@
   fetchFromGitHub,
   gevent,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
   stdenv,
   urllib3,
@@ -15,18 +14,16 @@
 
 buildPythonPackage rec {
   pname = "geventhttpclient";
-  version = "2.3.1";
+  version = "2.3.7";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
 
   src = fetchFromGitHub {
     owner = "geventhttpclient";
     repo = "geventhttpclient";
-    rev = "refs/tags/${version}";
+    tag = version;
     # TODO: unvendor llhttp
     fetchSubmodules = true;
-    hash = "sha256-uOGnwPbvTam14SFTUT0UrwxHfP4a5cn3a7EhLoGBUrA=";
+    hash = "sha256-vca2uCQ1S21xQmAXdpLhI0DFZYUSyKhSkvETa2VqbkA=";
   };
 
   build-system = [ setuptools ];
@@ -44,23 +41,19 @@ buildPythonPackage rec {
   ];
 
   # lots of: [Errno 48] Address already in use: ('127.0.0.1', 54323)
-  doCheck = !stdenv.isDarwin;
+  doCheck = !stdenv.hostPlatform.isDarwin;
 
   __darwinAllowLocalNetworking = true;
 
-  preCheck = ''
-    rm -rf geventhttpclient
-  '';
-
-  pytestFlagsArray = [ "-m 'not network'" ];
+  disabledTestMarks = [ "network" ];
 
   pythonImportsCheck = [ "geventhttpclient" ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/geventhttpclient/geventhttpclient";
     description = "High performance, concurrent HTTP client library using gevent";
-    changelog = "https://github.com/geventhttpclient/geventhttpclient/releases/tag/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ koral ];
+    changelog = "https://github.com/geventhttpclient/geventhttpclient/releases/tag/${src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ koral ];
   };
 }

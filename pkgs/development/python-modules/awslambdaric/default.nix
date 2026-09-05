@@ -1,52 +1,38 @@
 {
-  stdenv,
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  fetchpatch,
-  isPy27,
   pytestCheckHook,
-  autoconf271,
+  autoconf,
   automake,
   cmake,
   gcc,
   libtool,
+  parameterized,
   perl,
   setuptools,
   simplejson,
+  snapshot-restore-py,
 }:
-
 buildPythonPackage rec {
   pname = "awslambdaric";
-  version = "2.0.11";
+  version = "4.0.2";
   pyproject = true;
-
-  disabled = isPy27;
 
   src = fetchFromGitHub {
     owner = "aws";
     repo = "aws-lambda-python-runtime-interface-client";
-    rev = "refs/tags/${version}";
-    sha256 = "sha256-9DiUpgeL4bY7G3b5R06FjpN0st03F84fj0bhp70moKo=";
+    tag = version;
+    sha256 = "sha256-bEkaZUAAtilHLuUUvKloeF25DuesAr8RpKcxZq8Tqts=";
   };
 
-  patches = [
-    (fetchpatch {
-      # https://github.com/aws/aws-lambda-python-runtime-interface-client/pull/58
-      url = "https://github.com/aws/aws-lambda-python-runtime-interface-client/commit/162c3c0051bb9daa92e4a2a4af7e90aea60ee405.patch";
-      sha256 = "09qqq5x6npc9jw2qbhzifqn5sqiby4smiin1aw30psmlp21fv7j8";
-    })
+  propagatedBuildInputs = [
+    simplejson
+    snapshot-restore-py
   ];
 
-  postPatch = ''
-    substituteInPlace requirements/base.txt \
-      --replace 'simplejson==3' 'simplejson~=3'
-  '';
-
-  propagatedBuildInputs = [ simplejson ];
-
   nativeBuildInputs = [
-    autoconf271
+    autoconf
     automake
     cmake
     libtool
@@ -58,11 +44,9 @@ buildPythonPackage rec {
 
   dontUseCmakeConfigure = true;
 
-  nativeCheckInputs = [ pytestCheckHook ];
-
-  disabledTests = [
-    # Test fails with: Assertion error
-    "test_handle_event_request_fault_exception_logging_syntax_error"
+  nativeCheckInputs = [
+    parameterized
+    pytestCheckHook
   ];
 
   pythonImportsCheck = [
@@ -70,12 +54,11 @@ buildPythonPackage rec {
     "runtime_client"
   ];
 
-  meta = with lib; {
-    broken = (stdenv.isLinux && stdenv.isAarch64);
+  meta = {
     description = "AWS Lambda Runtime Interface Client for Python";
     homepage = "https://github.com/aws/aws-lambda-python-runtime-interface-client";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ austinbutler ];
-    platforms = platforms.linux;
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ austinbutler ];
+    platforms = lib.platforms.linux;
   };
 }

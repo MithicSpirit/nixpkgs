@@ -1,4 +1,9 @@
-{ lib, stdenv, buildGoModule, fetchFromGitHub, libobjc, IOKit, nixosTests }:
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+  nixosTests,
+}:
 
 let
   # A list of binaries to put into separate outputs
@@ -7,19 +12,20 @@ let
     "clef"
   ];
 
-in buildGoModule rec {
+in
+buildGoModule (finalAttrs: {
   pname = "go-ethereum";
-  version = "1.14.8";
+  version = "1.17.3";
 
   src = fetchFromGitHub {
     owner = "ethereum";
-    repo = pname;
-    rev = "v${version}";
-    sha256 = "sha256-y831v6ar1RdDvGQMZf2lZKgq2IQzAAQrNwDCL0xbj24=";
+    repo = "go-ethereum";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-BLcpUbE2lkXkpzYWSIVaLNXlFTvSuXw9Vm0iTtrqOKQ=";
   };
 
   proxyVendor = true;
-  vendorHash = "sha256-CLGf64Fftu4u8Vaj66Q4xuRKBEMNZmpltUyaUMVyVJk=";
+  vendorHash = "sha256-AOdGqr738EgwbZhHHP3ctQYUilgyOc/tIJyaI0H3oeM=";
 
   doCheck = false;
 
@@ -27,14 +33,16 @@ in buildGoModule rec {
 
   # Move binaries to separate outputs and symlink them back to $out
   postInstall = lib.concatStringsSep "\n" (
-    builtins.map (bin: "mkdir -p \$${bin}/bin && mv $out/bin/${bin} \$${bin}/bin/ && ln -s \$${bin}/bin/${bin} $out/bin/") bins
+    map (
+      bin:
+      "mkdir -p \$${bin}/bin && mv $out/bin/${bin} \$${bin}/bin/ && ln -s \$${bin}/bin/${bin} $out/bin/"
+    ) bins
   );
 
   subPackages = [
     "cmd/abidump"
     "cmd/abigen"
     "cmd/blsync"
-    "cmd/bootnode"
     "cmd/clef"
     "cmd/devp2p"
     "cmd/era"
@@ -48,17 +56,19 @@ in buildGoModule rec {
   # Following upstream: https://github.com/ethereum/go-ethereum/blob/v1.11.6/build/ci.go#L218
   tags = [ "urfave_cli_no_docs" ];
 
-  # Fix for usb-related segmentation faults on darwin
-  propagatedBuildInputs =
-    lib.optionals stdenv.isDarwin [ libobjc IOKit ];
-
   passthru.tests = { inherit (nixosTests) geth; };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://geth.ethereum.org/";
     description = "Official golang implementation of the Ethereum protocol";
-    license = with licenses; [ lgpl3Plus gpl3Plus ];
-    maintainers = with maintainers; [ RaghavSood ];
+    license = with lib.licenses; [
+      lgpl3Only
+      gpl3Only
+    ];
+    maintainers = with lib.maintainers; [
+      asymmetric
+      RaghavSood
+    ];
     mainProgram = "geth";
   };
-}
+})

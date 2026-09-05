@@ -6,5 +6,10 @@
 mkKdeDerivation {
   pname = "kcalendarcore";
 
-  extraBuildInputs = [qtdeclarative libical];
+  hasPythonBindings = true;
+
+  extraBuildInputs = [
+    qtdeclarative
+    libical
+  ];
 }

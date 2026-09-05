@@ -5,7 +5,6 @@
   fetchFromGitHub,
   promise,
   python-socketio,
-  pythonOlder,
   requests,
   websockets,
 }:
@@ -15,17 +14,14 @@ buildPythonPackage rec {
   version = "3.1.1";
   format = "setuptools";
 
-  disabled = pythonOlder "3.8";
-
   src = fetchFromGitHub {
     owner = "tago-io";
     repo = "tago-sdk-python";
-    rev = "refs/tags/v${version}";
+    tag = "v${version}";
     hash = "sha256-q1xcPF+oeQsCAZjeYTVY2aaKFmb8rCTWVikGxdpPQ28=";
   };
 
   pythonRelaxDeps = true;
-
 
   propagatedBuildInputs = [
     aiohttp
@@ -40,11 +36,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "tago" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module for interacting with Tago.io";
     homepage = "https://github.com/tago-io/tago-sdk-python";
     changelog = "https://github.com/tago-io/tago-sdk-python/releases/tag/v${version}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

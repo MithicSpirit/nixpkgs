@@ -5,22 +5,21 @@
   gitUpdater,
 }:
 
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "photini";
-  version = "2024.5.0";
+  version = "2024.9.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "jim-easterbrook";
     repo = "Photini";
-    rev = "refs/tags/${version}";
-    hash = "sha256-iTaFyQpC585QPInLvFzgk65+Znvb1kTTsrzEQvy1quY=";
+    tag = finalAttrs.version;
+    hash = "sha256-0jr1mNejCF0yW9LkrrsOTcE4ZPGZrMU9Pnt0eXD+3YQ=";
   };
 
   build-system = with python3Packages; [ setuptools-scm ];
   dependencies = with python3Packages; [
-    pyqt6
-    pyqt6-webengine
+    pyside6
     cachetools
     appdirs
     chardet
@@ -33,16 +32,17 @@ python3Packages.buildPythonApplication rec {
     gpxpy
     keyring
     pillow
+    toml
   ];
 
   passthru.updateScript = gitUpdater { };
 
   meta = {
     homepage = "https://github.com/jim-easterbrook/Photini";
-    changelog = "https://photini.readthedocs.io/en/release-${version}/misc/changelog.html";
-    description = "An easy to use digital photograph metadata (Exif, IPTC, XMP) editing application";
+    changelog = "https://photini.readthedocs.io/en/release-${finalAttrs.version}/misc/changelog.html";
+    description = "Easy to use digital photograph metadata (Exif, IPTC, XMP) editing application";
     license = lib.licenses.gpl3Plus;
     maintainers = with lib.maintainers; [ zebreus ];
     mainProgram = "photini";
   };
-}
+})

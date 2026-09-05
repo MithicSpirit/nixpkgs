@@ -1,24 +1,27 @@
 {
   lib,
+  stdenv,
   rustPlatform,
   fetchFromGitHub,
 
   # nativeBuildInputs
   pkg-config,
   python3,
+  autoPatchelfHook,
+  autoAddDriverRunpath,
 
   # buildInputs
   oniguruma,
   openssl,
   mkl,
-  stdenv,
-  darwin,
 
   # env
   fetchurl,
 
-  testers,
+  versionCheckHook,
+
   mistral-rs,
+  nix-update-script,
 
   cudaPackages,
   cudaCapability ? null,
@@ -30,6 +33,9 @@
 }:
 
 let
+  inherit (stdenv) hostPlatform;
+  rustc = rustPlatform.callPackage ({ rustc }: rustc) { };
+
   accelIsValid = builtins.elem acceleration [
     null
     false
@@ -42,8 +48,8 @@ let
     assert accelIsValid;
     (acceleration == "cuda") || (config.cudaSupport && acceleration == null);
 
-  minRequiredCudaCapability = "6.1"; # build fails with 6.0
-  inherit (cudaPackages.cudaFlags) cudaCapabilities;
+  minRequiredCudaCapability = "8.0"; # build fails with 7.5
+  inherit (cudaPackages.flags) cudaCapabilities;
   cudaCapabilityString =
     if cudaCapability == null then
       (builtins.head (
@@ -54,148 +60,223 @@ let
       ))
     else
       cudaCapability;
-  cudaCapability' = lib.toInt (cudaPackages.cudaFlags.dropDot cudaCapabilityString);
+  cudaCapability' = lib.toInt (cudaPackages.flags.dropDots cudaCapabilityString);
 
-  # TODO Should we assert mklAccel -> stdenv.isLinux && stdenv.isx86_64 ?
   mklSupport =
     assert accelIsValid;
     (acceleration == "mkl");
 
   metalSupport =
     assert accelIsValid;
-    (acceleration == "metal") || (stdenv.isDarwin && stdenv.isAarch64 && (acceleration == null));
+    (acceleration == "metal")
+    || (hostPlatform.isDarwin && hostPlatform.isAarch64 && (acceleration == null));
 
-  darwinBuildInputs =
-    with darwin.apple_sdk.frameworks;
-    [
-      Accelerate
-      CoreVideo
-      CoreGraphics
-    ]
-    ++ lib.optionals metalSupport [
-      MetalKit
-      MetalPerformanceShaders
-    ];
 in
-
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "mistral-rs";
-  version = "0.1.18";
+  version = "0.9.2";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "EricLBuehler";
     repo = "mistral.rs";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-lMDFWNv9b0UfckqLmyWRVwnqmGe6nxYsUHzoi2+oG84=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-T7CKIQOCvJXAdYpwLzQ7oFs/xu30OIuxqa8GpYWLK9U=";
   };
 
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-    outputHashes = {
-      "candle-core-0.6.0" = "sha256-DxGBWf2H7MamrbboTJ4zHy1HeE8ZVT7QvE3sTYrRxBc=";
-      "range-checked-0.1.0" = "sha256-S+zcF13TjwQPFWZLIbUDkvEeaYdaxCOtDLtI+JRvum8=";
-    };
-  };
+  patches = [
+    ./no-native-cpu.patch
+  ];
 
-  postPatch = ''
-    ln -s ${./Cargo.lock} Cargo.lock
-  '';
+  postPatch =
+    # LTO significantly increases the build time (12m -> 1h)
+    ''
+      substituteInPlace Cargo.toml \
+        --replace-fail \
+          "lto = true" \
+          "lto = false"
+
+    ''
+    # LLVM 21 cannot select the VPDPBUSD intrinsic because its argument types are incorrect.
+    # Fixed by https://github.com/rust-lang/llvm-project/commit/94e2c19f86a699d7a19ff0f4130b696699189c8d.
+    + lib.optionalString (hostPlatform.isx86_64 && lib.versionOlder rustc.llvm.version "22") ''
+      substituteInPlace "$cargoDepsCopy/source-git-0/candle-core-0.11.0/src/quantized/mod.rs" \
+        --replace-fail \
+          '#[cfg(target_arch = "x86_64")]' \
+          '#[cfg(any())]' \
+        --replace-fail \
+          '#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]' \
+          '#[cfg(not(target_arch = "aarch64"))]'
+
+      substituteInPlace "$cargoDepsCopy/source-git-0/candle-core-0.11.0/src/quantized/repack.rs" \
+        --replace-fail \
+          '#[cfg(target_arch = "x86_64")]' \
+          '#[cfg(any())]' \
+        --replace-fail \
+          '#[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]' \
+          '#[cfg(not(target_arch = "aarch64"))]'
+    ''
+    # Prevent build scripts from attempting to clone cutlass (which would fail in the sandbox anyway).
+    # Instead, we provide cutlass in buildInputs.
+    + lib.optionalString cudaSupport ''
+      substituteInPlace mistralrs-flash-attn/build.rs \
+        --replace-fail \
+          ".with_cutlass(Some(&cutlass_commit))" \
+          ""
+
+      substituteInPlace mistralrs-quant/build.rs \
+        --replace-fail \
+          "builder = builder.with_cutlass(Some(&cutlass_commit));" \
+          ""
+    '';
+
+  cargoHash = "sha256-7Vp9nNvVbC8McJwQuiIMJWGfU42xtr6rL1/H8WJ1wkQ=";
 
   nativeBuildInputs = [
     pkg-config
     python3
-  ] ++ lib.optionals cudaSupport [ cudaPackages.cuda_nvcc ];
+  ]
+  ++ lib.optionals cudaSupport [
+    # WARNING: autoAddDriverRunpath must run AFTER autoPatchelfHook
+    # Otherwise, autoPatchelfHook removes driverLink from RUNPATH
+    autoPatchelfHook
+    autoAddDriverRunpath
 
-  buildInputs =
-    [
-      oniguruma
-      openssl
-    ]
-    ++ lib.optionals cudaSupport [
-      cudaPackages.cuda_nvrtc
+    cudaPackages.cuda_nvcc
+  ];
+
+  buildInputs = [
+    oniguruma
+    openssl
+  ]
+  ++ lib.optionals cudaSupport [
+    cudaPackages.cccl
+    cudaPackages.cuda_cudart
+    cudaPackages.cuda_nvrtc
+    cudaPackages.libcublas
+    cudaPackages.libcurand
+
+    # For compiling kernels
+    cudaPackages.cutlass
+  ]
+  ++ lib.optionals mklSupport [ mkl ];
+
+  buildFeatures =
+    lib.optionals cudaSupport [ "cuda" ]
+    ++ lib.optionals mklSupport [ "mkl" ]
+    ++ lib.optionals (hostPlatform.isDarwin && metalSupport) [ "metal" ];
+
+  env = {
+    # metal (proprietary) is not available in the darwin sandbox.
+    # Hence, we must disable metal precompilation.
+    MISTRALRS_METAL_PRECOMPILE = 0;
+
+    SWAGGER_UI_DOWNLOAD_URL =
+      let
+        # When updating:
+        # - Look for the version of `utoipa-swagger-ui` at:
+        #   https://github.com/EricLBuehler/mistral.rs/blob/v<MISTRAL-RS-VERSION>/Cargo.toml
+        # - Look at the corresponding version of `swagger-ui` at:
+        #   https://github.com/juhaku/utoipa/blob/utoipa-swagger-ui-<UTOPIA-SWAGGER-UI-VERSION>/utoipa-swagger-ui/build.rs#L21-L22
+        swaggerUiVersion = "5.17.14";
+
+        swaggerUi = fetchurl {
+          url = "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v${swaggerUiVersion}.zip";
+          hash = "sha256-SBJE0IEgl7Efuu73n3HZQrFxYX+cn5UU5jrL4T5xzNw=";
+        };
+      in
+      "file://${swaggerUi}";
+
+    RUSTONIG_SYSTEM_LIBONIG = true;
+  }
+  // (lib.optionalAttrs cudaSupport {
+    CUDA_COMPUTE_CAP = cudaCapability';
+
+    # We already list CUDA dependencies in buildInputs
+    # We only set CUDA_TOOLKIT_ROOT_DIR to satisfy some redundant checks from upstream
+    CUDA_TOOLKIT_ROOT_DIR = lib.getDev cudaPackages.cuda_cudart;
+  });
+
+  appendRunpaths = lib.optionals cudaSupport [
+    (lib.makeLibraryPath [
       cudaPackages.libcublas
       cudaPackages.libcurand
-    ]
-    ++ lib.optionals mklSupport [ mkl ]
-    ++ lib.optionals stdenv.isDarwin darwinBuildInputs;
-
-  cargoBuildFlags =
-    lib.optionals cudaSupport [ "--features=cuda" ]
-    ++ lib.optionals mklSupport [ "--features=mkl" ]
-    ++ lib.optionals (stdenv.isDarwin && metalSupport) [ "--features=metal" ];
-
-  env =
-    {
-      SWAGGER_UI_DOWNLOAD_URL =
-        let
-          # When updating:
-          # - Look for the version of `utopia-swagger-ui` at:
-          #   https://github.com/EricLBuehler/mistral.rs/blob/v<MISTRAL-RS-VERSION>/mistralrs-server/Cargo.toml
-          # - Look at the corresponding version of `swagger-ui` at:
-          #   https://github.com/juhaku/utoipa/blob/utoipa-swagger-ui-<UTOPIA-SWAGGER-UI-VERSION>/utoipa-swagger-ui/build.rs#L21-L22
-          swaggerUiVersion = "5.17.12";
-
-          swaggerUi = fetchurl {
-            url = "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v${swaggerUiVersion}.zip";
-            hash = "sha256-HK4z/JI+1yq8BTBJveYXv9bpN/sXru7bn/8g5mf2B/I=";
-          };
-        in
-        "file://${swaggerUi}";
-
-      RUSTONIG_SYSTEM_LIBONIG = true;
-    }
-    // (lib.optionalAttrs cudaSupport {
-      CUDA_COMPUTE_CAP = cudaCapability';
-
-      # Apparently, cudart is enough: No need to provide the entire cudaPackages.cudatoolkit derivation.
-      CUDA_TOOLKIT_ROOT_DIR = lib.getDev cudaPackages.cuda_cudart;
-    });
-
-  NVCC_PREPEND_FLAGS = lib.optionals cudaSupport [
-    "-I${lib.getDev cudaPackages.cuda_cudart}/include"
-    "-I${lib.getDev cudaPackages.cuda_cccl}/include"
+    ])
   ];
 
   # swagger-ui will once more be copied in the target directory during the check phase
+  # See https://github.com/juhaku/utoipa/blob/utoipa-swagger-ui-9.0.2/utoipa-swagger-ui/build.rs#L168
   # Not deleting the existing unpacked archive leads to a `PermissionDenied` error
   preCheck = ''
-    rm -rf target/${stdenv.hostPlatform.config}/release/build/
+    rm -rf target/${stdenv.hostPlatform.rust.cargoShortTarget}/release/build/
   '';
 
-  # Try to access internet
+  # Prevent checkFeatures from inheriting buildFeatures because
+  # - `cargo check ... --features=cuda` requires access to a real GPU
+  # - `cargo check ... --features=metal` (on darwin) requires the sandbox to be completely disabled
+  checkFeatures = [ ];
+
   checkFlags = [
-    "--skip=gguf::gguf_tokenizer::tests::test_decode_gpt2"
-    "--skip=gguf::gguf_tokenizer::tests::test_decode_llama"
-    "--skip=gguf::gguf_tokenizer::tests::test_encode_gpt2"
-    "--skip=gguf::gguf_tokenizer::tests::test_encode_llama"
-    "--skip=sampler::tests::test_argmax"
-    "--skip=sampler::tests::test_gumbel_speculative"
+    # Try to access internet
+    "--skip=gguf::gguf_tokenizer::tests::test_encode_decode_gpt2"
+    "--skip=gguf::gguf_tokenizer::tests::test_encode_decode_llama"
+    "--skip=util::tests::test_parse_image_url"
+    "--skip=utils::tiktoken::tests::test_tiktoken_conversion"
+
+    # Spawn a nested sandbox (bubblewrap-like) which fails inside the nix build sandbox
+    "--skip=callbacks_outlive_manager_executor_tempdir"
+    "--skip=sandboxed_session_can_execute_python"
+    "--skip=sandboxed_session_default_policy_can_execute_python"
+
+    # Upstream's v0.9.2 bump updated the version example in the generated CLI reference page
+    # but not in the clap doc comment it is generated from, so this golden test fails at the tag.
+    "--skip=docgen::cli_reference_matches_committed"
+
+    # Linux namespace / seccomp tests require capabilities the nix build sandbox blocks
+    "--skip=network_none_blocks_socket"
+    "--skip=rlimit_nproc_caps_processes"
+    "--skip=seccomp_blocks_ptrace"
+    "--skip=unshare_is_denied_inside_child"
   ];
+
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+  # When started, mistralrs tries to load libcuda.so from the driver which is not available in the sandbox
+  # mistralrs: error while loading shared libraries: libcuda.so.1: cannot open shared object file: No such file or directory
+  doInstallCheck = !cudaSupport;
+
+  __darwinAllowLocalNetworking = true;
 
   passthru = {
     tests = {
-      version = testers.testVersion { package = mistral-rs; };
-
-      withMkl = mistral-rs.override { acceleration = "mkl"; };
-      withCuda = mistral-rs.override { acceleration = "cuda"; };
-      withMetal = mistral-rs.override { acceleration = "metal"; };
+      withMkl = lib.optionalAttrs (hostPlatform.isLinux && hostPlatform.isx86_64) (
+        mistral-rs.override { acceleration = "mkl"; }
+      );
+      withCuda = lib.optionalAttrs hostPlatform.isLinux (mistral-rs.override { acceleration = "cuda"; });
+      withMetal = lib.optionalAttrs (hostPlatform.isDarwin && hostPlatform.isAarch64) (
+        mistral-rs.override { acceleration = "metal"; }
+      );
     };
+    updateScript = nix-update-script { };
   };
 
   meta = {
     description = "Blazingly fast LLM inference";
     homepage = "https://github.com/EricLBuehler/mistral.rs";
-    changelog = "https://github.com/EricLBuehler/mistral.rs/releases/tag/v${version}";
+    changelog = "https://github.com/EricLBuehler/mistral.rs/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ GaetanLepage ];
-    mainProgram = "mistralrs-server";
+    mainProgram = "mistralrs";
     platforms =
       if cudaSupport then
         lib.platforms.linux
       else if metalSupport then
         [ "aarch64-darwin" ]
+      else if mklSupport then
+        [ "x86_64-linux" ]
       else
         lib.platforms.unix;
     broken = mklSupport;
   };
-}
+})

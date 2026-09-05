@@ -1,50 +1,50 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
-, nix-update-script
-, testers
-, crossplane-cli
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+  nix-update-script,
+  testers,
+  crossplane-cli,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "crossplane-cli";
-  version = "1.16.0";
+  version = "2.5.0";
 
   src = fetchFromGitHub {
     owner = "crossplane";
-    repo = "crossplane";
-    rev = "v${version}";
-    hash = "sha256-1067l3DM6/kW6d35+9nfMdFtu8jIzw/QJaHFKzOTbSc=";
+    repo = "cli";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-ksym0FzurF2fkpKtIiTJ184Wzj4Xz48uCUPSBUeSgbg=";
   };
 
-  vendorHash = "sha256-Ccc7hEsHkHw2P5cgMB06VVlHur5DCPclaEMoFCwoSrA=";
+  vendorHash = "sha256-FUzdO47z53XVQ3DLUKXe9TF2LogsSzobz13bzEmkH1U=";
 
   ldflags = [
     "-s"
     "-w"
-    "-X github.com/crossplane/crossplane/internal/version.version=v${version}"
+    "-X github.com/crossplane/crossplane-runtime/v2/pkg/version.version=v${finalAttrs.version}"
   ];
 
-  subPackages = [ "cmd/crank" ];
-
-  postInstall = ''
-    mv $out/bin/crank $out/bin/crossplane
-  '';
+  subPackages = [ "cmd/crossplane" ];
 
   passthru.tests.version = testers.testVersion {
     package = crossplane-cli;
-    command = "crossplane version || true";
-    version = "v${version}";
+    command = "crossplane version --client";
+    version = "v${finalAttrs.version}";
   };
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://www.crossplane.io/";
-    changelog = "https://github.com/crossplane/crossplane/releases/tag/v${version}";
+    changelog = "https://github.com/crossplane/cli/releases/tag/v${finalAttrs.version}";
     description = "Utility to make using Crossplane easier";
     mainProgram = "crossplane";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ selfuryon ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
+      selfuryon
+      LorenzBischof
+    ];
   };
-}
+})

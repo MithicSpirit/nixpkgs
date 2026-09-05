@@ -1,39 +1,37 @@
 {
   lib,
-  aiohttp,
   buildPythonPackage,
-  fetchPypi,
-  pythonOlder,
-  requests,
+  fetchFromGitHub,
+  hatchling,
+  httpx,
 }:
 
 buildPythonPackage rec {
   pname = "meraki";
-  version = "1.49.0";
-  format = "setuptools";
+  version = "4.4.0";
+  pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-4/FiF8eEziaD3ka/XVdAxDI8WWuWlYoMoLupQXVCBA8=";
+  src = fetchFromGitHub {
+    owner = "meraki";
+    repo = "dashboard-api-python";
+    tag = version;
+    hash = "sha256-65rD5II7QiTG7HABNonjEXiPcy4NMx4SsSv68BS3io8=";
   };
 
-  propagatedBuildInputs = [
-    aiohttp
-    requests
-  ];
+  build-system = [ hatchling ];
+
+  dependencies = [ httpx ];
 
   # All tests require an API key
   doCheck = false;
 
   pythonImportsCheck = [ "meraki" ];
 
-  meta = with lib; {
-    description = "Provides all current Meraki dashboard API calls to interface with the Cisco Meraki cloud-managed platform";
+  meta = {
+    description = "Cisco Meraki cloud-managed platform dashboard API python library";
     homepage = "https://github.com/meraki/dashboard-api-python";
-    changelog = "https://github.com/meraki/dashboard-api-python/releases/tag/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ dylanmtaylor ];
+    changelog = "https://github.com/meraki/dashboard-api-python/releases/tag/${src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ dylanmtaylor ];
   };
 }

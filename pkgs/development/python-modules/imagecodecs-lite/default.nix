@@ -1,5 +1,4 @@
 {
-  stdenv,
   lib,
   fetchPypi,
   buildPythonPackage,
@@ -28,11 +27,10 @@ buildPythonPackage rec {
     pytest
   '';
 
-  meta = with lib; {
-    broken = (stdenv.isLinux && stdenv.isAarch64) || stdenv.isDarwin;
+  meta = {
     description = "Block-oriented, in-memory buffer transformation, compression, and decompression functions";
     homepage = "https://www.lfd.uci.edu/~gohlke/";
-    maintainers = [ maintainers.tbenst ];
-    license = licenses.bsd3;
+    maintainers = [ ];
+    license = lib.licenses.bsd3;
   };
 }

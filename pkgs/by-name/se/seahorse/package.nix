@@ -1,47 +1,50 @@
-{ stdenv
-, lib
-, fetchpatch
-, fetchurl
-, vala
-, meson
-, ninja
-, libpwquality
-, pkg-config
-, gtk3
-, glib
-, glib-networking
-, wrapGAppsHook3
-, itstool
-, gnupg
-, desktop-file-utils
-, libsoup_3
-, gnome
-, gpgme
-, python3
-, openldap
-, gcr
-, libsecret
-, avahi
-, p11-kit
-, openssh
-, gsettings-desktop-schemas
-, libhandy
+{
+  stdenv,
+  lib,
+  fetchurl,
+  fetchpatch,
+  vala,
+  meson,
+  ninja,
+  libpwquality,
+  pkg-config,
+  gtk3,
+  glib,
+  glib-networking,
+  wrapGAppsHook3,
+  itstool,
+  gnupg,
+  desktop-file-utils,
+  libsoup_3,
+  gnome,
+  gpgme,
+  python3,
+  openldap,
+  gcr,
+  libsecret,
+  avahi,
+  p11-kit,
+  openssh,
+  gsettings-desktop-schemas,
+  libhandy,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "seahorse";
-  version = "43.0";
+  version = "47.0.1";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/seahorse/${lib.versions.major version}/seahorse-${version}.tar.xz";
-    hash = "sha256-Wx0b+6dPNlgifzyC4pbzMN0PzR70Y2tqIYIo/uXqgy0=";
+    url = "mirror://gnome/sources/seahorse/${lib.versions.major finalAttrs.version}/seahorse-${finalAttrs.version}.tar.xz";
+    hash = "sha256-nBkX5KYff+u3h4Sc42znF/znBsNGiAuZHQVtVNrbysw=";
   };
 
   patches = [
+    # Fix build with gpgme 2.0+
+    # https://gitlab.gnome.org/GNOME/seahorse/-/merge_requests/248
     (fetchpatch {
-      name = "gpg-2.4.patch";
-      url = "https://gitlab.gnome.org/GNOME/seahorse/-/commit/9260c74779be3d7a378db0671af862ffa3573d42.patch";
-      hash = "sha256-4QiFgH4jC1ucmA9fFozUQZ3Mat76SgpYkMpRz80RH64=";
+      name = "seahorse-allow-build-with-gpgme-2_0.patch";
+      url = "https://gitlab.gnome.org/GNOME/seahorse/-/commit/aa68522cc696fa491ccfdff735b77bcf113168d0.patch";
+      hash = "sha256-xd5K8xUGuMk+41JROsq7QpZ5gD2jPAbv1kQdLI3z9lc=";
     })
   ];
 
@@ -81,6 +84,16 @@ stdenv.mkDerivation rec {
     patchShebangs build-aux/gpg_check_version.py
   '';
 
+  env =
+    lib.optionalAttrs (stdenv.cc.isGNU && (lib.versionAtLeast (lib.getVersion stdenv.cc.cc) "14"))
+      {
+        NIX_CFLAGS_COMPILE = toString [
+          "-Wno-error=implicit-function-declaration"
+          "-Wno-error=int-conversion"
+          "-Wno-error=return-mismatch"
+        ];
+      };
+
   preCheck = ''
     # Add “org.gnome.crypto.pgp” GSettings schema to path
     # to make it available for “gpgme-backend” test.
@@ -103,12 +116,12 @@ stdenv.mkDerivation rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://gitlab.gnome.org/GNOME/seahorse";
     description = "Application for managing encryption keys and passwords in the GnomeKeyring";
     mainProgram = "seahorse";
-    maintainers = teams.gnome.members;
-    license = licenses.gpl2Plus;
-    platforms = platforms.linux;
+    teams = [ lib.teams.gnome ];
+    license = lib.licenses.gpl2Plus;
+    platforms = lib.platforms.linux;
   };
-}
+})

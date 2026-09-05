@@ -1,26 +1,24 @@
-{ lib
-, buildPythonPackage
-, pythonOlder
-, fetchFromGitHub
-, setuptools
-, packaging
-, typing-extensions
-, pytestCheckHook
-, syrupy
+{
+  lib,
+  buildPythonPackage,
+  fetchFromGitHub,
+  setuptools,
+  packaging,
+  typing-extensions,
+  pytestCheckHook,
+  syrupy,
 }:
 
 buildPythonPackage rec {
   pname = "htmltools";
-  version = "0.5.3";
+  version = "0.6.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "posit-dev";
     repo = "py-htmltools";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-+BSbJdWmqoEQGEJWBgoTVe4bbvlGJiMyfvvj0lAy9ZA=";
+    tag = "v${version}";
+    hash = "sha256-psrTSy4NhhsZamB7lQDt+n6LUDiRcHD5+FFqTIIrnZc=";
   };
 
   build-system = [

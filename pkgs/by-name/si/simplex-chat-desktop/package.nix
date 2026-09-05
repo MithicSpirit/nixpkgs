@@ -1,49 +1,65 @@
-{ lib
-, appimageTools
-, fetchurl
-, gitUpdater
+{
+  lib,
+  appimageTools,
+  fetchurl,
+  stdenv,
 }:
 
 let
   pname = "simplex-chat-desktop";
-  version = "6.0.3";
+  version = "7.0.1";
 
-  src = fetchurl {
-    url = "https://github.com/simplex-chat/simplex-chat/releases/download/v${version}/simplex-desktop-x86_64.AppImage";
-    hash = "sha256-No3nS1AUOxhaxvaPvc8tLW+fj59P4AT/bt0dZobdGAw=";
+  sources = {
+    "aarch64-linux" = fetchurl {
+      url = "https://github.com/simplex-chat/simplex-chat/releases/download/v${version}/simplex-desktop-aarch64.AppImage";
+      hash = "sha256-p8vpMdqRgxGANaDs8G1brNRYCEvdghHLJFNfGfuK9rs=";
+    };
+    "x86_64-linux" = fetchurl {
+      url = "https://github.com/simplex-chat/simplex-chat/releases/download/v${version}/simplex-desktop-x86_64.AppImage";
+      hash = "sha256-7GJLmnr8R3x6H4Rf2aiyJic0mn5g03srw42B/Iz43Cc=";
+    };
   };
+
+  inherit (stdenv.hostPlatform) system;
+  throwSystem = throw "simplex-chat-desktop: Unsupported system: ${system}";
+
+  src = sources.${system} or throwSystem;
 
   appimageContents = appimageTools.extract {
     inherit pname version src;
   };
-in appimageTools.wrapType2 {
-    inherit pname version src;
+in
+appimageTools.wrapType2 {
+  inherit pname version src;
 
-    extraBwrapArgs = [
-      "--setenv _JAVA_AWT_WM_NONREPARENTING 1"
-    ];
+  extraPkgs = pkgs: [ pkgs.libnotify ];
 
-    extraInstallCommands = ''
-      install --mode=444 -D ${appimageContents}/chat.simplex.app.desktop --target-directory=$out/share/applications
-      substituteInPlace $out/share/applications/chat.simplex.app.desktop \
-        --replace-fail 'Exec=simplex' 'Exec=simplex-chat-desktop'
-      cp -r ${appimageContents}/usr/share/icons $out/share
-    '';
+  extraBwrapArgs = [
+    "--setenv _JAVA_AWT_WM_NONREPARENTING 1"
+  ];
 
-  passthru.updateScript = gitUpdater {
-    url = "https://github.com/simplex-chat/simplex-chat";
-    rev-prefix = "v";
-    # skip tags that does not correspond to official releases, like vX.Y.Z-(beta,fdroid,armv7a).
-    ignoredVersions = "-";
+  extraInstallCommands = ''
+    install --mode=444 -D ${appimageContents}/chat.simplex.app.desktop --target-directory=$out/share/applications
+    substituteInPlace $out/share/applications/chat.simplex.app.desktop \
+      --replace-fail 'Exec=simplex' 'Exec=simplex-chat-desktop'
+    cp -r ${appimageContents}/usr/share/icons $out/share
+  '';
+
+  passthru = {
+    inherit sources;
+    updateScript = ./update.sh;
   };
 
-  meta = with lib; {
+  meta = {
     description = "Desktop application for SimpleX Chat";
     mainProgram = "simplex-chat-desktop";
     homepage = "https://simplex.chat";
     changelog = "https://github.com/simplex-chat/simplex-chat/releases/tag/v${version}";
-    license = licenses.agpl3Only;
-    maintainers = with maintainers; [ terryg yuu ];
-    platforms = [ "x86_64-linux" ];
+    license = lib.licenses.agpl3Only;
+    maintainers = with lib.maintainers; [ terryg ];
+    platforms = [
+      "aarch64-linux"
+      "x86_64-linux"
+    ];
   };
 }

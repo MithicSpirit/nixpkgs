@@ -1,60 +1,45 @@
 {
   lib,
+  aiofiles,
   aiohttp,
-  async-timeout,
   buildPythonPackage,
-  crcmod,
   defusedxml,
   fetchFromGitHub,
   freezegun,
   jsonpickle,
   munch,
-  pyserial,
   pytest-aiohttp,
   pytest-asyncio,
   pytestCheckHook,
   python-dateutil,
-  pythonOlder,
-  semver,
   setuptools,
-  wheel,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "plugwise";
-  version = "1.1.0";
+  version = "1.14.6";
   pyproject = true;
-
-  disabled = pythonOlder "3.11";
 
   src = fetchFromGitHub {
     owner = "plugwise";
     repo = "python-plugwise";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-IaLXCuope/6shF3HmKAo7IrXxVJLzAQzsqlx0dASllk=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-qWiHlCP7S2JNDGKNDaqH/zvNyY+wldOG+fls2YvBDLY=";
   };
 
   postPatch = ''
-    # setuptools
-    sed -i -e "s/~=[0-9.]*//" pyproject.toml
-    # wheel
-    sed -i -e "s/~=[0-9.]*//" pyproject.toml
+    # setuptools and wheel
+    sed -i -e "s/~=[0-9.]*//g" pyproject.toml
   '';
 
-  build-system = [
-    setuptools
-    wheel
-  ];
+  build-system = [ setuptools ];
 
   dependencies = [
+    aiofiles
     aiohttp
-    async-timeout
-    crcmod
     defusedxml
     munch
-    pyserial
     python-dateutil
-    semver
   ];
 
   nativeCheckInputs = [
@@ -69,11 +54,11 @@ buildPythonPackage rec {
 
   __darwinAllowLocalNetworking = true;
 
-  meta = with lib; {
+  meta = {
     description = "Python module for Plugwise Smiles, Stretch and USB stick";
     homepage = "https://github.com/plugwise/python-plugwise";
-    changelog = "https://github.com/plugwise/python-plugwise/releases/tag/v${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/plugwise/python-plugwise/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

@@ -16,22 +16,21 @@ stdenvNoCC.mkDerivation {
     owner = "yishilin14";
     repo = "asc-key-to-qr-code-gif";
     rev = "5d36a1bada8646ae0f61b04356e62ba5ef10a1aa";
-    sha256 = "sha256-DwxYgBsioL86WM6KBFJ+DuSJo3/1pwD1Fl156XD98RY=";
+    hash = "sha256-DwxYgBsioL86WM6KBFJ+DuSJo3/1pwD1Fl156XD98RY=";
   };
 
   dontBuild = true;
 
   postPatch =
     let
-      substitutions =
-        [
-          ''--replace-fail "convert" "${lib.getExe imagemagick}"''
-          ''--replace-fail "qrencode" "${lib.getExe qrencode}"''
-        ]
-        ++ lib.optionals testQR [
-          ''--replace-fail "hash zbarimg" "true"'' # hash does not work on NixOS
-          ''--replace-fail "$(zbarimg --raw" "$(${zbar}/bin/zbarimg --raw"''
-        ];
+      substitutions = [
+        ''--replace-fail "convert" "${lib.getExe imagemagick}"''
+        ''--replace-fail "qrencode" "${lib.getExe qrencode}"''
+      ]
+      ++ lib.optionals testQR [
+        ''--replace-fail "hash zbarimg" "true"'' # hash does not work on NixOS
+        ''--replace-fail "$(zbarimg --raw" "$(${zbar}/bin/zbarimg --raw"''
+      ];
     in
     ''
       substituteInPlace asc-to-gif.sh ${lib.concatStringsSep " " substitutions}

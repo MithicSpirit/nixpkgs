@@ -1,32 +1,33 @@
-{ fetchFromGitHub
-, fetchurl
-, lib
-, stdenv
-, cmake
-, git
-, pkg-config
-, glib
-, gnutls
-, perl
-, heimdal
-, popt
-, libunistring
+{
+  fetchFromGitHub,
+  fetchurl,
+  lib,
+  stdenv,
+  cmake,
+  git,
+  pkg-config,
+  glib,
+  gnutls,
+  perl,
+  heimdal,
+  popt,
+  libunistring,
 }:
 let
   heimdalConfigHeader = fetchurl {
     url = "https://raw.githubusercontent.com/heimdal/heimdal/d8c10e68a61f10c8fca62b227a0766d294bda4a0/include/heim_threads.h";
-    sha256 = "08345hkb5jbdcgh2cx3d624w4c8wxmnnsjxlw46wsnm39k4l0ihw";
+    hash = "sha256-HEZAyUyjWs0N4bRLbW3tHDHCiTBtdCbgY23JsiYsZCA=";
   };
 in
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "openvas-smb";
-  version = "22.5.6";
+  version = "22.5.10";
 
   src = fetchFromGitHub {
     owner = "greenbone";
     repo = "openvas-smb";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-wnlBOHYOTWNbwzoHCpsXbuhp0uH3wBH6+Oo4Y+zSsfg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-H0nG+0DPBQmXVQDVLTEhxhoFeU9ryU5N6qz64+PxV+g=";
   };
 
   nativeBuildInputs = [
@@ -60,12 +61,12 @@ stdenv.mkDerivation rec {
     cp ${heimdalConfigHeader} include/heim_threads.h
   '';
 
-  meta = with lib; {
+  meta = {
     description = "SMB module for Greenbone Community Edition";
     homepage = "https://github.com/greenbone/openvas-smb";
-    license = licenses.gpl2Only;
-    maintainers = with maintainers; [ mi-ael ];
+    license = lib.licenses.gpl2Only;
+    maintainers = with lib.maintainers; [ mi-ael ];
     mainProgram = "wmic";
-    platforms = platforms.unix;
+    platforms = lib.platforms.linux;
   };
-}
+})

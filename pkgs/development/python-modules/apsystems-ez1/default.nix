@@ -10,14 +10,14 @@
 
 buildPythonPackage rec {
   pname = "apsystems-ez1";
-  version = "1.3.3";
+  version = "2.7.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "SonnenladenGmbH";
     repo = "APsystems-EZ1-API";
-    rev = "refs/tags/${version}";
-    hash = "sha256-V6GcTSupjhjGEOsO+C9pImYJRnvdDbttW3Zh0PDYt5I=";
+    tag = version;
+    hash = "sha256-ry3sQPkYnH0asmE41lEQA5G2tk07eTpsBiuJbVIjrXU=";
   };
 
   build-system = [ poetry-core ];
@@ -32,10 +32,10 @@ buildPythonPackage rec {
   ];
 
   meta = {
-    changelog = "https://github.com/SonnenladenGmbH/APsystems-EZ1-API/releases/tag/${version}";
-    description = "Streamlined interface for interacting with the local API of APsystems EZ1 Microinverters.";
+    changelog = "https://github.com/SonnenladenGmbH/APsystems-EZ1-API/releases/tag/${src.tag}";
+    description = "Streamlined interface for interacting with the local API of APsystems EZ1 Microinverters";
     homepage = "https://github.com/SonnenladenGmbH/APsystems-EZ1-API";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ pyrox0 ];
+    maintainers = [ ];
   };
 }

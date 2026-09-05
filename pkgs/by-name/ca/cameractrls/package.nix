@@ -35,18 +35,19 @@ let
     "cameraptzmidi"
     "cameraptzspnav"
     "cameraview"
-  ] ++ lib.optionals (withGtk != null) [ mainExecutable ];
+  ]
+  ++ lib.optionals (withGtk != null) [ mainExecutable ];
 in
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "cameractrls";
-  version = "0.6.6";
+  version = "0.6.10";
   pyproject = false;
 
   src = fetchFromGitHub {
     owner = "soyersoyer";
     repo = "cameractrls";
-    rev = "v${version}";
-    hash = "sha256-QjjLd5L+8Slxc3ywurhsWp1pZ2E1Y7NOdnCV2ZYBlqU=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-WtFwi7X2RvOqx8sYLhzurm6DYbwbVOswYJfb17aORF0=";
   };
 
   postPatch = ''
@@ -73,29 +74,28 @@ python3Packages.buildPythonApplication rec {
   # Only used when withGtk != null
   dependencies = with python3Packages; [ pygobject3 ];
 
-  installPhase =
-    ''
-      runHook preInstall
+  installPhase = ''
+    runHook preInstall
 
-      mkdir -p $out/bin
+    mkdir -p $out/bin
 
-      for file in ${lib.concatStringsSep " " installExecutables}; do
-        install -Dm755 $file.py -t ${modulePath}
-        ln -s ${modulePath}/$file.py $out/bin/$file
-      done
-    ''
-    + lib.optionalString (withGtk != null) ''
-      install -Dm644 pkg/hu.irl.cameractrls.svg -t $out/share/icons/hicolor/scalable/apps
-      install -Dm644 pkg/hu.irl.cameractrls.metainfo.xml -t $out/share/metainfo
-      mkdir -p $out/share/applications
-      desktop-file-install \
-        --dir="$out/share/applications" \
-        --set-key=Exec --set-value="${mainExecutable}" \
-        pkg/hu.irl.cameractrls.desktop
-    ''
-    + ''
-      runHook postInstall
-    '';
+    for file in ${lib.concatStringsSep " " installExecutables}; do
+      install -Dm755 $file.py -t ${modulePath}
+      ln -s ${modulePath}/$file.py $out/bin/$file
+    done
+  ''
+  + lib.optionalString (withGtk != null) ''
+    install -Dm644 pkg/hu.irl.cameractrls.svg -t $out/share/icons/hicolor/scalable/apps
+    install -Dm644 pkg/hu.irl.cameractrls.metainfo.xml -t $out/share/metainfo
+    mkdir -p $out/share/applications
+    desktop-file-install \
+      --dir="$out/share/applications" \
+      --set-key=Exec --set-value="${mainExecutable}" \
+      pkg/hu.irl.cameractrls.desktop
+  ''
+  + ''
+    runHook postInstall
+  '';
 
   dontWrapGApps = true;
   dontWrapPythonPrograms = true;
@@ -125,9 +125,9 @@ python3Packages.buildPythonApplication rec {
       presets at device connection).
     '';
     homepage = "https://github.com/soyersoyer/cameractrls";
-    license = lib.licenses.gpl3Plus;
+    license = lib.licenses.lgpl3Plus;
     mainProgram = mainExecutable;
     maintainers = with lib.maintainers; [ aleksana ];
     platforms = lib.platforms.linux;
   };
-}
+})

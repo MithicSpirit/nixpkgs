@@ -5,6 +5,7 @@
   fetchFromGitHub,
   hatchling,
   aiohttp,
+  bcrypt,
   mashumaro,
   aioresponses,
   pytest-aio,
@@ -14,7 +15,7 @@
 
 buildPythonPackage rec {
   pname = "solarlog-cli";
-  version = "0.2.0";
+  version = "0.7.1";
   pyproject = true;
 
   disabled = pythonOlder "3.12";
@@ -22,14 +23,15 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "dontinelli";
     repo = "solarlog_cli";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-x9MovIKFImu60Ns2sJTy71S22cR9Az/yNMWzGM50y7Y=";
+    tag = "v${version}";
+    hash = "sha256-sZ3H2x4QkDMjxo50HHEktfdjOwwGqdPr8tiUq6AafS4=";
   };
 
   build-system = [ hatchling ];
 
   dependencies = [
     aiohttp
+    bcrypt
     mashumaro
   ];
 

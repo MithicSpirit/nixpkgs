@@ -3,29 +3,31 @@
   fetchFromGitHub,
   buildPythonPackage,
   setuptools,
-  pip-chill,
   lxml,
   requests,
 }:
 
 buildPythonPackage rec {
   pname = "free-proxy";
-  version = "1.1.1";
+  version = "1.2.2";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "jundymek";
     repo = "free-proxy";
-    rev = "refs/tags/${version}";
-    hash = "sha256-82usyhUzZrdYir8puiAfaF650f0PxYJSXBE75zxYjK8=";
+    tag = "v${version}";
+    hash = "sha256-5fvSla4F0epe9XWtvd++RS/IKDTfzgKgU1dYmoZkeZk=";
   };
 
   build-system = [ setuptools ];
 
   dependencies = [
-    pip-chill
     lxml
     requests
+  ];
+
+  pythonRemoveDeps = [
+    "pip-chill"
   ];
 
   meta = {

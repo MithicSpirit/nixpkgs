@@ -10,35 +10,47 @@
   libsodium,
   libunistring,
   pkg-config,
-  postgresql,
+  libpq,
   autoreconfHook,
   python3,
   recutils,
   wget,
   jq,
+  uncrustify,
   gettext,
   texinfo,
+  libtool,
+  nixosTests,
 }:
 
-let
-  version = "0.12.0";
-in
-stdenv.mkDerivation {
+stdenv.mkDerivation (finalAttrs: {
   pname = "taler-exchange";
-  inherit version;
+  version = "1.3.0";
 
   src = fetchgit {
-    url = "https://git.taler.net/exchange.git";
-    rev = "v${version}";
+    url = "https://git-www.taler.net/exchange.git";
+    tag = "v${finalAttrs.version}";
     fetchSubmodules = true;
-    hash = "sha256-yHRRMlqFA2OiFg0rBVzn7130wyVaxKn2dChFTPnVtbs=";
+    hash = "sha256-FePuJUEa01E2jlAOdHryzkFwXqNcU+AkMKs1pamNJn8=";
   };
 
   patches = [ ./0001-add-TALER_TEMPLATING_init_path.patch ];
 
+  postPatch = ''
+    substituteInPlace contrib/gana-generate.sh \
+      --replace-fail "existence git" "true" \
+      --replace-fail "uncrustify.cfg" "contrib/uncrustify.cfg"
+  '';
+
   nativeBuildInputs = [
     autoreconfHook
+    recutils # recfix
     pkg-config
+    python3.pkgs.jinja2
+    texinfo # makeinfo
+    # jq is necessary for some tests and is checked by configure script
+    jq
+    uncrustify
   ];
 
   buildInputs = [
@@ -46,16 +58,14 @@ stdenv.mkDerivation {
     libmicrohttpd
     jansson
     libsodium
-    postgresql
+    libpq
+    libtool
     curl
-    recutils
     gettext
-    texinfo # Fix 'makeinfo' is missing on your system.
     libunistring
-    python3.pkgs.jinja2
-    # jq is necessary for some tests and is checked by configure script
-    jq
   ];
+
+  strictDeps = true;
 
   propagatedBuildInputs = [ gnunet ];
 
@@ -63,11 +73,39 @@ stdenv.mkDerivation {
   preAutoreconf = ''
     ./contrib/gana-generate.sh
     pushd contrib
-    find wallet-core/aml-backoffice/ -type f -printf '  %p \\\n' | sort > Makefile.am.ext
+    rm -f Makefile.am
+    {
+      echo 'dist_amlspapkgdata_DATA = \'
+      find wallet-core/aml-backoffice/ -type f | sort | awk '{print "  " $1 " \\" }'
+    }  >> Makefile.am.ext
+    # Remove extra '\' at the end of the file
     truncate -s -2 Makefile.am.ext
+
+    {
+      echo ""
+      echo 'dist_kycspapkgdata_DATA = \'
+      find wallet-core/kyc/ -type f | sort | awk '{print "  " $1 " \\" }'
+    }  >> Makefile.am.ext
+    # Remove extra '\' at the end of the file
+    truncate -s -2 Makefile.am.ext
+
+    {
+      echo ""
+      echo 'dist_auditorspapkgdata_DATA = \'
+      find wallet-core/auditor-backoffice/ -type f | sort | awk '{print "  " $1 " \\" }'
+    }  >> Makefile.am.ext
+    # Remove extra '\' at the end of the file
+    truncate -s -2 Makefile.am.ext
+
     cat Makefile.am.in Makefile.am.ext >> Makefile.am
+    # Prevent accidental editing of the generated Makefile.am
+    chmod -w Makefile.am
     popd
   '';
+
+  configureFlags = [
+    "ac_cv_path__libcurl_config=${lib.getDev curl}/bin/curl-config"
+  ];
 
   enableParallelBuilding = true;
 
@@ -80,21 +118,25 @@ stdenv.mkDerivation {
 
   checkTarget = "check";
 
-  meta = with lib; {
-    description = ''
+  passthru.tests = nixosTests.taler.basic;
+
+  meta = {
+    description = "Exchange component for the GNU Taler electronic payment system";
+    longDescription = ''
       Taler is an electronic payment system providing the ability to pay
       anonymously using digital cash.  Taler consists of a network protocol
-      definition (using a RESTful API over HTTP), a Exchange (which creates
+      definition (using a RESTful API over HTTP), an Exchange (which creates
       digital coins), a Wallet (which allows customers to manage, store and
       spend digital coins), and a Merchant website which allows customers to
       spend their digital coins.  Naturally, each Merchant is different, but
       Taler includes code examples to help Merchants integrate Taler as a
       payment system.
     '';
-    homepage = "https://taler.net/";
-    changelog = "https://git.taler.net/exchange.git/tree/ChangeLog";
-    license = licenses.agpl3Plus;
-    maintainers = with maintainers; [ astro ];
-    platforms = platforms.linux;
+    homepage = "https://www.taler.net/en/";
+    changelog = "https://git-www.taler.net/exchange.git/tree/ChangeLog?h=v${finalAttrs.version}";
+    license = lib.licenses.agpl3Plus;
+    maintainers = with lib.maintainers; [ astro ];
+    teams = with lib.teams; [ ngi ];
+    platforms = lib.platforms.linux;
   };
-}
+})

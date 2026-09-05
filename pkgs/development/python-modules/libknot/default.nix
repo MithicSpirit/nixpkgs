@@ -12,12 +12,12 @@
 
 buildPythonPackage rec {
   pname = "libknot";
-  version = "3.3.9";
+  version = "3.5.7";
   pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-AAjH5+IQdkzTIp1+q638d9dzAfo7nXUudOLQm81P7lU=";
+    hash = "sha256-lh7PStyf+Ofqq752WinQvwG7LmUIxRrngN3Kp4k8YSk=";
   };
 
   postPatch = ''
@@ -30,10 +30,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "libknot" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python bindings for libknot";
     homepage = "https://gitlab.nic.cz/knot/knot-dns/-/tree/master/python/libknot";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ hexa ];
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ hexa ];
   };
 }

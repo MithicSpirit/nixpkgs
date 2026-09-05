@@ -1,27 +1,35 @@
-{ lib
-, fetchFromGitHub
-, pkg-config
-, libsodium
-, buildGoModule
+{
+  lib,
+  fetchFromGitHub,
+  pkg-config,
+  libsodium,
+  buildGoModule,
+  nix-update-script,
+  nixosTests,
 }:
 
-buildGoModule rec {
-
-  version = "photos-v0.9.30";
+buildGoModule (finalAttrs: {
   pname = "museum";
+  version = "1.3.61";
 
   src = fetchFromGitHub {
-    owner = "ente-io";
+    owner = "ente";
     repo = "ente";
     sparseCheckout = [ "server" ];
-    rev = version;
-    hash = "sha256-R85eI8n9jQB55l8V4881X74RGH3k0JhGS+phLBrZHvc=";
+    tag = "photos-v${finalAttrs.version}";
+    hash = "sha256-9cEf935kKpPReHzenp2875ASlpeIAZzoAjzLD6MaXE8=";
   };
 
-  sourceRoot = "${src.name}/server";
+  vendorHash = "sha256-z2LTX+3zH1QXYw8JcnveQXzWrBXVJnHUk+eE71w5gRI=";
 
-  nativeBuildInputs = [ pkg-config ];
-  buildInputs = [ libsodium ];
+  sourceRoot = "${finalAttrs.src.name}/server";
+
+  nativeBuildInputs = [
+    pkg-config
+  ];
+  buildInputs = [
+    libsodium
+  ];
 
   # fatal: "Not running tests in non-test environment"
   doCheck = false;
@@ -31,18 +39,31 @@ buildGoModule rec {
     cp -R configurations \
       migrations \
       mail-templates \
+      web-templates \
       $out/share/museum
   '';
 
-  meta = with lib; {
-    description = "API server for ente.io";
-    homepage = "https://github.com/ente-io/ente/tree/main/server";
-    license = licenses.agpl3Only;
-    maintainers = with maintainers; [ surfaceflinger pinpox ];
-    mainProgram = "museum";
-    platforms = platforms.linux;
+  passthru = {
+    tests.ente = nixosTests.ente;
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version-regex"
+        "photos-v(.*)"
+      ];
+    };
   };
-  vendorHash = "sha256-Vz9AodHoClSmo51ExdOS4bWH13i1Sug++LQMIsZY2xY=";
-}
 
-
+  meta = {
+    description = "API server for ente.io";
+    homepage = "https://github.com/ente/ente/tree/main/server";
+    changelog = "https://github.com/ente/ente/releases/tag/photos-v${finalAttrs.version}";
+    license = lib.licenses.agpl3Only;
+    maintainers = with lib.maintainers; [
+      pinpox
+      oddlama
+      nicegamer7
+    ];
+    mainProgram = "museum";
+    platforms = lib.platforms.linux;
+  };
+})

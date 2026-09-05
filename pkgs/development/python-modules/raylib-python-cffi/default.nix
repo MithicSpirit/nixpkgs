@@ -1,52 +1,58 @@
 {
+  gcc,
   buildPythonPackage,
   fetchFromGitHub,
   setuptools,
   cffi,
   pkg-config,
-  glfw,
+  glfw3,
   libffi,
   raylib,
   physac,
   raygui,
-  lib
+  lib,
+  writers,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "raylib-python-cffi";
-  version = "5.0.0.2";
+  version = "6.0.1.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "electronstudio";
     repo = "raylib-python-cffi";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-DlnZRJZ0ZnkLii09grA/lGsJHPUYrbaJ55BVWJ8JzfM=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-9eN3H62gYDloMHbJbTFiO3acif3GJuTkk4CWltzBOXg=";
   };
 
   build-system = [ setuptools ];
   dependencies = [ cffi ];
 
-  patches = [
-    # This patch fixes to the builder script function to call pkg-config
-    # using the library name rather than searching only through raylib
-    ./fix_pyray_builder.patch
+  patches = [ ./use-direct-pkg-config-name.patch ];
+
+  buildInputs = [
+    glfw3
+    libffi
+    raylib
+    physac
+    raygui
   ];
 
-  nativeBuildInputs = [ pkg-config ];
+  nativeBuildInputs = [
+    pkg-config
+    gcc
+  ];
 
   # tests require a graphic environment
   doCheck = false;
 
   pythonImportsCheck = [ "pyray" ];
 
-  buildInputs = [
-    glfw
-    libffi
-    raylib
-    physac
-    raygui
-  ];
+  passthru.tests = import ./passthru-tests.nix {
+    inherit writers;
+    raylib-python-cffi = finalAttrs.finalPackage;
+  };
 
   meta = {
     description = "Python CFFI bindings for Raylib";
@@ -54,4 +60,4 @@ buildPythonPackage rec {
     license = lib.licenses.epl20;
     maintainers = with lib.maintainers; [ sigmanificient ];
   };
-}
+})

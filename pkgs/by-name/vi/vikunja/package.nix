@@ -1,12 +1,27 @@
-{ lib, fetchFromGitHub, stdenv, nodejs, pnpm, buildGoModule, mage, writeShellScriptBin, nixosTests }:
+{
+  lib,
+  callPackage,
+  fetchFromGitHub,
+  stdenv,
+  nodejs_24,
+  pnpm_10,
+  fetchPnpmDeps,
+  pnpmConfigHook,
+  buildGoModule,
+  mage,
+  dart-sass,
+  writeShellScriptBin,
+  nixosTests,
+  nix-update-script,
+}:
 
 let
-  version = "0.24.1";
+  version = "2.5.0";
   src = fetchFromGitHub {
     owner = "go-vikunja";
     repo = "vikunja";
     rev = "v${version}";
-    hash = "sha256-39S7Xl8He+unIkAZ9GnjqWHBOfdDj4rSUmrExB+Q6Vc=";
+    hash = "sha256-qI4mkgcN9yYRmh5V+KzIHupX7uWsszV4Xb31OYvukxQ=";
   };
 
   frontend = stdenv.mkDerivation (finalAttrs: {
@@ -15,19 +30,36 @@ let
 
     sourceRoot = "${finalAttrs.src.name}/frontend";
 
-    pnpmDeps = pnpm.fetchDeps {
-      inherit (finalAttrs) pname version src sourceRoot;
-      hash = "sha256-iEcic/oQ33IO9tWqIQGfyjSY4YpJ8FckaI59qTgdq3c=";
+    pnpmDeps = fetchPnpmDeps {
+      inherit (finalAttrs)
+        pname
+        version
+        src
+        sourceRoot
+        ;
+      pnpm = pnpm_10;
+      fetcherVersion = 3;
+      hash = "sha256-xZBgE4GM59Ihl5a3qgcmkjR4Q3wYlcsiDapiNEzBQOg=";
     };
 
     nativeBuildInputs = [
-      nodejs
-      pnpm.configHook
+      nodejs_24
+      dart-sass
+      pnpmConfigHook
+      pnpm_10
     ];
+
+    postPatch = ''
+      substituteInPlace src/version.json \
+        --replace-fail '"dev"' '"${finalAttrs.version}"'
+    '';
 
     doCheck = true;
 
     postBuild = ''
+      # Force sass-embedded to use our dart-sass instead of bundled binaries.
+      substituteInPlace node_modules/sass-embedded/dist/lib/src/compiler-path.js \
+        --replace-fail 'compilerCommand = (() => {' 'compilerCommand = (() => { return ["${lib.getExe dart-sass}"];'
       pnpm run build
     '';
 
@@ -41,16 +73,18 @@ let
   });
 
   # Injects a `t.Skip()` into a given test since there's apparently no other way to skip tests here.
-  skipTest = lineOffset: testCase: file:
+  skipTest =
+    lineOffset: testCase: file:
     let
       jumpAndAppend = lib.concatStringsSep ";" (lib.replicate (lineOffset - 1) "n" ++ [ "a" ]);
-    in ''
+    in
+    ''
       sed -i -e '/${testCase}/{
       ${jumpAndAppend} t.Skip();
       }' ${file}
     '';
 in
-buildGoModule {
+buildGoModule (finalAttrs: {
   inherit src version;
   pname = "vikunja";
 
@@ -65,11 +99,15 @@ buildGoModule {
         fi
       '';
     in
-    [ fakeGit mage ];
+    [
+      fakeGit
+      mage
+    ];
 
-  vendorHash = "sha256-oOa9qTy5jNYq05Tbp9hI4L0OBtKtglhk6Uz380nZH1Y=";
+  vendorHash = "sha256-bn+bcGzeB0/KkhPNkbjK/EgKQG3iqVlJxtt6betGUNE=";
 
   inherit frontend;
+  veans = callPackage ./veans.nix { inherit (finalAttrs) src version meta; };
 
   prePatch = ''
     cp -r ${frontend} frontend/dist
@@ -79,6 +117,9 @@ buildGoModule {
     # These tests need internet, so we skip them.
     ${skipTest 1 "TestConvertTrelloToVikunja" "pkg/modules/migration/trello/trello_test.go"}
     ${skipTest 1 "TestConvertTodoistToVikunja" "pkg/modules/migration/todoist/todoist_test.go"}
+    # These tests require a full config with public URL and CORS enabled.
+    ${skipTest 1 "TestCreateOrganizationMap" "pkg/modules/migration/trello/trello_test.go"}
+    ${skipTest 1 "TestTaskAttachmentUploadSize" "pkg/webtests/task_attachment_upload_test.go"}
   '';
 
   buildPhase = ''
@@ -92,8 +133,8 @@ buildGoModule {
   '';
 
   checkPhase = ''
-    mage test:unit
-    mage test:integration
+    mage test:feature
+    mage test:web
   '';
 
   installPhase = ''
@@ -102,15 +143,29 @@ buildGoModule {
     runHook postInstall
   '';
 
-  passthru.tests.vikunja = nixosTests.vikunja;
+  passthru = {
+    tests.vikunja = nixosTests.vikunja;
+    frontend = frontend;
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--subpackage"
+        "frontend"
+        "--subpackage"
+        "veans"
+      ];
+    };
+  };
 
   meta = {
-    changelog = "https://kolaente.dev/vikunja/api/src/tag/v${version}/CHANGELOG.md";
+    changelog = "https://github.com/go-vikunja/vikunja/blob/v${version}/CHANGELOG.md";
     description = "Todo-app to organize your life";
     homepage = "https://vikunja.io/";
     license = lib.licenses.agpl3Plus;
-    maintainers = with lib.maintainers; [ leona ];
+    maintainers = with lib.maintainers; [
+      leona
+      adamcstephens
+    ];
     mainProgram = "vikunja";
     platforms = lib.platforms.linux;
   };
-}
+})

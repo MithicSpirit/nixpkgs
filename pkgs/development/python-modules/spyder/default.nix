@@ -2,15 +2,25 @@
   lib,
   buildPythonPackage,
   fetchPypi,
-  pythonOlder,
+
+  # nativeBuildInputs
+  pyqt6-webengine,
+
+  # build-system
+  setuptools,
 
   # dependencies
+  aiohttp,
+  asyncssh,
   atomicwrites,
+  bcrypt,
   chardet,
   cloudpickle,
   cookiecutter,
   diff-match-patch,
+  fzf,
   intervaltree,
+  ipython-pygments-lexers,
   jedi,
   jellyfish,
   keyring,
@@ -18,16 +28,19 @@
   nbconvert,
   numpy,
   numpydoc,
+  packaging,
   pickleshare,
   psutil,
+  pygithub,
   pygments,
   pylint-venv,
   pyls-spyder,
   pyopengl,
-  pyqtwebengine,
+  pyqt6,
   python-lsp-black,
+  python-lsp-ruff,
   python-lsp-server,
-  pyxdg,
+  pyuca,
   pyzmq,
   qdarkstyle,
   qstylizer,
@@ -37,39 +50,54 @@
   rope,
   rtree,
   scipy,
-  setuptools,
   spyder-kernels,
+  superqt,
   textdistance,
   three-merge,
   watchdog,
+  yarl,
+  qt6,
 }:
 
 buildPythonPackage rec {
   pname = "spyder";
-  version = "5.5.6";
+  version = "6.1.5";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-lYtmn0oBXFw5EFDrbv+o2EZWqL/Eel9GrbopeEnYK90=";
+    hash = "sha256-XS+LIAB4ZbQWwCmxo/Mnqy/5PAr14rnBi/htPYg+Mis=";
   };
 
   patches = [ ./dont-clear-pythonpath.patch ];
 
-  build-system = [
-    pyqtwebengine.wrapQtAppsHook
-    setuptools
+  nativeBuildInputs = [ qt6.wrapQtAppsHook ];
+
+  build-system = [ setuptools ];
+
+  pythonRelaxDeps = [
+    "ipython"
+    "jedi"
+    "python-lsp-server"
+  ];
+
+  buildInputs = [
+    qt6.qtbase
+    qt6.qtwayland
   ];
 
   dependencies = [
+    aiohttp
+    asyncssh
     atomicwrites
+    bcrypt
     chardet
     cloudpickle
     cookiecutter
     diff-match-patch
+    fzf
     intervaltree
+    ipython-pygments-lexers
     jedi
     jellyfish
     keyring
@@ -77,16 +105,19 @@ buildPythonPackage rec {
     nbconvert
     numpy
     numpydoc
+    packaging
     pickleshare
     psutil
+    pygithub
     pygments
     pylint-venv
     pyls-spyder
     pyopengl
-    pyqtwebengine
+    pyqt6-webengine
     python-lsp-black
+    python-lsp-ruff
     python-lsp-server
-    pyxdg
+    pyuca
     pyzmq
     qdarkstyle
     qstylizer
@@ -97,13 +128,19 @@ buildPythonPackage rec {
     rtree
     scipy
     spyder-kernels
+    superqt
     textdistance
     three-merge
     watchdog
-  ] ++ python-lsp-server.optional-dependencies.all;
+    yarl
+    pyqt6
+  ]
+  ++ python-lsp-server.optional-dependencies.all;
 
   # There is no test for spyder
   doCheck = false;
+
+  env.SPYDER_QT_BINDING = "pyqt6";
 
   postInstall = ''
     # Add Python libs to env so Spyder subprocesses
@@ -127,9 +164,9 @@ buildPythonPackage rec {
     '';
     homepage = "https://www.spyder-ide.org/";
     downloadPage = "https://github.com/spyder-ide/spyder/releases";
-    changelog = "https://github.com/spyder-ide/spyder/blob/master/CHANGELOG.md";
+    changelog = "https://github.com/spyder-ide/spyder/blob/v${version}/changelogs/Spyder-6.md";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ gebner ];
+    maintainers = [ ];
     platforms = lib.platforms.linux;
   };
 }

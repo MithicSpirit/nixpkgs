@@ -1,30 +1,9 @@
-# Generic builder for tcl packages/applications, generally based on mk-python-derivation.nix
-{ tcl
-, lib
-, makeWrapper
-, runCommand
-, writeScript
+# Generic builder for tcl packages/applications
+{
+  tcl,
+  lib,
+  makeWrapper,
 }:
-
-{ buildInputs ? []
-, nativeBuildInputs ? []
-, propagatedBuildInputs ? []
-, checkInputs ? []
-, nativeCheckInputs ? []
-
-# true if we should skip the configuration phase altogether
-, dontConfigure ? false
-
-# Extra flags passed to configure step
-, configureFlags ? []
-
-# Whether or not we should add common Tcl-related configure flags
-, addTclConfigureFlags ? true
-
-, meta ? {}
-, passthru ? {}
-, doCheck ? true
-, ... } @ attrs:
 
 let
   inherit (tcl) stdenv;
@@ -34,38 +13,75 @@ let
     "--with-tcl=${tcl}/lib"
     "--with-tclinclude=${tcl}/include"
     "--exec-prefix=${placeholder "out"}"
+    # Enable stubs by default for compatibility across minor versions
+    "--enable-stubs"
   ];
 
-  self = (stdenv.mkDerivation ((builtins.removeAttrs attrs [
-    "addTclConfigureFlags" "checkPhase" "checkInputs" "nativeCheckInputs" "doCheck"
-  ]) // {
+in
+lib.extendMkDerivation {
+  constructDrv = stdenv.mkDerivation;
+  excludeDrvArgNames = [
+    "addTclConfigureFlags"
+    "checkPhase"
+    "checkInputs"
+    "nativeCheckInputs"
+    "doCheck"
+  ];
+  extendDrvArgs =
+    finalAttrs:
+    args@{
+      # true if we should skip the configuration phase altogether
+      dontConfigure ? false,
 
-    buildInputs = buildInputs ++ [ tcl.tclPackageHook ];
-    nativeBuildInputs = nativeBuildInputs ++ [ makeWrapper tcl ];
-    propagatedBuildInputs = propagatedBuildInputs ++ [ tcl ];
+      # Extra flags passed to configure step
+      configureFlags ? [ ],
 
-    TCLSH = "${getBin tcl}/bin/tclsh";
+      # Whether or not we should add common Tcl-related configure flags
+      addTclConfigureFlags ? true,
+      ...
+    }:
+    (
+      {
+        buildInputs = args.buildInputs or [ ] ++ [ tcl.tclPackageHook ];
 
-    # Run tests after install, at which point we've done all TCLLIBPATH setup
-    doCheck = false;
-    doInstallCheck = attrs.doCheck or (attrs.doInstallCheck or false);
-    installCheckInputs = checkInputs ++ (attrs.installCheckInputs or []);
-    nativeInstallCheckInputs = nativeCheckInputs ++ (attrs.nativeInstallCheckInputs or []);
+        nativeBuildInputs =
+          args.nativeBuildInputs or [ ]
+          ++ [
+            makeWrapper
+            tcl
+          ]
+          ++ lib.optionals (stdenv.buildPlatform.canExecute stdenv.hostPlatform) [
+            tcl.tclRequiresCheckHook
+          ];
 
-    # Add typical values expected by TEA for configureFlags
-    configureFlags =
-      if (!dontConfigure && addTclConfigureFlags)
-        then (configureFlags ++ defaultTclPkgConfigureFlags)
-        else configureFlags;
+        propagatedBuildInputs = args.propagatedBuildInputs or [ ] ++ [ tcl ];
 
-    meta = {
-      platforms = tcl.meta.platforms;
-    } // meta;
+        # Run tests after install, at which point we've done all TCLLIBPATH setup
+        doCheck = false;
+        doInstallCheck = args.doCheck or (args.doInstallCheck or false);
+        installCheckInputs = args.checkInputs or [ ] ++ args.installCheckInputs or [ ];
+        nativeInstallCheckInputs = args.nativeCheckInputs or [ ] ++ args.nativeInstallCheckInputs or [ ];
 
+        # Add typical values expected by TEA for configureFlags
+        configureFlags =
+          if (!dontConfigure && addTclConfigureFlags) then
+            (configureFlags ++ defaultTclPkgConfigureFlags)
+          else
+            configureFlags;
 
-  } // optionalAttrs (attrs?checkPhase) {
-    installCheckPhase = attrs.checkPhase;
-  }
-  ));
+        env = {
+          TCLSH = "${getBin tcl}/bin/tclsh";
+        }
+        // args.env or { };
 
-in lib.extendDerivation true passthru self
+        meta = {
+          platforms = tcl.meta.platforms;
+        }
+        // args.meta or { };
+
+      }
+      // optionalAttrs (args ? checkPhase) {
+        installCheckPhase = args.checkPhase;
+      }
+    );
+}

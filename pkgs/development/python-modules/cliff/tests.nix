@@ -1,15 +1,14 @@
 {
   buildPythonPackage,
   cliff,
-  docutils,
+  sphinx,
   stestr,
-  testscenarios,
 }:
 
 buildPythonPackage {
   pname = "cliff";
   inherit (cliff) version src;
-  format = "other";
+  pyproject = false;
 
   postPatch = ''
     # only a small portion of the listed packages are actually needed for running the tests
@@ -22,9 +21,8 @@ buildPythonPackage {
 
   nativeCheckInputs = [
     cliff
-    docutils
+    sphinx
     stestr
-    testscenarios
   ];
 
   checkPhase = ''

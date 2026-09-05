@@ -1,30 +1,34 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
+
+  # build-system
+  setuptools,
+
+  # dependencies
   ipykernel,
   jupyter-core,
   jupyter-client,
   pygments,
-  pyqt5,
-  pytestCheckHook,
-  pythonOlder,
-  pyzmq,
+  pyqt6,
   qtpy,
-  setuptools,
   traitlets,
+
+  # tests
+  pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "qtconsole";
-  version = "5.5.2";
+  version = "5.7.2";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-a1+xEnSyl0Y3Bq+E3LvVySJzsfYZ5tJdCIdLCohRaYk=";
+  src = fetchFromGitHub {
+    owner = "jupyter";
+    repo = "qtconsole";
+    tag = finalAttrs.version;
+    hash = "sha256-GL6CAXijlgc/3nj9KaJJgK+AIq6wHdEf0kpgryJ3KuQ=";
   };
 
   build-system = [ setuptools ];
@@ -34,8 +38,7 @@ buildPythonPackage rec {
     jupyter-core
     jupyter-client
     pygments
-    pyqt5
-    pyzmq
+    pyqt6
     qtpy
     traitlets
   ];
@@ -47,11 +50,13 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "qtconsole" ];
 
-  meta = with lib; {
+  meta = {
     description = "Jupyter Qt console";
     mainProgram = "jupyter-qtconsole";
     homepage = "https://qtconsole.readthedocs.io/";
-    license = licenses.bsd3;
-    platforms = platforms.unix;
+    changelog = "https://qtconsole.readthedocs.io/en/stable/changelog.html#changes-in-jupyter-qt-console";
+    license = lib.licenses.bsd3;
+    platforms = lib.platforms.unix;
+    maintainers = with lib.maintainers; [ GaetanLepage ];
   };
-}
+})

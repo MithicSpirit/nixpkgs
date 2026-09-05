@@ -1,35 +1,62 @@
 {
-  buildDotnetModule
-  , fetchFromGitHub
-  , fontconfig
-  , lib
-  , openal
-  , xorg
+  buildDotnetModule,
+  fetchFromGitHub,
+  lib,
+  openal,
+  dotnetCorePackages,
+  copyDesktopItems,
+  makeDesktopItem,
+  nix-update-script,
 }:
 
 buildDotnetModule rec {
   pname = "knossosnet";
-  version = "1.2.0";
+  version = "1.3.10";
 
   src = fetchFromGitHub {
     owner = "KnossosNET";
     repo = "Knossos.NET";
-    rev = "v${version}";
-    hash = "sha256-4GVbwBykagSMGF3TxyZeoRb7Km+yLEMFOO8fCkH3U5A=";
+    tag = "v${version}";
+    hash = "sha256-oIkeR3072Ye24BQRNidf1Lr0/2z6h+eljwTr9NMqq98=";
   };
 
-  patches = [ ./targetframework.patch ];
+  patches = [ ./dotnet-8-upgrade.patch ];
 
-  nugetDeps = ./deps.nix;
+  dotnet-sdk = dotnetCorePackages.sdk_8_0;
+  nugetDeps = ./deps.json;
   executables = [ "Knossos.NET" ];
 
-  runtimeDeps = [ fontconfig openal xorg.libX11 xorg.libICE xorg.libSM ];
+  # IO errors in build due to solution building race
+  enableParallelBuilding = false;
 
-  meta = with lib; {
-    homepage = "https://github.com/KnossosNET/Knossos.NET";
+  runtimeDeps = [ openal ];
+
+  nativeBuildInputs = [ copyDesktopItems ];
+
+  desktopItems = [
+    (makeDesktopItem {
+      name = "knossos";
+      exec = "Knossos.NET";
+      icon = "knossos";
+      desktopName = "Knossos.NET";
+      comment = "Multi-platform launcher for Freespace 2 Open";
+      categories = [ "Game" ];
+    })
+  ];
+
+  postInstall = ''
+    install -Dm444 $src/packaging/linux/knossos-512.png $out/share/icons/hicolor/512x512/apps/knossos.png
+  '';
+
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
+    changelog = "https://github.com/KnossosNET/Knossos.NET/releases/tag/v${version}";
     description = "Multi-platform launcher for Freespace 2 Open";
-    license = licenses.gpl3Only;
+    homepage = "https://fsnebula.org/knossos/";
+    license = lib.licenses.gpl3Only;
     mainProgram = "Knossos.NET";
-    maintainers = with maintainers; [ cdombroski ];
+    maintainers = with lib.maintainers; [ cdombroski ];
+    platforms = lib.platforms.unix;
   };
 }

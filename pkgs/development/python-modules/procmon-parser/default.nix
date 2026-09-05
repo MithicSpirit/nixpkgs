@@ -5,7 +5,6 @@
   fetchFromGitHub,
   pytestCheckHook,
   python-dateutil,
-  pythonOlder,
   six,
 }:
 
@@ -14,12 +13,10 @@ buildPythonPackage rec {
   version = "0.3.13";
   format = "setuptools";
 
-  disabled = pythonOlder "3.7";
-
   src = fetchFromGitHub {
     owner = "eronnen";
     repo = "procmon-parser";
-    rev = "refs/tags/v${version}";
+    tag = "v${version}";
     hash = "sha256-XkMf3MQK4WFRLl60XHDG/j2gRHAiz7XL9MmC6SRg9RE=";
   };
 
@@ -35,11 +32,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "procmon_parser" ];
 
-  meta = with lib; {
+  meta = {
     description = "Parser to process monitor file formats";
     homepage = "https://github.com/eronnen/procmon-parser/";
     changelog = "https://github.com/eronnen/procmon-parser/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

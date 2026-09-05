@@ -8,19 +8,17 @@
   pyzmq,
   tornado,
   traitlets,
-  pythonOlder,
-  importlib-metadata,
 }:
 
 buildPythonPackage rec {
   pname = "jupyter-client";
-  version = "8.6.2";
+  version = "8.8.0";
   pyproject = true;
 
   src = fetchPypi {
     pname = "jupyter_client";
     inherit version;
-    hash = "sha256-K9oU1V7lulhVKoxTrkPSFa2YaIU0iSE/N9oGDO1U2N8=";
+    hash = "sha256-1VaBFBmk8tlshprzToVOPwWbfMLW0Bqc2chcJnaRvj4=";
   };
 
   build-system = [ hatchling ];
@@ -31,7 +29,7 @@ buildPythonPackage rec {
     pyzmq
     tornado
     traitlets
-  ] ++ lib.optionals (pythonOlder "3.10") [ importlib-metadata ];
+  ];
 
   pythonImportsCheck = [ "jupyter_client" ];
 
@@ -43,6 +41,6 @@ buildPythonPackage rec {
     homepage = "https://github.com/jupyter/jupyter_client";
     changelog = "https://github.com/jupyter/jupyter_client/blob/v${version}/CHANGELOG.md";
     license = lib.licenses.bsd3;
-    maintainers = lib.teams.jupyter.members;
+    teams = [ lib.teams.jupyter ];
   };
 }

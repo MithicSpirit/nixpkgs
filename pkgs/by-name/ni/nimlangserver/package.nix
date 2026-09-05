@@ -3,29 +3,30 @@
   buildNimPackage,
   fetchFromGitHub,
 }:
-buildNimPackage (final: prev: {
-  pname = "nimlangserver";
-  version = "1.2.0";
+buildNimPackage (
+  final: prev: rec {
+    pname = "nimlangserver";
+    version = "1.14.0";
 
-  # lock.json generated with github.com/daylinmorgan/nnl
-  lockFile = ./lock.json;
+    # nix build ".#nimlangserver.src"
+    # nix run "github:daylinmorgan/nnl" -- result/nimble.lock -o:pkgs/by-name/ni/nimlangserver/lock.json --git,=,bearssl,zlib
+    lockFile = ./lock.json;
 
-  src = fetchFromGitHub {
-    owner = "nim-lang";
-    repo = "langserver";
-    rev = "71b59bfa77dabf6b8b381f6e18a1d963a1a658fc";
-    hash = "sha256-dznegEhRHvztrNhBcUhW83RYgJpduwdGLWj/tJ//K8c=";
-  };
+    src = fetchFromGitHub {
+      owner = "nim-lang";
+      repo = "langserver";
+      rev = "v${version}";
+      hash = "sha256-IJbuM/AhPgyfe/1ONY8Nb46+gqjduVQOvkgGafgkhY4=";
+    };
 
-  doCheck = false;
+    doCheck = false;
 
-  meta = with lib;
-    final.src.meta
-    // {
+    meta = final.src.meta // {
       description = "Nim language server implementation (based on nimsuggest)";
       homepage = "https://github.com/nim-lang/langserver";
-      license = licenses.mit;
+      license = lib.licenses.mit;
       mainProgram = "nimlangserver";
-      maintainers = with maintainers; [daylinmorgan];
+      maintainers = with lib.maintainers; [ daylinmorgan ];
     };
-})
+  }
+)

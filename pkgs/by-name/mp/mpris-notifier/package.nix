@@ -1,32 +1,27 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
-, stdenv
-, darwin
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "mpris-notifier";
-  version = "0.1.7";
+  version = "0.2.1";
 
   src = fetchFromGitHub {
     owner = "l1na-forever";
     repo = "mpris-notifier";
-    rev = "v${version}";
-    hash = "sha256-B1nfVsn95oe2FlHFjb9O4tfL/EqsZZ4JGF0mbJcCg2Y=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-JDABuxINYxpxxDPSIdN+GeHU8FqBS6m4dsPDTxRc1Zw=";
   };
 
-  cargoHash = "sha256-8WzG712/soPgooyR35L8aFIRfPC2MvV3vCcPbkTgoF0=";
+  cargoHash = "sha256-lM3co7akhLoFarprbnqladSzK+OkysduEe6uXpAoCwU=";
 
-  buildInputs = lib.optionals stdenv.isDarwin [
-    darwin.apple_sdk.frameworks.Security
-  ];
-
-  meta = with lib; {
+  meta = {
     description = "Dependency-light, highly-customizable, XDG desktop notification generator for MPRIS status changes";
     homepage = "https://github.com/l1na-forever/mpris-notifier";
-    license = licenses.mit;
-    maintainers = with maintainers; [ leixb ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ leixb ];
     mainProgram = "mpris-notifier";
   };
-}
+})

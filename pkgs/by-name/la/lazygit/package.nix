@@ -4,39 +4,49 @@
   fetchFromGitHub,
   lazygit,
   testers,
+  nix-update-script,
 }:
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "lazygit";
-  version = "0.43.1";
+  version = "0.64.1";
 
   src = fetchFromGitHub {
     owner = "jesseduffield";
-    repo = pname;
-    rev = "v${version}";
-    hash = "sha256-iFx/ffaijhOqEDRW1QVzhQMvSgnS4lKFOzq1YdlkUzc=";
+    repo = "lazygit";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-UYyIrSHk+efKvHvxQs7FsOGA7e0uM9mg+1O1WRJIeEU=";
   };
 
   vendorHash = null;
   subPackages = [ "." ];
 
   ldflags = [
-    "-X main.version=${version}"
+    "-X main.version=${finalAttrs.version}"
     "-X main.buildSource=nix"
   ];
 
-  passthru.tests.version = testers.testVersion { package = lazygit; };
+  passthru = {
+    tests.version = testers.testVersion { package = lazygit; };
 
-  meta = with lib; {
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version-regex"
+        "^v([0-9.]+)$"
+      ];
+    };
+  };
+
+  meta = {
     description = "Simple terminal UI for git commands";
     homepage = "https://github.com/jesseduffield/lazygit";
-    changelog = "https://github.com/jesseduffield/lazygit/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [
-      Br1ght0ne
+    changelog = "https://github.com/jesseduffield/lazygit/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
       equirosa
-      paveloom
+      khaneliman
       starsep
+      sigmasquadron
     ];
     mainProgram = "lazygit";
   };
-}
+})

@@ -1,27 +1,27 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitHub,
-  pythonOlder,
+  fetchPypi,
   deprecated,
   mss,
   websockets,
   setuptools,
 }:
 
-buildPythonPackage {
+buildPythonPackage rec {
   pname = "nodriver";
-  version = "0.36";
+  version = "0.50.3";
   pyproject = true;
 
-  src = fetchFromGitHub {
-    owner = "ultrafunkamsterdam";
-    repo = "nodriver";
-    rev = "e630abfc5dce2023966a61cec739348b18bd465d";
-    hash = "sha256-pUWvHcsEPbRob5DDXBFOzqonSWigNPnPUHIu9omzYII=";
+  src = fetchPypi {
+    inherit pname version;
+    hash = "sha256-JMpojYZG74/61cjOZYBOXnZxp3mtJqJNdvZGXVZmxjE=";
   };
 
-  disabled = pythonOlder "3.9";
+  patches = [
+    # https://github.com/ultrafunkamsterdam/nodriver/pull/36
+    ./python-3.14-network-py-encoding.patch
+  ];
 
   dependencies = [
     deprecated
@@ -50,4 +50,3 @@ buildPythonPackage {
     ];
   };
 }
-

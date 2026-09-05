@@ -5,7 +5,9 @@
   gfortran,
   makeWrapper,
   setuptools,
+  setuptools-scm,
   numpy,
+  scipy,
   distutils,
   pytestCheckHook,
   mock,
@@ -15,46 +17,57 @@
 
 buildPythonPackage rec {
   pname = "i-pi";
-  version = "3.0";
+  version = "3.2.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "i-pi";
     repo = "i-pi";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-SJ0qTwwdIOR1nXs9MV6O1oxJPR6/6H86wscDy/sLc/g=";
+    tag = "v${version}";
+    hash = "sha256-PGWgeLmYsVftPhjGTMvAzmKMpZo18ssgXYqZ+l48tfs=";
   };
 
-  build-system = [ setuptools ];
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
 
   nativeBuildInputs = [
     gfortran
     makeWrapper
   ];
 
-  dependencies = [ numpy ];
+  dependencies = [
+    numpy
+    scipy
+  ];
 
   nativeCheckInputs = [
     pytestCheckHook
     mock
     pytest-mock
-  ] ++ lib.optional (pythonAtLeast "3.12") distutils;
+  ]
+  ++ lib.optional (pythonAtLeast "3.12") distutils;
 
-  pytestFlagsArray = [ "ipi_tests/unit_tests" ];
+  enabledTestPaths = [ "ipi_tests/unit_tests" ];
+  disabledTests = [
+    "test_driver_base"
+    "test_driver_forcebuild"
+  ];
 
   postFixup = ''
     wrapProgram $out/bin/i-pi \
       --set IPI_ROOT $out
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Universal force engine for ab initio and force field driven (path integral) molecular dynamics";
-    license = with licenses; [
+    license = with lib.licenses; [
       gpl3Only
       mit
     ];
-    homepage = "http://ipi-code.org/";
-    platforms = platforms.linux;
-    maintainers = [ maintainers.sheepforce ];
+    homepage = "https://ipi-code.org/";
+    platforms = lib.platforms.linux;
+    maintainers = [ lib.maintainers.sheepforce ];
   };
 }

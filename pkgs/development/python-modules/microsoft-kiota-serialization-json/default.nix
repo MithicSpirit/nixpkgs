@@ -8,22 +8,22 @@
   pytest-asyncio,
   pytest-mock,
   pytestCheckHook,
-  pythonOlder,
+  gitUpdater,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "microsoft-kiota-serialization-json";
-  version = "1.3.1";
+  version = "1.12.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "microsoft";
-    repo = "kiota-serialization-json-python";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-V1s2MMO987ADp2nRxpIFlyx+OHNhSv8xCt3JOTzQCOM=";
+    repo = "kiota-python";
+    tag = "microsoft-kiota-serialization-json-v${finalAttrs.version}";
+    hash = "sha256-m1ebEOYEdmuFMtpxGtPJeQ1MqnckzWbITPVZ96mZ5Ec=";
   };
+
+  sourceRoot = "${finalAttrs.src.name}/packages/serialization/json/";
 
   build-system = [ flit-core ];
 
@@ -40,16 +40,15 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "kiota_serialization_json" ];
 
-  disabledTests = [
-    # Test compare an output format
-    "test_parse_union_type_complex_property1"
-  ];
-
-  meta = with lib; {
-    description = "JSON serialization implementation for Kiota clients in Python";
-    homepage = "https://github.com/microsoft/kiota-serialization-json-python";
-    changelog = "https://github.com/microsoft/kiota-serialization-json-python/blob/${version}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+  passthru.updateScript = gitUpdater {
+    rev-prefix = "microsoft-kiota-serialization-json-v";
   };
-}
+
+  meta = {
+    description = "JSON serialization implementation for Kiota clients in Python";
+    homepage = "https://github.com/microsoft/kiota-python/tree/main/packages/serialization/json";
+    changelog = "https://github.com/microsoft/kiota-python/releases/tag/microsoft-kiota-serialization-json-${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
+  };
+})

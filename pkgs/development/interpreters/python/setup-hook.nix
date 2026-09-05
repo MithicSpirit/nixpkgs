@@ -1,16 +1,19 @@
-{ runCommand }:
+{
+  runCommand,
+  replaceVars,
+}:
 
 sitePackages:
 
 let
-  hook = ./setup-hook.sh;
-in runCommand "python-setup-hook.sh" {
-  strictDeps = true;
-  env = {
+  hook = replaceVars ./setup-hook.sh {
     inherit sitePackages;
   };
-} ''
-  cp ${hook} hook.sh
-  substituteAllInPlace hook.sh
-  mv hook.sh $out
-''
+in
+runCommand "python-setup-hook.sh"
+  {
+    strictDeps = true;
+  }
+  ''
+    cp ${hook} $out
+  ''

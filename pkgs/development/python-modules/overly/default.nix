@@ -2,7 +2,6 @@
   lib,
   stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchPypi,
   h11,
   sansio-multipart,
@@ -11,8 +10,6 @@
 buildPythonPackage rec {
   pname = "overly";
   version = "0.1.85";
-
-  disabled = pythonOlder "3.6";
 
   format = "setuptools";
 
@@ -36,6 +33,6 @@ buildPythonPackage rec {
     homepage = "https://github.com/theelous3/overly";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ dotlambda ];
-    broken = stdenv.isDarwin; # https://github.com/theelous3/overly/issues/2
+    broken = stdenv.hostPlatform.isDarwin; # https://github.com/theelous3/overly/issues/2
   };
 }

@@ -7,14 +7,14 @@
   cmake,
   dbus,
   glib,
-  gnome,
+  gnome-settings-daemon,
   gsettings-desktop-schemas,
   gtest,
   intltool,
   libayatana-common,
   librda,
-  lomiri,
-  mate,
+  lomiri-qt6,
+  mate-settings-daemon,
   pkg-config,
   systemd,
   wrapGAppsHook3,
@@ -22,13 +22,13 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "ayatana-indicator-session";
-  version = "24.5.0";
+  version = "26.6.1";
 
   src = fetchFromGitHub {
     owner = "AyatanaIndicators";
     repo = "ayatana-indicator-session";
-    rev = "refs/tags/${finalAttrs.version}";
-    hash = "sha256-p4nu7ZgnEjnnxNqyZIg//YcssnQcCY7GFDbpGIu1dz0=";
+    tag = finalAttrs.version;
+    hash = "sha256-rrjtLiZ+qaqB1QowGqp3SfWsgzqIYHYEzEzAERiLLBs=";
   };
 
   postPatch = ''
@@ -48,7 +48,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
-    lomiri.cmake-extras
+    lomiri-qt6.cmake-extras
     glib
     gsettings-desktop-schemas
     libayatana-common
@@ -58,8 +58,8 @@ stdenv.mkDerivation (finalAttrs: {
     # TODO these bloat the closure size alot, just so the indicator doesn't have the potential to crash.
     # is there a better way to give it access to DE-specific schemas as needed?
     # https://github.com/AyatanaIndicators/ayatana-indicator-session/blob/88846bad7ee0aa8e0bb122816d06f9bc887eb464/src/service.c#L1387-L1413
-    gnome.gnome-settings-daemon
-    mate.mate-settings-daemon
+    gnome-settings-daemon
+    mate-settings-daemon
   ];
 
   nativeCheckInputs = [ dbus ];
@@ -84,7 +84,10 @@ stdenv.mkDerivation (finalAttrs: {
         "lomiri"
       ];
     };
-    tests.vm = nixosTests.ayatana-indicators;
+    tests = {
+      startup = nixosTests.ayatana-indicators;
+      lomiri = nixosTests.lomiri.desktop-ayatana-indicator-session;
+    };
     updateScript = gitUpdater { };
   };
 

@@ -1,33 +1,32 @@
 {
   lib,
-  awesomeversion,
+  attrs,
   bellows,
   buildPythonPackage,
   fetchFromGitHub,
   freezegun,
-  pyserial,
-  pyserial-asyncio,
-  pyserial-asyncio-fast,
-  pytest-asyncio,
+  frozendict,
+  looptime,
+  pyprojectVersionPatchHook,
+  pytest-asyncio_0,
   pytest-timeout,
   pytest-xdist,
   pytestCheckHook,
-  python-slugify,
   pythonOlder,
   setuptools,
-  universal-silabs-flasher,
-  wheel,
-  zha-quirks,
   zigpy,
   zigpy-deconz,
   zigpy-xbee,
   zigpy-zigate,
+  zigpy-ziggurat,
   zigpy-znp,
+  zha,
+  zha-quirks,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "zha";
-  version = "0.0.31";
+  version = "2.1.0";
   pyproject = true;
 
   disabled = pythonOlder "3.12";
@@ -35,50 +34,51 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "zigpy";
     repo = "zha";
-    rev = "refs/tags/${version}";
-    hash = "sha256-H1VmB20ldUyKIiMRT8YMgiFIno41WN2bY8rhqFsGYcA=";
+    tag = finalAttrs.version;
+    hash = "sha256-18vLBQgEL7Jw2Mgc4KoYcFcP1JbjjA5zuoGZnUUfBtw=";
   };
 
   postPatch = ''
     substituteInPlace pyproject.toml \
-      --replace-fail '"setuptools-git-versioning<3"' "" \
-      --replace-fail 'dynamic = ["version"]' 'version = "${version}"'
+      --replace-fail '"setuptools-git-versioning<3"' ""
+
+    # do not install development tools
+    rm -r tools
   '';
 
-  pythonRelaxDeps = [
-    "pyserial-asyncio-fast"
+  nativeBuildInputs = [
+    pyprojectVersionPatchHook
   ];
 
   build-system = [
     setuptools
-    wheel
   ];
 
   dependencies = [
-    awesomeversion
+    attrs
     bellows
-    pyserial
-    pyserial-asyncio
-    pyserial-asyncio-fast
-    python-slugify
-    universal-silabs-flasher
-    zha-quirks
+    frozendict
     zigpy
     zigpy-deconz
     zigpy-xbee
     zigpy-zigate
+    zigpy-ziggurat
     zigpy-znp
   ];
 
   nativeCheckInputs = [
     freezegun
-    pytest-asyncio
+    looptime
+    pytest-asyncio_0
     pytest-timeout
     pytest-xdist
     pytestCheckHook
+    zha-quirks
   ];
 
   pythonImportsCheck = [ "zha" ];
+
+  doCheck = false; # infinite recursion with zhaquirks
 
   disabledTests = [
     # Tests are long-running and often keep hanging
@@ -87,7 +87,7 @@ buildPythonPackage rec {
     "test_check_available_unsuccessful"
     "test_device_counter_sensors"
     "test_device_tracker"
-    "test_device_unavailable_skips_entity_polling"
+    "test_device_unavailable_or_disabled_skips_entity_polling"
     "test_elec_measurement_sensor_polling"
     "test_electrical_measurement_init"
     "test_group_member_assume_state"
@@ -105,20 +105,18 @@ buildPythonPackage rec {
     "test_startup_concurrency_limit"
     "test_fan_ikea"
     "test_background"
+    "test_gateway_startup_failure" # Failed first attempt, passed second, flaky
   ];
 
-  disabledTestPaths = [ "tests/test_cluster_handlers.py" ];
+  passthru.tests = {
+    pytest = zha.overridePythonAttrs { doCheck = true; };
+  };
 
-  pytestFlagsArray = [
-    "-v"
-    "--timeout=5"
-  ];
-
-  meta = with lib; {
+  meta = {
     description = "Zigbee Home Automation";
     homepage = "https://github.com/zigpy/zha";
-    changelog = "https://github.com/zigpy/zha/releases/tag/${version}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/zigpy/zha/releases/tag/${finalAttrs.version}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

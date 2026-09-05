@@ -1,61 +1,82 @@
 {
   lib,
   buildPythonPackage,
+  dnspython,
   fetchFromGitHub,
   icalendar,
+  icalendar-searcher,
   lxml,
-  pytestCheckHook,
-  pythonOlder,
+  manuel,
+  pytest9_0CheckHook,
   python,
-  pytz,
+  radicale,
   recurring-ical-events,
-  requests,
-  setuptools,
+  niquests,
+  hatchling,
+  hatch-vcs,
+  proxy-py,
+  pyfakefs,
+  pytest-asyncio,
+  python-dateutil,
+  pyyaml,
   toPythonModule,
   tzlocal,
   vobject,
   xandikos,
+  writableTmpDirAsHomeHook,
 }:
 
 buildPythonPackage rec {
   pname = "caldav";
-  version = "1.3.9";
-
+  version = "3.2.1";
   pyproject = true;
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "python-caldav";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-R9zXwD0sZE4bg6MTHWWCWWlZ5wH0H6g650zA7AboAo8=";
+    repo = "caldav";
+    tag = "v${version}";
+    hash = "sha256-SCqc0MVxKaHpES+NkDcaItHlkk0kCFj6kFqH8k08vdA=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [
+    hatchling
+    hatch-vcs
+  ];
 
-  propagatedBuildInputs = [
-    vobject
+  dependencies = [
+    dnspython
     lxml
-    requests
+    niquests
     icalendar
+    icalendar-searcher
     recurring-ical-events
-    pytz
-    tzlocal
+    python-dateutil
+    pyyaml
   ];
 
   nativeCheckInputs = [
-    pytestCheckHook
+    manuel
+    proxy-py
+    pyfakefs
+    pytest-asyncio
+    pytest9_0CheckHook
+    (toPythonModule (radicale.override { python3 = python; }))
+    tzlocal
+    vobject
+    writableTmpDirAsHomeHook
     (toPythonModule (xandikos.override { python3Packages = python.pkgs; }))
   ];
 
+  __darwinAllowLocalNetworking = true;
+
   pythonImportsCheck = [ "caldav" ];
 
-  meta = with lib; {
+  meta = {
     description = "CalDAV (RFC4791) client library";
     homepage = "https://github.com/python-caldav/caldav";
-    changelog = "https://github.com/python-caldav/caldav/blob/v${version}/CHANGELOG.md";
-    license = licenses.asl20;
-    maintainers = with maintainers; [
+    changelog = "https://github.com/python-caldav/caldav/blob/${src.tag}/CHANGELOG.md";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
       marenz
       dotlambda
     ];

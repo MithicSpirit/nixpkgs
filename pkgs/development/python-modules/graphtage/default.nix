@@ -1,14 +1,16 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitHub,
-  pytestCheckHook,
-  pythonOlder,
   colorama,
+  distutils,
+  fetchFromGitHub,
+  fickling,
   intervaltree,
   json5,
+  pytestCheckHook,
   pyyaml,
   scipy,
+  setuptools,
   tqdm,
   typing-extensions,
 }:
@@ -16,24 +18,25 @@
 buildPythonPackage rec {
   pname = "graphtage";
   version = "0.3.1";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.6";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "trailofbits";
-    repo = pname;
-    rev = "refs/tags/v${version}";
+    repo = "graphtage";
+    tag = "v${version}";
     hash = "sha256-Bz2T8tVdVOdXt23yPITkDNL46Y5LZPhY3SXZ5bF3CHw=";
   };
 
-  postPatch = ''
-    substituteInPlace setup.py \
-      --replace "json5==0.9.5" "json5>=0.9.5"
-  '';
+  pythonRelaxDeps = [ "json5" ];
 
-  propagatedBuildInputs = [
+  build-system = [
+    distutils
+    setuptools
+  ];
+
+  dependencies = [
     colorama
+    fickling
     intervaltree
     json5
     pyyaml
@@ -46,12 +49,12 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "graphtage" ];
 
-  meta = with lib; {
+  meta = {
     description = "Utility to diff tree-like files such as JSON and XML";
-    mainProgram = "graphtage";
     homepage = "https://github.com/trailofbits/graphtage";
     changelog = "https://github.com/trailofbits/graphtage/releases/tag/v${version}";
-    license = licenses.lgpl3Plus;
-    maintainers = with maintainers; [ veehaitch ];
+    license = lib.licenses.lgpl3Plus;
+    maintainers = with lib.maintainers; [ veehaitch ];
+    mainProgram = "graphtage";
   };
 }

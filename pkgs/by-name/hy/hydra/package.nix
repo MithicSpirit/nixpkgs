@@ -1,56 +1,77 @@
-{ stdenv
-, lib
-, nix
-, perlPackages
-, buildEnv
-, makeWrapper
-, unzip
-, pkg-config
-, libpqxx
-, top-git
-, mercurial
-, darcs
-, subversion
-, breezy
-, openssl
-, bzip2
-, libxslt
-, perl
-, postgresql
-, prometheus-cpp
-, nukeReferences
-, git
-, nlohmann_json
-, docbook_xsl
-, openssh
-, openldap
-, gnused
-, coreutils
-, findutils
-, gzip
-, xz
-, gnutar
-, rpm
-, dpkg
-, cdrkit
-, pixz
-, boost
-, autoreconfHook
-, mdbook
-, foreman
-, python3
-, libressl
-, cacert
-, glibcLocales
-, fetchFromGitHub
-, nixosTests
+{
+  stdenv,
+  lib,
+  nixVersions,
+  perlPackages,
+  buildEnv,
+  makeWrapper,
+  unzip,
+  pkg-config,
+  libpqxx,
+  top-git,
+  mercurial,
+  darcs,
+  subversion,
+  breezy,
+  openssl,
+  bzip2,
+  libxslt,
+  perl,
+  postgresql,
+  prometheus-cpp,
+  nukeReferences,
+  git,
+  nlohmann_json,
+  openssh,
+  openldap,
+  gnused,
+  coreutils,
+  findutils,
+  gzip,
+  xz,
+  gnutar,
+  rpm,
+  dpkg,
+  cdrkit,
+  pixz,
+  boost,
+  mdbook,
+  foreman,
+  python3,
+  netcat,
+  cacert,
+  glibcLocales,
+  meson,
+  ninja,
+  nix-eval-jobs,
+  fetchFromGitHub,
+  nixosTests,
+  unstableGitUpdater,
 }:
 
 let
+  # Need these pins until we bump past https://github.com/NixOS/hydra/pull/1828
+  nix = nixVersions.nix_2_34;
+  nixEvalJobsVersion = "2.34.3";
+  nix-eval-jobs_2_34 =
+    (nix-eval-jobs.override {
+      nixComponents = nixVersions.nixComponents_2_34;
+    }).overrideAttrs
+      {
+        version = nixEvalJobsVersion;
+        src = fetchFromGitHub {
+          owner = "NixOS";
+          repo = "nix-eval-jobs";
+          tag = "v${nixEvalJobsVersion}";
+          hash = "sha256-YaVQAgBxWbUBFHXLBLzdUyVvuA/DDw80SEnn9iq0Veo=";
+        };
+      };
+
   perlDeps = buildEnv {
     name = "hydra-perl-deps";
-    paths = with perlPackages; lib.closePropagation
-      [
+    paths =
+      with perlPackages;
+      lib.closePropagation [
         AuthenSASL
         CatalystActionREST
         CatalystAuthenticationStoreDBIxClass
@@ -75,11 +96,13 @@ let
         CryptRandPasswd
         DBDPg
         DBDSQLite
+        DBIxClassHelpers
         DataDump
         DateTime
         DigestSHA1
         EmailMIME
         EmailSender
+        FileCopyRecursive
         FileLibMagic
         FileSlurper
         FileWhich
@@ -96,6 +119,7 @@ let
         NetAmazonS3
         NetPrometheus
         NetStatsd
+        NumberBytesHuman
         PadWalker
         ParallelForkManager
         PerlCriticCommunity
@@ -110,27 +134,33 @@ let
         TermReadKey
         Test2Harness
         TestPostgreSQL
-        TestSimple13
         TextDiff
         TextTable
         UUID4Tiny
         XMLSimple
         YAML
-        nix.perl-bindings
+        (nix.libs.nix-perl-bindings or nix.perl-bindings or null)
         git
       ];
   };
+
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "hydra";
-  version = "0-unstable-2024-08-27";
+  version = "0-unstable-2026-03-16";
+  # nixpkgs-update: no auto update
 
   src = fetchFromGitHub {
     owner = "NixOS";
     repo = "hydra";
-    rev = "2d79b0a4da9e2a8ff97c1173aa56fe92e1f4629b";
-    hash = "sha256-ZU8/LzdZ0nbUxVxTsRZyMpTGEtps9oG0Yx2cpS9J8I4=";
+    rev = "a40d42862da88cce78a27dd594e1484a034aac4d";
+    hash = "sha256-8pttLK/JQiUL6EXJfjBtBggiLw+769JdQGrpM7klXdg=";
   };
+
+  outputs = [
+    "out"
+    "doc"
+  ];
 
   buildInputs = [
     unzip
@@ -148,7 +178,6 @@ stdenv.mkDerivation (finalAttrs: {
     perl
     pixz
     boost
-    postgresql
     nlohmann_json
     prometheus-cpp
   ];
@@ -158,6 +187,7 @@ stdenv.mkDerivation (finalAttrs: {
       subversion
       openssh
       nix
+      nix-eval-jobs_2_34
       coreutils
       findutils
       pixz
@@ -172,11 +202,17 @@ stdenv.mkDerivation (finalAttrs: {
       darcs
       gnused
       breezy
-    ] ++ lib.optionals stdenv.isLinux [ rpm dpkg cdrkit ]
+    ]
+    ++ lib.optionals stdenv.hostPlatform.isLinux [
+      rpm
+      dpkg
+      cdrkit
+    ]
   );
 
   nativeBuildInputs = [
-    autoreconfHook
+    meson
+    ninja
     makeWrapper
     pkg-config
     mdbook
@@ -188,25 +224,28 @@ stdenv.mkDerivation (finalAttrs: {
     foreman
     glibcLocales
     python3
-    libressl.nc
+    netcat
+    nix-eval-jobs_2_34
     openldap
+    postgresql
   ];
 
-  configureFlags = [ "--with-docbook-xsl=${docbook_xsl}/xml/xsl/docbook" ];
-
-  env.NIX_CFLAGS_COMPILE = "-pthread";
-
-  OPENLDAP_ROOT = openldap;
+  env = {
+    OPENLDAP_ROOT = openldap;
+  };
 
   shellHook = ''
-    PATH=$(pwd)/src/script:$(pwd)/src/hydra-eval-jobs:$(pwd)/src/hydra-queue-runner:$(pwd)/src/hydra-evaluator:$PATH
+    PATH=$(pwd)/src/script:$(pwd)/src/hydra-queue-runner:$(pwd)/src/hydra-evaluator:$PATH
     PERL5LIB=$(pwd)/src/lib:$PERL5LIB;
   '';
 
-  enableParallelBuilding = true;
+  mesonBuildType = "release";
+
+  postPatch = ''
+    patchShebangs .
+  '';
 
   preCheck = ''
-    patchShebangs .
     export LOGNAME=''${LOGNAME:-foo}
     # set $HOME for bzr so it can create its trace file
     export HOME=$(mktemp -d)
@@ -218,11 +257,12 @@ stdenv.mkDerivation (finalAttrs: {
         read -n 4 chars < $i
         if [[ $chars =~ ELF ]]; then continue; fi
         wrapProgram $i \
-            --prefix PERL5LIB ':' $out/libexec/hydra/lib:$PERL5LIB \
+            --prefix PERL5LIB ':' "$out/libexec/hydra/lib:${perlPackages.makePerlPath [ perlDeps ]}" \
             --prefix PATH ':' $out/bin:$hydraPath \
             --set-default HYDRA_RELEASE ${finalAttrs.version} \
             --set HYDRA_HOME $out/libexec/hydra \
-            --set NIX_RELEASE ${nix.name or "unknown"}
+            --set NIX_RELEASE ${nix.name or "unknown"} \
+            --set NIX_EVAL_JOBS_RELEASE ${nix-eval-jobs_2_34.name or "unknown"}
     done
   '';
 
@@ -230,14 +270,20 @@ stdenv.mkDerivation (finalAttrs: {
 
   passthru = {
     inherit nix perlDeps;
-    tests.basic = nixosTests.hydra.hydra;
+    tests = { inherit (nixosTests) hydra; };
+    updateScript = unstableGitUpdater { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Nix-based continuous build system";
     homepage = "https://nixos.org/hydra";
-    license = licenses.gpl3;
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ mindavi ] ++ teams.helsinki-systems.members;
+    license = lib.licenses.gpl3;
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [
+      conni2461
+      das_j
+      helsinki-Jo
+      mindavi
+    ];
   };
 })

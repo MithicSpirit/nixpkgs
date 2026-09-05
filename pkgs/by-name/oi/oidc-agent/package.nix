@@ -1,26 +1,27 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, curl
-, webkitgtk
-, libmicrohttpd
-, libsecret
-, qrencode
-, libsodium
-, pkg-config
-, help2man
-, nix-update-script
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  curl,
+  webkitgtk_4_1,
+  libmicrohttpd,
+  libsecret,
+  qrencode,
+  libsodium,
+  pkg-config,
+  help2man,
+  nix-update-script,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "oidc-agent";
-  version = "5.1.0";
+  version = "5.3.8";
 
   src = fetchFromGitHub {
     owner = "indigo-dc";
-    repo = pname;
-    rev = "v${version}";
-    sha256 = "sha256-cOK/rZ/jnyALLuhDM3+qvwwe4Fjkv8diQBkw7NfVo0c=";
+    repo = "oidc-agent";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-n88PQgFqsYiFwngaz1LGicVszoiepafshZa5/DiNw3I=";
   };
 
   nativeBuildInputs = [
@@ -30,7 +31,7 @@ stdenv.mkDerivation rec {
 
   buildInputs = [
     curl
-    webkitgtk
+    webkitgtk_4_1
     libmicrohttpd
     libsecret
     qrencode
@@ -39,23 +40,32 @@ stdenv.mkDerivation rec {
 
   enableParallelBuilding = true;
 
-  makeFlags = [ "PREFIX=$(out)" "BIN_PATH=$(out)" "LIB_PATH=$(out)/lib" ];
+  makeFlags = [
+    "PREFIX=$(out)"
+    "BIN_PATH=$(out)"
+    "PROMPT_BIN_PATH=$(out)"
+    "LIB_PATH=$(out)/lib"
+    "WEBKITGTK=webkit2gtk-4.1"
+  ];
 
-  installTargets = [ "install_bin" "install_lib" "install_conf" ];
+  installTargets = [
+    "install_bin"
+    "install_lib"
+    "install_conf"
+  ];
 
   postFixup = ''
     # Override with patched binary to be used by help2man
     cp -r $out/bin/* bin
-    make install_man PREFIX=$out
+    make install_man PREFIX=$out MAN_PATH=$out/share/man PROMPT_MAN_PATH=$out/share/man WEBKITGTK=webkit2gtk-4.1
   '';
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     description = "Manage OpenID Connect tokens on the command line";
     homepage = "https://github.com/indigo-dc/oidc-agent";
-    maintainers = with maintainers; [ xinyangli ];
-    license = licenses.mit;
+    maintainers = with lib.maintainers; [ xinyangli ];
+    license = lib.licenses.mit;
   };
-}
-
+})

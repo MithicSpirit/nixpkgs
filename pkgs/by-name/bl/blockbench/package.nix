@@ -12,33 +12,41 @@
 
 buildNpmPackage rec {
   pname = "blockbench";
-  version = "4.10.4";
+  version = "5.1.6";
 
   src = fetchFromGitHub {
     owner = "JannisX11";
     repo = "blockbench";
-    rev = "v${version}";
-    hash = "sha256-TjT93nx52PxuHuW4NONTfI3G7+Dl0NFX2aKpZDEF8+8=";
+    tag = "v${version}";
+    hash = "sha256-CMLTtwvNMvRULOR9VpsPDOfF7710lxzeSPfArX7MTYE=";
   };
 
-  nativeBuildInputs =
-    [ makeWrapper ]
-    ++ lib.optionals (!stdenv.isDarwin) [
-      imagemagick # for icon resizing
-      copyDesktopItems
-    ];
+  patches = [
+    # On linux we're running Blockbench by giving the path to the app.asar file to the electron executable,
+    # but Blockbench assumes paths at the and og the argv are files to be opened
+    # This patch disables trying to open the app.asar file
+    ./dont-assume-opening-app-asar.patch
+  ];
 
-  npmDepsHash = "sha256-WkOn1bLJ9xmJdQcY6ak+hs/YW+crIXhTWA6tjMSVq9I=";
+  nativeBuildInputs = [
+    makeWrapper
+  ]
+  ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [
+    imagemagick # for icon resizing
+    copyDesktopItems
+  ];
+
+  npmDepsHash = "sha256-EYtpxi9sTpn5Xpvf84UGAFkqJS+/p9vHwNUu/Vve4pg=";
+  makeCacheWritable = true;
 
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
 
-  # disable code signing on Darwin
-  postConfigure = lib.optionalString stdenv.isDarwin ''
-    export CSC_IDENTITY_AUTO_DISCOVERY=false
+  # disable notarization logic
+  postConfigure = lib.optionalString stdenv.hostPlatform.isDarwin ''
     sed -i "/afterSign/d" package.json
   '';
 
-  npmBuildScript = "bundle";
+  npmBuildScript = "build-electron";
 
   postBuild = ''
     # electronDist needs to be modifiable on Darwin
@@ -46,35 +54,35 @@ buildNpmPackage rec {
     chmod -R u+w electron-dist
 
     npm exec electron-builder -- \
-        --dir \
-        -c.electronDist=electron-dist \
-        -c.electronVersion=${electron.version}
+      --dir \
+      -c.electronDist=electron-dist \
+      -c.electronVersion=${electron.version} \
+      -c.mac.identity=null
   '';
 
   installPhase = ''
     runHook preInstall
+  ''
+  + lib.optionalString stdenv.hostPlatform.isDarwin ''
+    mkdir -p $out/Applications
+    cp -r dist-electron/mac*/Blockbench.app $out/Applications
+    makeWrapper $out/Applications/Blockbench.app/Contents/MacOS/Blockbench $out/bin/blockbench
+  ''
+  + lib.optionalString (!stdenv.hostPlatform.isDarwin) ''
+    mkdir -p $out/share/blockbench
+    cp -r dist-electron/*-unpacked/{locales,resources{,.pak}} $out/share/blockbench
 
-    ${lib.optionalString stdenv.isDarwin ''
-      mkdir -p $out/Applications
-      cp -r dist/mac*/Blockbench.app $out/Applications
-      makeWrapper $out/Applications/Blockbench.app/Contents/MacOS/Blockbench $out/bin/blockbench
-    ''}
+    for size in 16 32 48 64 128 256 512; do
+      mkdir -p $out/share/icons/hicolor/"$size"x"$size"/apps
+      magick icon.png -resize "$size"x"$size" $out/share/icons/hicolor/"$size"x"$size"/apps/blockbench.png
+    done
 
-    ${lib.optionalString (!stdenv.isDarwin) ''
-      mkdir -p $out/share/blockbench
-      cp -r dist/*-unpacked/{locales,resources{,.pak}} $out/share/blockbench
-
-      for size in 16 32 48 64 128 256 512; do
-        mkdir -p $out/share/icons/hicolor/"$size"x"$size"/apps
-        magick convert -resize "$size"x"$size" icon.png $out/share/icons/hicolor/"$size"x"$size"/apps/blockbench.png
-      done
-
-      makeWrapper ${lib.getExe electron} $out/bin/blockbench \
-          --add-flags $out/share/blockbench/resources/app.asar \
-          --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
-          --inherit-argv0
-    ''}
-
+    makeWrapper ${lib.getExe electron} $out/bin/blockbench \
+      --add-flags $out/share/blockbench/resources/app.asar \
+      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}" \
+      --inherit-argv0
+  ''
+  + ''
     runHook postInstall
   '';
 
@@ -93,7 +101,7 @@ buildNpmPackage rec {
   ];
 
   meta = {
-    changelog = "https://github.com/JannisX11/blockbench/releases/tag/${src.rev}";
+    changelog = "https://github.com/JannisX11/blockbench/releases/tag/v${version}";
     description = "Low-poly 3D modeling and animation software";
     homepage = "https://blockbench.net/";
     license = lib.licenses.gpl3Only;

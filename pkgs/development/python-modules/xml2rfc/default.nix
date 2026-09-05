@@ -1,70 +1,65 @@
 {
   lib,
-  appdirs,
   buildPythonPackage,
   configargparse,
   decorator,
   dict2xml,
   fetchFromGitHub,
   google-i18n-address,
-  html5lib,
   intervaltree,
   jinja2,
   lxml,
-  markupsafe,
+  natsort,
   platformdirs,
   pycairo,
   pycountry,
-  pyflakes,
-  pypdf2,
+  pypdf,
+  pyprojectVersionPatchHook,
   pytestCheckHook,
   python-fontconfig,
-  pythonOlder,
   pyyaml,
   requests,
-  six,
+  setuptools,
   wcwidth,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "xml2rfc";
-  version = "3.21.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.8";
+  version = "3.34.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "ietf-tools";
     repo = "xml2rfc";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-7lYNEyoLYbxn1ld08eXaN8BumYhN9EftpHQKxdu64MY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-O5S1jeNOa1Lrv1wJpqpexDjghFkEiQqI9tYGGlpbRi4=";
   };
+
+  pythonRelaxDeps = [ "lxml" ];
 
   postPatch = ''
     substituteInPlace Makefile \
-      --replace "SHELL := /bin/bash" "SHELL := bash" \
-      --replace "test flaketest" "test"
-    substituteInPlace setup.py \
-      --replace "'tox'," ""
+      --replace-fail "SHELL := /bin/bash" "SHELL := bash" \
+      --replace-fail "test flaketest" "test"
   '';
 
-  propagatedBuildInputs = [
-    appdirs
+  build-system = [ setuptools ];
+
+  nativeBuildInputs = [ pyprojectVersionPatchHook ];
+
+  dependencies = [
     configargparse
     dict2xml
     google-i18n-address
-    html5lib
     intervaltree
     jinja2
     lxml
-    markupsafe
+    natsort
     platformdirs
     pycountry
-    pyflakes
-    pypdf2
+    pypdf
     pyyaml
     requests
-    six
     wcwidth
   ];
 
@@ -84,17 +79,17 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "xml2rfc" ];
 
-  meta = with lib; {
+  meta = {
     description = "Tool generating IETF RFCs and drafts from XML sources";
     mainProgram = "xml2rfc";
     homepage = "https://github.com/ietf-tools/xml2rfc";
-    changelog = "https://github.com/ietf-tools/xml2rfc/blob/v${version}/CHANGELOG.md";
+    changelog = "https://github.com/ietf-tools/xml2rfc/blob/${finalAttrs.src.tag}/CHANGELOG.md";
     # Well, parts might be considered unfree, if being strict; see:
     # http://metadata.ftp-master.debian.org/changelogs/non-free/x/xml2rfc/xml2rfc_2.9.6-1_copyright
-    license = licenses.bsd3;
-    maintainers = with maintainers; [
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [
       vcunat
       yrashk
     ];
   };
-}
+})

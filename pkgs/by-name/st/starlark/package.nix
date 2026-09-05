@@ -1,24 +1,36 @@
-{ lib, fetchFromGitHub, buildGoModule }:
-buildGoModule rec {
+{
+  lib,
+  fetchFromGitHub,
+  buildGoModule,
+  nix-update-script,
+}:
+buildGoModule {
   pname = "starlark";
-  version = "0-unstable-2024-05-21";
+  version = "0-unstable-2026-08-28";
 
   src = fetchFromGitHub {
     owner = "google";
     repo = "starlark-go";
-    rev = "046347dcd1044f5e568fcf64884b0344f27910c0";
-    hash = "sha256-qpJPCcMxrsspiN5FeQDZRaNchYPawMNJHtKK8fmrRug=";
+    rev = "6dd8f160a37fc95b7099a2fdb535815b27e38ae9";
+    hash = "sha256-lJ7UbX/OLYBNJnBYu7gTcXUhyWYt7yduxt7aiudz++I=";
   };
 
-  vendorHash = "sha256-8drlCBy+KROyqXzm/c+HBe/bMVOyvwRoLHxOApJhMfo=";
+  vendorHash = "sha256-Ejw5f5ulEcLHm4WYKatwA7FZ9lfdqZTOE3SdkaK6jYE=";
 
-  ldflags = [ "-s" "-w" ];
+  ldflags = [
+    "-s"
+    "-w"
+  ];
 
-  meta = with lib; {
+  passthru.updateScript = nix-update-script {
+    extraArgs = [ "--version=branch" ];
+  };
+
+  meta = {
     homepage = "https://github.com/google/starlark-go";
     description = "Interpreter for Starlark, implemented in Go";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ aaronjheng ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ aaronjheng ];
     mainProgram = "starlark";
   };
 }

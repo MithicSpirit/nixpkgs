@@ -2,57 +2,70 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+
+  # build-system
+  hatchling,
+
+  # dependencies
   httpx,
   httpx-sse,
+  langchain-core,
+  langchain-protocol,
   orjson,
-  poetry-core,
-  pythonOlder,
-  writeScript,
+  typing-extensions,
+  websockets,
+
+  # passthru
+  gitUpdater,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "langgraph-sdk";
-  version = "0.1.26";
+  version = "0.4.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "langchain-ai";
     repo = "langgraph";
-    rev = "refs/tags/sdk==${version}";
-    hash = "sha256-o7JrB2WSWfPm927tDRMcjzx+6Io6Q+Yjp4XPVs2+F4o=";
+    tag = "sdk==${finalAttrs.version}";
+    hash = "sha256-30BY7f8m3YiqEBhb3+TQYTW0N40xI9kTQbMTh4BwcyU=";
   };
 
-  sourceRoot = "${src.name}/libs/sdk-py";
+  sourceRoot = "${finalAttrs.src.name}/libs/sdk-py";
 
-  build-system = [ poetry-core ];
+  build-system = [ hatchling ];
+
+  pythonRelaxDeps = [ "websockets" ];
 
   dependencies = [
     httpx
     httpx-sse
+    langchain-core
+    langchain-protocol
     orjson
+    typing-extensions
+    websockets
   ];
+
+  disabledTests = [ "test_aevaluate_results" ]; # Compares execution time to magic number
 
   pythonImportsCheck = [ "langgraph_sdk" ];
 
   passthru = {
-    # python3Packages.langgraph-sdk depends on python3Packages.langgraph. langgraph-cli is independent of both.
-    updateScript = writeScript "update.sh" ''
-      #!/usr/bin/env nix-shell
-      #!nix-shell -i bash -p nix-update
-
-      set -eu -o pipefail
-      nix-update --commit --version-regex '(.*)' python3Packages.langgraph
-      nix-update --commit --version-regex 'sdk==(.*)' python3Packages.langgraph-sdk
-    '';
+    # python updater script sets the wrong tag
+    skipBulkUpdate = true;
+    updateScript = gitUpdater {
+      rev-prefix = "sdk==";
+      ignoredVersions = "a|b|dev|rc";
+    };
   };
 
   meta = {
     description = "SDK for interacting with the LangGraph Cloud REST API";
-    homepage = "https://github.com/langchain-ai/langgraphtree/main/libs/sdk-py";
-    changelog = "https://github.com/langchain-ai/langgraph/releases/tag/sdk==${version}";
+    homepage = "https://github.com/langchain-ai/langgraph/tree/main/libs/sdk-py";
+    changelog = "https://github.com/langchain-ai/langgraph/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ sarahec ];
   };
-}
+})

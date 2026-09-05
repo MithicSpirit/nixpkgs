@@ -1,104 +1,107 @@
-{ branch ? "stable", callPackage, fetchurl, lib, stdenv }:
+{
+  callPackage,
+  lib,
+  stdenv,
+  discord,
+  discord-ptb,
+  discord-canary,
+  discord-development,
+}:
 let
-  versions =
-    if stdenv.isLinux then {
-      stable = "0.0.65";
-      ptb = "0.0.101";
-      canary = "0.0.475";
-      development = "0.0.24";
-    } else {
-      stable = "0.0.316";
-      ptb = "0.0.130";
-      canary = "0.0.583";
-      development = "0.0.46";
-    };
-  version = versions.${branch};
-  srcs = rec {
+  variants = rec {
     x86_64-linux = {
-      stable = fetchurl {
-        url = "https://dl.discordapp.net/apps/linux/${version}/discord-${version}.tar.gz";
-        hash = "sha256-kzYLZcjuG7k8RSjc5ooDlMKaAlMHvm0yCl5Krnhqq8A=";
+      discord = rec {
+        branch = "stable";
+        binaryName = desktopName;
+        desktopName = "Discord";
+        self = discord;
       };
-      ptb = fetchurl {
-        url = "https://dl-ptb.discordapp.net/apps/linux/${version}/discord-ptb-${version}.tar.gz";
-        hash = "sha256-JesxPoYybVLVwTrDwG2kO6Pikq7qvn7CO8j+24dwjBc=";
+      discord-ptb = {
+        branch = "ptb";
+        binaryName = "DiscordPTB";
+        desktopName = "Discord PTB";
+        self = discord-ptb;
       };
-      canary = fetchurl {
-        url = "https://dl-canary.discordapp.net/apps/linux/${version}/discord-canary-${version}.tar.gz";
-        hash = "sha256-suVIDCZhI6DwUVizBmTm104Clr6pH/olAIbOMNzFNss=";
+      discord-canary = {
+        branch = "canary";
+        binaryName = "DiscordCanary";
+        desktopName = "Discord Canary";
+        self = discord-canary;
       };
-      development = fetchurl {
-        url = "https://dl-development.discordapp.net/apps/linux/${version}/discord-development-${version}.tar.gz";
-        hash = "sha256-rSlGL2BwtUxLJltSD2Ms94qmZ4kuX5i9jFqyYC30jyQ=";
-      };
-    };
-    x86_64-darwin = {
-      stable = fetchurl {
-        url = "https://dl.discordapp.net/apps/osx/${version}/Discord.dmg";
-        hash = "sha256-ZJ2ybvKGGCm8CZhwGxmLXZWNUD1eAyg17zD/sBwViB4=";
-      };
-      ptb = fetchurl {
-        url = "https://dl-ptb.discordapp.net/apps/osx/${version}/DiscordPTB.dmg";
-        hash = "sha256-mLfeMx5dQNpoLUyoOSCj8XtNxWjsBpVWdFv1obtHJak=";
-      };
-      canary = fetchurl {
-        url = "https://dl-canary.discordapp.net/apps/osx/${version}/DiscordCanary.dmg";
-        hash = "sha256-eIjkXOW07sR26iBttT0mGDxNnpLFKlVJtzSAtFcicBg=";
-      };
-      development = fetchurl {
-        url = "https://dl-development.discordapp.net/apps/osx/${version}/DiscordDevelopment.dmg";
-        hash = "sha256-nMihtf/xLIxwqAVrF1BSRewdS2WThx0LZ5HZUI+OzM0=";
+      discord-development = {
+        branch = "development";
+        binaryName = "DiscordDevelopment";
+        desktopName = "Discord Development";
+        self = discord-development;
       };
     };
-    aarch64-darwin = x86_64-darwin;
-  };
-  src = srcs.${stdenv.hostPlatform.system}.${branch} or (throw "${stdenv.hostPlatform.system} not supported on ${branch}");
+    aarch64-darwin = {
+      discord = rec {
+        branch = "stable";
+        binaryName = desktopName;
+        desktopName = "Discord";
+        self = discord;
+      };
+      discord-ptb = rec {
+        branch = "ptb";
+        binaryName = desktopName;
+        desktopName = "Discord PTB";
+        self = discord-ptb;
+      };
+      discord-canary = rec {
+        branch = "canary";
+        binaryName = desktopName;
+        desktopName = "Discord Canary";
+        self = discord-canary;
+      };
+      discord-development = rec {
+        branch = "development";
+        binaryName = desktopName;
+        desktopName = "Discord Development";
+        self = discord-development;
+      };
+    };
 
-  meta = with lib; {
+    default = x86_64-linux; # Used for unsupported platforms, so we can return *something* there.
+  };
+
+  meta = {
     description = "All-in-one cross-platform voice and text chat for gamers";
-    homepage = "https://discordapp.com/";
     downloadPage = "https://discordapp.com/download";
-    sourceProvenance = with sourceTypes; [ binaryNativeCode ];
-    license = licenses.unfree;
-    maintainers = with maintainers; [ Scrumplex artturin infinidoge jopejoe1 ];
-    platforms = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
+    homepage = "https://discordapp.com/";
+    license = lib.licenses.unfree;
     mainProgram = "discord";
+    maintainers = with lib.maintainers; [
+      artturin
+      _4evy
+      infinidoge
+      jopejoe1
+      Scrumplex
+      sophiebsw
+    ];
+    platforms = [
+      "x86_64-linux"
+      "aarch64-darwin"
+    ];
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
   };
-  package =
-    if stdenv.isLinux
-    then ./linux.nix
-    else ./darwin.nix;
 
-  packages = (
-    builtins.mapAttrs
-      (_: value:
-        callPackage package (value
-          // {
-          inherit src version branch;
-          meta = meta // { mainProgram = value.binaryName; };
-        }))
-      {
-        stable = rec {
-          pname = "discord";
-          binaryName = "Discord";
-          desktopName = "Discord";
-        };
-        ptb = rec {
-          pname = "discord-ptb";
-          binaryName = if stdenv.isLinux then "DiscordPTB" else desktopName;
-          desktopName = "Discord PTB";
-        };
-        canary = rec {
-          pname = "discord-canary";
-          binaryName = if stdenv.isLinux then "DiscordCanary" else desktopName;
-          desktopName = "Discord Canary";
-        };
-        development = rec {
-          pname = "discord-development";
-          binaryName = if stdenv.isLinux then "DiscordDevelopment" else desktopName;
-          desktopName = "Discord Development";
-        };
-      }
-  );
+  sources = lib.importJSON ./sources.json;
 in
-packages.${branch}
+lib.genAttrs [ "discord" "discord-ptb" "discord-canary" "discord-development" ] (
+  pname:
+  let
+    args = (variants.${stdenv.hostPlatform.system} or variants.default).${pname};
+    platformName = if stdenv.hostPlatform.isDarwin then "osx" else "linux";
+    source = sources."${platformName}-${args.branch}";
+  in
+  callPackage ./wrapper.nix (
+    args
+    // {
+      inherit pname source;
+      meta = meta // {
+        mainProgram = args.binaryName;
+      };
+    }
+  )
+)

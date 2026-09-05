@@ -1,46 +1,65 @@
-{ lib, stdenv, fetchurl, pkg-config, boost, nixosTests
-, openssl, systemd, lua, luajit, protobuf
-, libsodium
-, curl
-, rustPlatform, cargo, rustc
-, enableProtoBuf ? false
+{
+  lib,
+  stdenv,
+  fetchurl,
+  pkg-config,
+  boost,
+  nixosTests,
+  openssl,
+  systemd,
+  lua,
+  luajit,
+  protobuf,
+  libsodium,
+  curl,
+  rustPlatform,
+  cargo,
+  rustc,
+  python3,
+  enableProtoBuf ? false,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "pdns-recursor";
-  version = "5.0.6";
+  version = "5.4.5";
 
   src = fetchurl {
-    url = "https://downloads.powerdns.com/releases/pdns-recursor-${finalAttrs.version}.tar.bz2";
-    hash = "sha256-2QiF0qu33f6XQc2Pv1ubppAilsd7L1Ekh3kGZZHvPzI=";
+    url = "https://downloads.powerdns.com/releases/pdns-recursor-${finalAttrs.version}.tar.xz";
+    hash = "sha256-ExBXaNlJAGdZbyY9fTSLzAxnmFdMfZkcxAlS8YudrBE=";
   };
 
-  cargoDeps = rustPlatform.fetchCargoTarball {
-    inherit (finalAttrs) src;
-    sourceRoot = "pdns-recursor-${finalAttrs.version}/settings/rust";
-    hash = "sha256-XHzuYkO91TJNU2DYqMlafqrc2zR1WvIrNLjFHL2FcwA=";
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs) pname version src;
+    sourceRoot = "pdns-recursor-${finalAttrs.version}/rec-rust-lib/rust";
+    hash = "sha256-r0fVF/N1K2rYUEuEZ4NYYbpYxILMklhwAodeAEK7SFs=";
   };
 
-  cargoRoot = "settings/rust";
+  cargoRoot = "rec-rust-lib/rust";
 
   nativeBuildInputs = [
     cargo
     rustc
-
+    python3
     rustPlatform.cargoSetupHook
     pkg-config
   ];
+
   buildInputs = [
-    boost openssl systemd
-    lua luajit
+    boost
+    openssl
+    systemd
+    lua
+    luajit
     libsodium
     curl
-  ] ++ lib.optional enableProtoBuf protobuf;
+  ]
+  ++ lib.optional enableProtoBuf protobuf;
 
   configureFlags = [
     "--enable-reproducible"
     "--enable-systemd"
     "--enable-dns-over-tls"
+    "--with-boost=${boost.dev}"
     "sysconfdir=/etc/pdns-recursor"
   ];
 
@@ -52,14 +71,15 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (nixosTests) pdns-recursor ncdns;
   };
 
-  meta = with lib; {
+  meta = {
+    changelog = "https://doc.powerdns.com/recursor/changelog/${lib.versions.majorMinor finalAttrs.version}.html#change-${finalAttrs.version}";
     description = "Recursive DNS server";
     homepage = "https://www.powerdns.com/";
-    platforms = platforms.linux;
+    platforms = lib.platforms.linux;
     badPlatforms = [
-      "i686-linux"  # a 64-bit time_t is needed
+      "i686-linux" # a 64-bit time_t is needed
     ];
-    license = licenses.gpl2Only;
-    maintainers = with maintainers; [ rnhmjoj ];
+    license = lib.licenses.gpl2Only;
+    maintainers = with lib.maintainers; [ rnhmjoj ];
   };
 })

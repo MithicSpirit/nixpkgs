@@ -1,47 +1,51 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitHub,
   cffi,
+  fetchFromGitHub,
+  flatbuffers,
   h3,
   numba,
   numpy,
-  poetry-core,
+  pydantic,
   pytestCheckHook,
-  pythonOlder,
+  pytz,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "timezonefinder";
-  version = "6.5.2";
+  version = "8.2.5";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "jannikmi";
     repo = "timezonefinder";
-    rev = "refs/tags/${version}";
-    hash = "sha256-2vQk7aSsyyh3mN1l4A5Y5yASJ2V7e4fegsOExGwyhGA=";
+    tag = finalAttrs.version;
+    hash = "sha256-NDxGYiBYFqYU3tK/RwlHYARcncAB1GJk+qHxRNrT1oU=";
   };
 
-  nativeBuildInputs = [
-    cffi
-    poetry-core
-    setuptools
-  ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  nativeBuildInputs = [ cffi ];
+
+  dependencies = [
     cffi
+    flatbuffers
     h3
     numpy
   ];
 
+  optional-dependencies = {
+    numba = [ numba ];
+    pytz = [ pytz ];
+  };
+
   nativeCheckInputs = [
-    numba
+    pydantic
     pytestCheckHook
-  ];
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
 
   pythonImportsCheck = [ "timezonefinder" ];
 
@@ -50,12 +54,22 @@ buildPythonPackage rec {
     export PATH=$out/bin:$PATH
   '';
 
-  meta = with lib; {
-    changelog = "https://github.com/jannikmi/timezonefinder/blob/${version}/CHANGELOG.rst";
+  disabledTestPaths = [
+    # Don't test the archive content
+    "tests/test_package_contents.py"
+    "tests/test_integration.py"
+    # Don't test the example
+    "tests/test_example_scripts.py"
+    # Tests require clang extension
+    "tests/utils_test.py"
+  ];
+
+  meta = {
     description = "Module for finding the timezone of any point on earth (coordinates) offline";
-    mainProgram = "timezonefinder";
     homepage = "https://github.com/MrMinimal64/timezonefinder";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/jannikmi/timezonefinder/blob/${finalAttrs.src.tag}/CHANGELOG.rst";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
+    mainProgram = "timezonefinder";
   };
-}
+})

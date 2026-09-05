@@ -1,61 +1,67 @@
 {
-  lib
-, fetchFromGitHub
-, rustPlatform
-, pkg-config
-, stdenv
-, darwin
-, libusb1
-, nix-update-script
-, testers
-, cyme
+  lib,
+  fetchFromGitHub,
+  rustPlatform,
+  pkg-config,
+  installShellFiles,
+  stdenv,
+  darwin,
+  versionCheckHook,
+  nix-update-script,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "cyme";
-  version = "1.8.1";
+  version = "3.0.1";
 
   src = fetchFromGitHub {
     owner = "tuna-f1sh";
     repo = "cyme";
-    rev = "v${version}";
-    hash = "sha256-Rq7ykD6L+DrDNz+d++ztv+fmoSSNCoeC1YfXiIJiXzM=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-yc4oV5Sm5BuABEcfQVu7otNtHGDWVmSkV/FjTLER78Q=";
   };
 
-  cargoHash = "sha256-XvU8r4bmI18qp+1O3nsJG3RTiiNxfKksRgkSBMsja5s=";
+  cargoHash = "sha256-zNRZOOrKvYhDgCaNRS5P+UIZ8uzSW9nePciOn13LLB8=";
 
   nativeBuildInputs = [
     pkg-config
-  ] ++ lib.optionals stdenv.isDarwin [
+    installShellFiles
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
     darwin.DarwinTools
-  ];
-
-  buildInputs = [
-    libusb1
   ];
 
   checkFlags = [
     # doctest that requires access outside sandbox
     "--skip=udev::hwdb::get"
-  ] ++ lib.optionals stdenv.isDarwin [
-    # system_profiler is not available in the sandbox
+    # - system_profiler is not available in the sandbox
+    # - workaround for "Io Error: No such file or directory"
     "--skip=test_run"
   ];
 
-  passthru = {
-    updateScript = nix-update-script { };
-    tests.version = testers.testVersion {
-      package = cyme;
-    };
-  };
+  postInstall = ''
+    installManPage doc/cyme.1
+    installShellCompletion --cmd cyme \
+      --bash doc/cyme.bash \
+      --fish doc/cyme.fish \
+      --zsh doc/_cyme
+  '';
 
-  meta = with lib; {
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+  doInstallCheck = true;
+  versionCheckProgram = "${placeholder "out"}/bin/${finalAttrs.meta.mainProgram}";
+
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     homepage = "https://github.com/tuna-f1sh/cyme";
-    changelog = "https://github.com/tuna-f1sh/cyme/releases/tag/${src.rev}";
+    changelog = "https://github.com/tuna-f1sh/cyme/releases/tag/${finalAttrs.src.rev}";
     description = "Modern cross-platform lsusb";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ h7x4 ];
-    platforms = platforms.linux ++ platforms.darwin ++ platforms.windows;
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ h7x4 ];
+    platforms = lib.platforms.linux ++ lib.platforms.darwin ++ lib.platforms.windows;
     mainProgram = "cyme";
   };
-}
+})

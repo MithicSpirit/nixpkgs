@@ -41,7 +41,13 @@ close ANSWERS;
 sub runConfig {
 
     # Run `make config'.
-    my $pid = open2(\*IN, \*OUT, "make -C $ENV{SRC} O=$buildRoot config SHELL=bash ARCH=$ENV{ARCH} CC=$ENV{CC} HOSTCC=$ENV{HOSTCC} HOSTCXX=$ENV{HOSTCXX} $makeFlags");
+    #
+    # We have to pass through the target toolchain, because `make config` checks them for versions. This is
+    # required to get clang LTO working, among other things.
+    my $pid = open2(\*IN, \*OUT,
+                    "make -C $ENV{SRC} O=$buildRoot config"
+                    . " SHELL=bash ARCH=$ENV{ARCH} CROSS_COMPILE=$ENV{CROSS_COMPILE}"
+                    . " $makeFlags");
 
     # Parse the output, look for questions and then send an
     # appropriate answer.
@@ -94,7 +100,13 @@ sub runConfig {
             elsif ($line =~ /choice\[(.*)\]: ###$/) {
                 my $answer = "";
                 foreach my $name (keys %choices) {
-                    $answer = $choices{$name} if ($answers{$name} || "") eq "y";
+                    if (($answers{$name} || "") eq "y") {
+                        if ($answer eq "") {
+                            $answer = $choices{$name};
+                        } else {
+                            die "conflicting answers!"
+                        }
+                    }
                 }
                 print STDERR "CHOICE: $1, ANSWER: $answer\n" if $debug;
                 print OUT "$answer\n" if $1 =~ /-/;

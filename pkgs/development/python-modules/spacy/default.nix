@@ -1,75 +1,84 @@
 {
   lib,
   stdenv,
-  blis,
   buildPythonPackage,
-  callPackage,
-  catalogue,
+  fetchFromGitHub,
+  pythonAtLeast,
+
+  # build-system
   cymem,
-  cython_0,
-  fetchPypi,
-  hypothesis,
-  jinja2,
-  jsonschema,
-  langcodes,
-  mock,
+  cython,
   murmurhash,
   numpy,
-  packaging,
-  pathy,
   preshed,
+  thinc,
+
+  # dependencies
+  catalogue,
+  jinja2,
+  langcodes,
+  packaging,
   pydantic,
-  pytestCheckHook,
-  pythonOlder,
   requests,
   setuptools,
   spacy-legacy,
   spacy-loggers,
   srsly,
-  thinc,
   tqdm,
   typer,
-  typing-extensions,
   wasabi,
   weasel,
+
+  # optional-dependencies
+  spacy-transformers,
+  spacy-lookups-data,
+
+  # tests
+  pytest-xdist,
+  pytestCheckHook,
+  hypothesis,
+  mock,
+
+  # passthru
   writeScript,
-  nix,
   git,
+  nix,
   nix-update,
+  callPackage,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "spacy";
-  version = "3.7.5";
+  version = "3.8.16";
   pyproject = true;
+  __structuredAttrs = true;
 
-  disabled = pythonOlder "3.7";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-pkjGy/Ksx6Vaae6ef6TyK99pqoKKWHobxc//CM88LdM=";
+  src = fetchFromGitHub {
+    owner = "explosion";
+    repo = "spaCy";
+    tag = "release-v${finalAttrs.version}";
+    hash = "sha256-EFzzb9hMBjFh3hD+xId7uxkTVsg92WNiUaCKBRa0bnw=";
   };
 
-  pythonRelaxDeps = [
-    "smart-open"
-    "typer"
+  build-system = [
+    cymem
+    cython
+    murmurhash
+    numpy
+    preshed
+    thinc
   ];
 
-  nativeBuildInputs = [
-    cython_0
-  ];
+  pythonRelaxDeps = [ "thinc" ];
 
-  propagatedBuildInputs = [
-    blis
+  dependencies = [
     catalogue
     cymem
     jinja2
-    jsonschema
     langcodes
     murmurhash
     numpy
     packaging
-    pathy
     preshed
     pydantic
     requests
@@ -82,28 +91,50 @@ buildPythonPackage rec {
     typer
     wasabi
     weasel
-  ] ++ lib.optionals (pythonOlder "3.8") [ typing-extensions ];
+  ];
+
+  optional-dependencies = {
+    transformers = [ spacy-transformers ];
+    lookups = [ spacy-lookups-data ];
+  };
 
   nativeCheckInputs = [
+    pytest-xdist
     pytestCheckHook
     hypothesis
     mock
   ];
-
-  doCheck = true;
 
   # Fixes ModuleNotFoundError when running tests on Cythonized code. See #255262
   preCheck = ''
     cd $out
   '';
 
-  pytestFlagsArray = [ "-m 'slow'" ];
+  disabledTestMarks = [ "slow" ];
 
   disabledTests = [
+    # ValueError: [E002] Can't find factory for 'assert_sents' for language English (en).
+    "test_annotating_components_from_config"
+
     # touches network
     "test_download_compatibility"
     "test_validate_compatibility_table"
     "test_project_assets"
+    "test_find_available_port"
+
+    # Tests for presence of outdated (and thus missing) spacy models
+    # https://github.com/explosion/spaCy/issues/13856
+    "test_registry_entries"
+
+    # AssertionError: confection has different version in setup.cfg and in requirements.txt:
+    # >=1.3.2,<2.0.0 and >=1.1.0,<2.0.0 respectively
+    "test_build_dependencies"
+  ]
+  ++ lib.optionals (pythonAtLeast "3.14") [
+    # AssertionError:
+    #   assert eval["nel_macro_f"] > 0
+    #   assert 0.0 > 0
+    "test_overfitting_IO_with_ner"
   ];
 
   pythonImportsCheck = [ "spacy" ];
@@ -114,13 +145,13 @@ buildPythonPackage rec {
       set -eou pipefail
       PATH=${
         lib.makeBinPath [
-          nix
           git
+          nix
           nix-update
         ]
       }
 
-      nix-update python3Packages.spacy
+      nix-update python3Packages.spacy --version-regex 'release-v([0-9.]+)'
 
       # update spacy models as well
       echo | nix-shell maintainers/scripts/update.nix --argstr package python3Packages.spacy-models.en_core_web_sm
@@ -128,12 +159,14 @@ buildPythonPackage rec {
     tests.annotation = callPackage ./annotation-test { };
   };
 
-  meta = with lib; {
+  __darwinAllowLocalNetworking = true; # needed for test_find_available_port
+
+  meta = {
     description = "Industrial-strength Natural Language Processing (NLP)";
-    mainProgram = "spacy";
     homepage = "https://github.com/explosion/spaCy";
-    changelog = "https://github.com/explosion/spaCy/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = [ ];
+    changelog = "https://github.com/explosion/spaCy/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ sarahec ];
+    mainProgram = "spacy";
   };
-}
+})

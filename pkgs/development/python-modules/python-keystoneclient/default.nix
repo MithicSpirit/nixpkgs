@@ -7,8 +7,8 @@
   oslo-config,
   oslo-serialization,
   pbr,
-  pythonOlder,
   requests-mock,
+  setuptools,
   stestr,
   testresources,
   testscenarios,
@@ -16,17 +16,18 @@
 
 buildPythonPackage rec {
   pname = "python-keystoneclient";
-  version = "5.4.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.8";
+  version = "5.8.0";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-srS9vp2vews1O4gHZy7u0B+H3QO0+LQtDQYbCbiTH0E=";
+    pname = "python_keystoneclient";
+    inherit version;
+    hash = "sha256-PKh8Z8QEKYzoYjELVp9UWlis91zVaFCUyC81Mgs6NV0=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     keystoneauth1
     oslo-config
     oslo-serialization
@@ -42,15 +43,17 @@ buildPythonPackage rec {
   ];
 
   checkPhase = ''
+    runHook preCheck
     stestr run
+    runHook postCheck
   '';
 
   pythonImportsCheck = [ "keystoneclient" ];
 
-  meta = with lib; {
+  meta = {
     description = "Client Library for OpenStack Identity";
     homepage = "https://github.com/openstack/python-keystoneclient";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
 }

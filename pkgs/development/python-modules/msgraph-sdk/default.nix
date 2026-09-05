@@ -12,21 +12,18 @@
   microsoft-kiota-serialization-multipart,
   microsoft-kiota-serialization-text,
   msgraph-core,
-  pythonOlder,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "msgraph-sdk";
-  version = "1.5.4";
+  version = "1.62.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "microsoftgraph";
     repo = "msgraph-sdk-python";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Ty9e+xJ3+h4d0hmwtiZA9k5WMeuvT4iwNpR06KRpnfI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-3ADJLslpAnm44j3tACoX2jB9I9SLBWlTzTxX327d+LI=";
   };
 
   build-system = [ flit-core ];
@@ -48,11 +45,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "msgraph" ];
 
-  meta = with lib; {
+  meta = {
     description = "Microsoft Graph SDK for Python";
     homepage = "https://github.com/microsoftgraph/msgraph-sdk-python";
-    changelog = "https://github.com/microsoftgraph/msgraph-sdk-python/blob/${version}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/microsoftgraph/msgraph-sdk-python/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

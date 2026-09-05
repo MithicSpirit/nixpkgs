@@ -1,23 +1,23 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, makeWrapper
-, rustPlatform
-, pkg-config
-, openssl
-, darwin
-, vale
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  makeWrapper,
+  rustPlatform,
+  pkg-config,
+  openssl,
+  vale,
 }:
 
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "vale-ls";
-  version = "0.3.7-unstable-2024-03-13";
+  version = "0.5.1";
 
   src = fetchFromGitHub {
-    owner = "errata-ai";
+    owner = "vale-cli";
     repo = "vale-ls";
-    rev = "473e16bc88ec48b35e2bd208adc174878c4d5396";
-    hash = "sha256-ywJsnWMc9NSjYjsK6SXdMAQl+hcP+KQ7Xp1A99aeqAg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-cwnnle2oaRe4DtO7WuW19wx2winS7eeKkwAPjI4xCjE=";
   };
 
   nativeBuildInputs = [
@@ -28,14 +28,13 @@ rustPlatform.buildRustPackage {
 
   buildInputs = [
     openssl
-  ] ++ lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [
-    SystemConfiguration
-  ]);
+  ];
 
   checkFlags = [
     # The following tests are reaching to the network.
     "--skip=vale::tests"
-  ] ++ lib.optionals (stdenv.isLinux && stdenv.isAarch64) [
+  ]
+  ++ lib.optionals (stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64) [
     # This test does not account for the existence of aarch64-linux machines,
     # despite upstream shipping artifacts for that architecture
     "--skip=utils::tests::arch"
@@ -43,19 +42,20 @@ rustPlatform.buildRustPackage {
 
   env.OPENSSL_NO_VENDOR = true;
 
-  cargoHash = "sha256-ifKdSTmVWfDZF5Kn9b5JpzDxa160oRTfzjvxeL9POBg=";
+  cargoHash = "sha256-F7bJJ4CLq7xb34G2FKaL48NjD/EjNWeUde2KzloBt18=";
 
   postInstall = ''
     wrapProgram $out/bin/vale-ls \
-      --prefix PATH : ${lib.makeBinPath [ vale ]}
+      --suffix PATH : ${lib.makeBinPath [ vale ]}
   '';
 
-  meta = with lib; {
+  meta = {
     description = "LSP implementation for the Vale command-line tool";
-    homepage = "https://github.com/errata-ai/vale-ls";
-    license = licenses.mit;
+    homepage = "https://github.com/vale-cli/vale-ls";
+    license = lib.licenses.mit;
     mainProgram = "vale-ls";
-    maintainers = with maintainers; [ foo-dogsquared jansol ];
+    maintainers = with lib.maintainers; [
+      jansol
+    ];
   };
-}
-
+})

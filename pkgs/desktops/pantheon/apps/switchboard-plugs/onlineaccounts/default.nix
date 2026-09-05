@@ -1,31 +1,34 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, nix-update-script
-, meson
-, ninja
-, pkg-config
-, vala
-, evolution-data-server-gtk4
-, glib
-, granite7
-, gtk4
-, libadwaita
-, switchboard
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  nix-update-script,
+  meson,
+  ninja,
+  pkg-config,
+  vala,
+  evolution-data-server-gtk4,
+  glib,
+  granite7,
+  gtk4,
+  libadwaita,
+  switchboard,
 }:
 
 stdenv.mkDerivation rec {
   pname = "switchboard-plug-onlineaccounts";
-  version = "8.0.0";
+  version = "8.0.2";
 
   src = fetchFromGitHub {
     owner = "elementary";
-    repo = pname;
+    repo = "settings-onlineaccounts";
     rev = version;
-    sha256 = "sha256-OlivtKz3kE81CZ6KJgvVvqf0BSVJbh6C0F7O+/+4xZU=";
+    sha256 = "sha256-0dt4E2g1nX78s2WK2HO6P/fKjXcsR61KJSpulgsZHPI=";
   };
 
   nativeBuildInputs = [
+    glib # glib-compile-resources
+    gtk4 # gtk-update-icon-cache
     meson
     ninja
     pkg-config
@@ -45,11 +48,11 @@ stdenv.mkDerivation rec {
     updateScript = nix-update-script { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Switchboard Online Accounts Plug";
-    homepage = "https://github.com/elementary/switchboard-plug-onlineaccounts";
-    license = licenses.gpl3Plus;
-    platforms = platforms.linux;
-    maintainers = teams.pantheon.members;
+    homepage = "https://github.com/elementary/settings-onlineaccounts";
+    license = lib.licenses.gpl3Plus;
+    platforms = lib.platforms.linux;
+    teams = [ lib.teams.pantheon ];
   };
 }

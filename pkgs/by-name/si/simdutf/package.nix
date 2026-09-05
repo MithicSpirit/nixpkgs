@@ -1,40 +1,55 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, cmake
-, libiconv
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  cmake,
+  libiconv,
+  nix-update-script,
+  testers,
+  validatePkgConfig,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "simdutf";
-  version = "5.4.15";
+  version = "9.0.0";
 
   src = fetchFromGitHub {
     owner = "simdutf";
     repo = "simdutf";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-oIrrI0Z5x1AvT9y0Ldg8zrkFJj1PZtebhJaL2UtEoB8=";
+    hash = "sha256-psMMF26+nTwdbtPfFFE3fXkatrh9Bp9qMsrdI/FmrDg=";
   };
 
-  # Fix build on darwin
-  postPatch = ''
-    substituteInPlace tools/CMakeLists.txt --replace "-Wl,--gc-sections" ""
-  '';
+  cmakeFlags = [
+    (lib.cmakeBool "BUILD_SHARED_LIBS" (!stdenv.hostPlatform.isStatic))
+  ];
 
   nativeBuildInputs = [
     cmake
+    validatePkgConfig
   ];
 
   buildInputs = [
     libiconv
   ];
 
-  meta = with lib; {
+  passthru = {
+    updateScript = nix-update-script { };
+
+    tests.pkg-config = testers.hasPkgConfigModules {
+      package = finalAttrs.finalPackage;
+    };
+  };
+
+  meta = {
     description = "Unicode routines validation and transcoding at billions of characters per second";
     homepage = "https://github.com/simdutf/simdutf";
-    license = with licenses; [ asl20 mit ];
-    maintainers = with maintainers; [ rewine ];
-    mainProgram = "simdutf";
-    platforms = platforms.all;
+    license = with lib.licenses; [
+      asl20
+      mit
+    ];
+    maintainers = with lib.maintainers; [ wineee ];
+    pkgConfigModules = [ "simdutf" ];
+    platforms = lib.platforms.all;
   };
 })

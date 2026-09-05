@@ -5,27 +5,25 @@
   fetchFromGitHub,
   poetry-core,
   pytest-benchmark,
+  pytest-codspeed,
   pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "ulid-transform";
-  version = "0.13.1";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.9";
+  version = "1.5.2";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "bdraco";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-tOtOTFKBVQmCm02k9Q8r+EgF39iN+XNXCnlw2ppYM58=";
+    repo = "ulid-transform";
+    tag = "v${version}";
+    hash = "sha256-S9+vP0frNvA4wWZMyLPYq6L/5PmLcyFNdN8NY+IrlzQ=";
   };
 
-  nativeBuildInputs = [
+  build-system = [
     cython
     poetry-core
     setuptools
@@ -33,19 +31,20 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [
     pytest-benchmark
+    pytest-codspeed
     pytest-cov-stub
     pytestCheckHook
   ];
 
-  pytestFlagsArray = [ "--benchmark-disable" ];
+  pytestFlags = [ "--benchmark-disable" ];
 
   pythonImportsCheck = [ "ulid_transform" ];
 
-  meta = with lib; {
+  meta = {
     description = "Library to create and transform ULIDs";
     homepage = "https://github.com/bdraco/ulid-transform";
-    changelog = "https://github.com/bdraco/ulid-transform/releases/tag/v${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/bdraco/ulid-transform/blob/${src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }
