@@ -7,29 +7,32 @@
   protobuf,
   pytest-asyncio,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "google-cloud-language";
-  version = "2.13.4";
+  version = "2.21.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-j8ZgMxoTxkDbdqSLrBP56AIBJjGvm63TViaep/Z3xZI=";
+    pname = "google_cloud_language";
+    inherit (finalAttrs) version;
+    hash = "sha256-MPDmkVDJckVeJUOaCA97VjDyC9QE3O+KVq5QP5Skvm0=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  pythonRelaxDeps = [
+    "protobuf"
+  ];
+
+  dependencies = [
     google-api-core
     proto-plus
     protobuf
-  ] ++ google-api-core.optional-dependencies.grpc;
+  ]
+  ++ google-api-core.optional-dependencies.grpc;
 
   nativeCheckInputs = [
     pytestCheckHook
@@ -42,11 +45,11 @@ buildPythonPackage rec {
     "google.cloud.language_v1beta2"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Google Cloud Natural Language API client library";
     homepage = "https://github.com/googleapis/google-cloud-python/tree/main/packages/google-cloud-language";
-    changelog = "https://github.com/googleapis/google-cloud-python/blob/google-cloud-language-v${version}/packages/google-cloud-language/CHANGELOG.md";
-    license = licenses.asl20;
+    changelog = "https://github.com/googleapis/google-cloud-python/blob/google-cloud-language-v${finalAttrs.version}/packages/google-cloud-language/CHANGELOG.md";
+    license = lib.licenses.asl20;
     maintainers = [ ];
   };
-}
+})

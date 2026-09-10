@@ -7,26 +7,24 @@
   pkgs,
   pyahocorasick,
   pytestCheckHook,
-  pythonOlder,
   pyyaml,
   requests,
   responses,
   setuptools,
   unidiff,
+  writableTmpDirAsHomeHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "bc-detect-secrets";
-  version = "1.5.15";
+  version = "1.5.50";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "bridgecrewio";
     repo = "detect-secrets";
-    rev = "refs/tags/${version}";
-    hash = "sha256-D4TJnaxaCCJWgDPbGvbxkW6yg/Ph1jaIT9QBjxFcxAw=";
+    tag = finalAttrs.version;
+    hash = "sha256-t9uG5EFA0I6243P1x/ZLu8J92RM0wRDtsOXt3VXH2fk=";
   };
 
   build-system = [ setuptools ];
@@ -37,7 +35,7 @@ buildPythonPackage rec {
     unidiff
   ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     word_list = [ pyahocorasick ];
     gibberish = [ gibberish-detector ];
   };
@@ -47,11 +45,9 @@ buildPythonPackage rec {
     pkgs.gitMinimal
     pytestCheckHook
     responses
-  ] ++ lib.flatten (builtins.attrValues passthru.optional-dependencies);
-
-  preCheck = ''
-    export HOME=$(mktemp -d);
-  '';
+    writableTmpDirAsHomeHook
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
   disabledTests = [
     # Tests are failing for various reasons (missing git repo, missing test data, etc.)
@@ -68,10 +64,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "detect_secrets" ];
 
-  meta = with lib; {
+  meta = {
     description = "Tool to detect secrets in the code";
     homepage = "https://github.com/bridgecrewio/detect-secrets";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

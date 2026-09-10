@@ -1,12 +1,10 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   six,
   httplib2,
-  py,
   pytestCheckHook,
-  pythonOlder,
   requests,
   setuptools,
   urllib3,
@@ -17,12 +15,11 @@ buildPythonPackage rec {
   version = "1.13.1";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
-  src = fetchPypi {
-    pname = "wsgi_intercept";
-    inherit version;
-    hash = "sha256-eb1sY5qxH36r5dGK2aIPYu6CocQ1EkqHbP/YA49sJME=";
+  src = fetchFromGitHub {
+    owner = "cdent";
+    repo = "wsgi-intercept";
+    tag = "v${version}";
+    hash = "sha256-hs5yB0+eDlh/pNPaqYIU9C+RBpyrdPOAscQGIoqzmvU=";
   };
 
   build-system = [ setuptools ];
@@ -30,9 +27,8 @@ buildPythonPackage rec {
   dependencies = [ six ];
 
   nativeCheckInputs = [
-    httplib2
-    py
     pytestCheckHook
+    httplib2
     requests
     urllib3
   ];
@@ -48,11 +44,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "wsgi_intercept" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module that acts as a WSGI application in place of a real URI for testing";
     homepage = "https://github.com/cdent/wsgi-intercept";
     changelog = "https://github.com/cdent/wsgi-intercept/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ mikecm ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ mikecm ];
   };
 }

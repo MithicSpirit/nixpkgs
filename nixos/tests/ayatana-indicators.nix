@@ -33,6 +33,7 @@ in
         packages =
           with pkgs;
           [
+            ayatana-indicator-bluetooth
             ayatana-indicator-datetime
             ayatana-indicator-display
             ayatana-indicator-messages
@@ -41,16 +42,15 @@ in
             ayatana-indicator-sound
           ]
           ++ (with pkgs.lomiri; [
+            lomiri-indicator-datetime
             lomiri-indicator-network
-            telephony-service
+            lomiri-telephony-service
           ]);
       };
 
       # Setup needed by some indicators
 
       services.accounts-daemon.enable = true; # messages
-
-      hardware.pulseaudio.enable = true; # sound
 
       # Lomiri-ish setup for Lomiri indicators
       # TODO move into a Lomiri module, once the package set is far enough for the DE to start
@@ -80,8 +80,7 @@ in
     let
       runCommandOverServiceList = list: command: lib.strings.concatMapStringsSep "\n" command list;
 
-      runCommandOverAyatanaIndicators = runCommandOverServiceList
-        nodes.machine.systemd.user.targets.ayatana-indicators.wants;
+      runCommandOverAyatanaIndicators = runCommandOverServiceList nodes.machine.systemd.user.targets.ayatana-indicators.wants;
 
       runCommandOverLomiriIndicators = runCommandOverServiceList nodes.machine.systemd.user.targets.lomiri-indicators.wants;
     in

@@ -3,9 +3,7 @@
   stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonAtLeast,
-  pythonOlder,
-  substituteAll,
+  replaceVars,
 
   # build-system
   setuptools,
@@ -33,7 +31,6 @@
   pylibmc,
   pymemcache,
   python,
-  pywatchman,
   pyyaml,
   pytz,
   redis,
@@ -44,49 +41,37 @@
 
 buildPythonPackage rec {
   pname = "django";
-  version = "5.0.8";
+  version = "5.2.17";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "django";
     repo = "django";
-    rev = "refs/tags/${version}";
-    hash = "sha256-mH8o1f3UMuKEHwfXK2ck1GVj/T50F+7IgTsnXJn7aHU=";
+    tag = version;
+    hash = "sha256-7it3opzsiN/hHhpipZz4ogmRKGz7E9/LmTF03/UYIB0=";
   };
 
-  patches =
-    [
-      (substituteAll {
-        src = ./django_5_set_zoneinfo_dir.patch;
-        zoneinfo = tzdata + "/share/zoneinfo";
-      })
-      # prevent tests from messing with our pythonpath
-      ./django_5_tests_pythonpath.patch
-      # disable test that excpects timezone issues
-      ./django_5_disable_failing_tests.patch
-    ]
-    ++ lib.optionals withGdal [
-      (substituteAll {
-        src = ./django_5_set_geos_gdal_lib.patch;
-        geos = geos;
-        gdal = gdal;
-        extension = stdenv.hostPlatform.extensions.sharedLibrary;
-      })
-    ];
+  patches = [
+    (replaceVars ./5.2/zoneinfo.patch {
+      zoneinfo = tzdata + "/share/zoneinfo";
+    })
+    # prevent tests from messing with our pythonpath
+    ./5.2/pythonpath.patch
+    # disable test that expects timezone issues
+    ./5.2/disable-failing-test.patch
+  ]
+  ++ lib.optionals withGdal [
+    (replaceVars ./5.2/gdal.patch {
+      geos = geos;
+      gdal = gdal;
+      extension = stdenv.hostPlatform.extensions.sharedLibrary;
+    })
+  ];
 
-  postPatch =
-    ''
-      substituteInPlace tests/utils_tests/test_autoreload.py \
-        --replace "/usr/bin/python" "${python.interpreter}"
-    ''
-    + lib.optionalString (pythonAtLeast "3.12" && stdenv.hostPlatform.system == "aarch64-linux") ''
-      # Test regression after xz was reverted from 5.6.0 to 5.4.6
-      # https://hydra.nixos.org/build/254532197
-      substituteInPlace tests/view_tests/tests/test_debug.py \
-        --replace-fail "test_files" "dont_test_files"
-    '';
+  postPatch = ''
+    substituteInPlace tests/utils_tests/test_autoreload.py \
+      --replace-fail "/usr/bin/python" "${python.interpreter}"
+  '';
 
   build-system = [ setuptools ];
 
@@ -110,30 +95,34 @@ buildPythonPackage rec {
     pillow
     pylibmc
     pymemcache
-    pywatchman
     pyyaml
     pytz
     redis
     selenium
     tblib
     tzdata
-  ] ++ lib.flatten (lib.attrValues optional-dependencies);
-
-  doCheck = !stdenv.isDarwin;
+  ]
+  ++ lib.concatAttrValues optional-dependencies;
 
   preCheck = ''
     # make sure the installed library gets imported
     rm -rf django
 
+    # fails to import github_links from docs/_ext/github_links.py
+    rm tests/sphinx/test_github_links.py
+
     # provide timezone data, works only on linux
     export TZDIR=${tzdata}/${python.sitePackages}/tzdata/zoneinfo
+
+    export PYTHONPATH=$PWD/docs/_ext:$PYTHONPATH
   '';
 
   checkPhase = ''
     runHook preCheck
 
     pushd tests
-    ${python.interpreter} runtests.py --settings=test_sqlite
+    # without --parallel=1, tests fail with an "unexpected error due to a database lock" on Darwin
+    ${python.interpreter} runtests.py --settings=test_sqlite ${lib.optionalString stdenv.hostPlatform.isDarwin "--parallel=1"}
     popd
 
     runHook postCheck
@@ -141,11 +130,11 @@ buildPythonPackage rec {
 
   __darwinAllowLocalNetworking = true;
 
-  meta = with lib; {
+  meta = {
     changelog = "https://docs.djangoproject.com/en/${lib.versions.majorMinor version}/releases/${version}/";
     description = "High-level Python Web framework that encourages rapid development and clean, pragmatic design";
     homepage = "https://www.djangoproject.com";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ hexa ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ hexa ];
   };
 }

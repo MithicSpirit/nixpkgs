@@ -1,7 +1,6 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
 
   # build-system
@@ -17,8 +16,9 @@
   dask,
   dask-awkward,
   dask-histogram,
-  fsspec-xrootd,
+  fsspec,
   hist,
+  ipywidgets,
   lz4,
   matplotlib,
   mplhep,
@@ -28,35 +28,39 @@
   pandas,
   pyarrow,
   requests,
+  rich,
   scipy,
   toml,
   tqdm,
   uproot,
   vector,
 
-  # checks
+  # tests
   distributed,
   pyinstrument,
+  pytest-xdist,
   pytestCheckHook,
 }:
 
 buildPythonPackage rec {
   pname = "coffea";
-  version = "2024.8.2";
+  version = "2025.12.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "CoffeaTeam";
     repo = "coffea";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Lgen4HNZpnd+IDXRHk3U0kFiFZh72RcqAOIg+eyd150=";
+    tag = "v${version}";
+    hash = "sha256-+Qfb5NHJTlSBUqyv+n3zebEwAZPB9+UMV5KiQhOxJSY=";
   };
 
   build-system = [
     hatchling
     hatch-vcs
+  ];
+
+  pythonRelaxDeps = [
+    "dask"
   ];
 
   dependencies = [
@@ -68,8 +72,9 @@ buildPythonPackage rec {
     dask
     dask-awkward
     dask-histogram
-    fsspec-xrootd
+    fsspec
     hist
+    ipywidgets
     lz4
     matplotlib
     mplhep
@@ -79,16 +84,19 @@ buildPythonPackage rec {
     pandas
     pyarrow
     requests
+    rich
     scipy
     toml
     tqdm
     uproot
     vector
-  ] ++ dask.optional-dependencies.array;
+  ]
+  ++ dask.optional-dependencies.array;
 
   nativeCheckInputs = [
     distributed
     pyinstrument
+    pytest-xdist
     pytestCheckHook
   ];
 
@@ -98,6 +106,11 @@ buildPythonPackage rec {
     # Requires internet access
     # https://github.com/CoffeaTeam/coffea/issues/1094
     "test_lumimask"
+
+    # Flaky: FileNotFoundError: [Errno 2] No such file or directory
+    # https://github.com/scikit-hep/coffea/issues/1246
+    "test_packed_selection_cutflow_dak" # cutflow.npz
+    "test_packed_selection_nminusone_dak" # nminusone.npz
   ];
 
   __darwinAllowLocalNetworking = true;
@@ -105,8 +118,8 @@ buildPythonPackage rec {
   meta = {
     description = "Basic tools and wrappers for enabling not-too-alien syntax when running columnar Collider HEP analysis";
     homepage = "https://github.com/CoffeaTeam/coffea";
-    changelog = "https://github.com/CoffeaTeam/coffea/releases/tag/v${version}";
-    license = with lib.licenses; [ bsd3 ];
+    changelog = "https://github.com/CoffeaTeam/coffea/releases/tag/${src.tag}";
+    license = lib.licenses.bsd3;
     maintainers = with lib.maintainers; [ veprbl ];
   };
 }

@@ -1,69 +1,71 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, nix-update-script
-, meson
-, ninja
-, pkg-config
-, python3
-, vala
-, wrapGAppsHook3
-, gtk3
-, libgee
-, pantheon
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  nix-update-script,
+  meson,
+  ninja,
+  pkg-config,
+  sassc,
+  vala,
+  wrapGAppsHook4,
+  gnome-settings-daemon,
+  gtk4,
+  pango,
+  pantheon,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "pantheon-tweaks";
-  version = "2.0.2";
+  version = "2.5.2";
 
   src = fetchFromGitHub {
     owner = "pantheon-tweaks";
-    repo = pname;
-    rev = version;
-    hash = "sha256-7a6maEpvmIS+Raawr9ec44nCbuj83EUnd+8RqYgWy24=";
+    repo = "pantheon-tweaks";
+    rev = finalAttrs.version;
+    hash = "sha256-C6QgGjNjkgJ1qCNNe5gkwjzMfBosxjDIdVyIokCRkbE=";
   };
 
   nativeBuildInputs = [
     meson
     ninja
     pkg-config
-    python3
+    sassc
     vala
-    wrapGAppsHook3
+    wrapGAppsHook4
   ];
 
   buildInputs = [
-    gtk3
-    libgee
-  ] ++ (with pantheon; [
-    elementary-files # settings schemas
-    elementary-terminal # settings schemas
-    granite
+    gnome-settings-daemon # org.gnome.settings-daemon.plugins.xsettings
+    gtk4
+    pango
+  ]
+  ++ (with pantheon; [
+    elementary-files # io.elementary.files.preferences
+    elementary-terminal # io.elementary.terminal.settings
+    granite7
+    switchboard
+    wingpanel-indicator-sound # io.elementary.desktop.wingpanel.sound
   ]);
 
-  postPatch = ''
-    chmod +x meson/post_install.py
-    patchShebangs meson/post_install.py
-
-    substituteInPlace src/Settings/ThemeSettings.vala \
-      --replace-fail "/usr/share/" "/run/current-system/sw/share/"
-  '';
+  mesonFlags = [
+    "-Dsystheme_rootdir=/run/current-system/sw/share"
+  ];
 
   passthru = {
     updateScript = nix-update-script { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Unofficial system customization app for Pantheon";
     longDescription = ''
       Unofficial system customization app for Pantheon
       that lets you easily and safely customise your desktop's appearance.
     '';
     homepage = "https://github.com/pantheon-tweaks/pantheon-tweaks";
-    license = licenses.gpl3Plus;
-    platforms = platforms.linux;
-    maintainers = teams.pantheon.members;
+    license = lib.licenses.gpl3Plus;
+    platforms = lib.platforms.linux;
+    teams = [ lib.teams.pantheon ];
     mainProgram = "pantheon-tweaks";
   };
-}
+})

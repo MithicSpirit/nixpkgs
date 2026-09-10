@@ -9,21 +9,18 @@
   resticprofile,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "resticprofile";
-  version = "0.27.1";
+  version = "0.33.1";
 
   src = fetchFromGitHub {
     owner = "creativeprojects";
     repo = "resticprofile";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-HHFeWsEO1KUzL5Y6Iwy7MylA//JYzY3h1EwKrUHfXpY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-L6L1JfBa/nsrwtvIw2U++jIDLJTxxweqcXQ3SomtS1A=";
   };
 
   postPatch = ''
-    substituteInPlace schedule_jobs.go \
-        --replace-fail "os.Executable()" "\"$out/bin/resticprofile\", nil"
-
     substituteInPlace shell/command.go \
         --replace-fail '"bash"' '"${lib.getExe bash}"'
 
@@ -32,10 +29,11 @@ buildGoModule rec {
 
   '';
 
-  vendorHash = "sha256-t2R5uNsliSn+rIvRM0vT6lQJY62DhhozXnONiCJ9CMc=";
+  vendorHash = "sha256-dYzx27HtIME/mrtQrRg7064Ii20715FVYj5uw4Aian0=";
 
   ldflags = [
-    "-X main.commit=${src.rev}"
+    "-X main.version=${finalAttrs.version}"
+    "-X main.commit=${finalAttrs.src.rev}"
     "-X main.date=unknown"
     "-X main.builtBy=nixpkgs"
   ];
@@ -43,16 +41,27 @@ buildGoModule rec {
   nativeBuildInputs = [ installShellFiles ];
 
   preCheck = ''
-    rm battery_test.go # tries to get battery data
-    rm update_test.go # tries to use network
+    rm batt/battery_test.go # tries to get battery data
+    rm commands_test.go # tries to use systemctl
+    rm config/path_test.go # expects normal environment
     rm lock/lock_test.go # needs ping
     rm preventsleep/caffeinate_test.go # tries to communicate with dbus
     rm priority/ioprio_test.go # tries to set nice(2) IO priority
     rm restic/downloader_test.go # tries to use network
-    rm schedule/schedule_test.go # tries to use systemctl
-    rm config/path_test.go # expects normal environment
+    rm schedule/*_test.go # tries to use systemctl
+    rm update_test.go # tries to use network
+    rm user/user_test.go # expects normal environment
     rm util/tempdir_test.go # expects normal environment
   '';
+
+  checkFlags =
+    let
+      skippedTests = [
+        # mount: fusermount: exec: "fusermount": executable file not found in $PATH
+        "TestMemFS"
+      ];
+    in
+    [ "-skip=^${builtins.concatStringsSep "$|^" skippedTests}$" ];
 
   installPhase = ''
     runHook preInstall
@@ -74,7 +83,7 @@ buildGoModule rec {
   };
 
   meta = {
-    changelog = "https://github.com/creativeprojects/resticprofile/releases/tag/v${version}";
+    changelog = "https://github.com/creativeprojects/resticprofile/releases/tag/v${finalAttrs.version}";
     description = "Configuration profiles manager for restic backup";
     homepage = "https://creativeprojects.github.io/resticprofile/";
     license = with lib.licenses; [
@@ -82,7 +91,10 @@ buildGoModule rec {
       lgpl3 # bash shell completion
     ];
     mainProgram = "resticprofile";
-    maintainers = with lib.maintainers; [ tomasajt ];
-    platforms = lib.platforms.linux ++ lib.platforms.darwin;
+    maintainers = with lib.maintainers; [
+      tomasajt
+      bbigras
+    ];
+    platforms = lib.platforms.unix;
   };
-}
+})

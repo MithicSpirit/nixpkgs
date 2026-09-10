@@ -1,36 +1,33 @@
 {
   lib,
   aiohttp,
+  aioresponses,
   buildPythonPackage,
   cryptography,
   fetchFromGitHub,
+  hatch-vcs,
+  hatchling,
   pytest-asyncio,
   pytestCheckHook,
-  pythonOlder,
-  setuptools,
   xmltodict,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aioruckus";
-  version = "0.40";
+  version = "0.47.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "ms264556";
     repo = "aioruckus";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-oEm0+ktEJHJPg4PUPfSmG9SyVRDrxs7kosQ0tIY+bRc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-tfoMjZbQ/8uzTHka//LAwUZZuPuqSmPyuYqFr2TVPxY=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "setuptools>=68.1" "setuptools"
-  '';
-
-  build-system = [ setuptools ];
+  build-system = [
+    hatch-vcs
+    hatchling
+  ];
 
   dependencies = [
     aiohttp
@@ -39,6 +36,7 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [
+    aioresponses
     pytest-asyncio
     pytestCheckHook
   ];
@@ -53,12 +51,14 @@ buildPythonPackage rec {
     "test_current_active_clients"
     "test_mesh_info"
     "test_system_info"
+    # Network access to Ruckus Cloud API
+    "test_r1_connect_no_webserver_error"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Python client for Ruckus Unleashed and Ruckus ZoneDirector";
     homepage = "https://github.com/ms264556/aioruckus";
-    license = licenses.bsd0;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.bsd0;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

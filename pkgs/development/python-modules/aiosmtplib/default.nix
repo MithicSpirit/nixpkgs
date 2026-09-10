@@ -5,24 +5,21 @@
   fetchFromGitHub,
   hypothesis,
   hatchling,
-  pytest-asyncio,
+  pytest-asyncio_0,
   pytestCheckHook,
-  pythonOlder,
   trustme,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aiosmtplib";
-  version = "3.0.2";
+  version = "5.1.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "cole";
     repo = "aiosmtplib";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-1GuxlgNvzVv6hEQY1Mkv7NxAoOik9gpIS90a6flfC+k=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-IAWMs4LBfVDMLxgPBnXrHQQ/8yhBYjvd4Fi4k0F19o0=";
   };
 
   build-system = [ hatchling ];
@@ -30,18 +27,18 @@ buildPythonPackage rec {
   nativeCheckInputs = [
     aiosmtpd
     hypothesis
-    pytest-asyncio
+    pytest-asyncio_0
     pytestCheckHook
     trustme
   ];
 
   pythonImportsCheck = [ "aiosmtplib" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module which provides a SMTP client";
     homepage = "https://github.com/cole/aiosmtplib";
-    changelog = "https://github.com/cole/aiosmtplib/releases/tag/v${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/cole/aiosmtplib/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

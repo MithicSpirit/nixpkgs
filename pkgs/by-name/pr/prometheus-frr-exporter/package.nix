@@ -1,17 +1,21 @@
-{ lib, buildGoModule, fetchFromGitHub }:
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+}:
 
 let
-  version = "1.2.0";
+  version = "1.10.0";
   src = fetchFromGitHub {
     owner = "tynany";
     repo = "frr_exporter";
     rev = "v${version}";
-    hash = "sha256-sjC6ee7VMbr5zlahAA/i4wrZIu8CBUF+LYaq6uEvukk=";
+    hash = "sha256-Q8OrFmj54Tvn283ZbFc+R/g3cJw5ypAvV+Qbf/6BsmM=";
   };
 in
 buildGoModule {
   pname = "prometheus-frr-exporter";
-  vendorHash = "sha256-xckGN/FKN2bwFPll6IRDBOGGUm2JTzoZDwKC6ZkoD/Y=";
+  vendorHash = "sha256-Z4miOR9gmZlYR/VAbMY6SLZJrzBEpuJbnrIJ3ObaZ/Y=";
   inherit src version;
 
   ldflags = [
@@ -20,7 +24,7 @@ buildGoModule {
     "-X github.com/prometheus/common/version.Branch=unknown"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Prometheus exporter for FRR version 3.0+";
     longDescription = ''
       Prometheus exporter for FRR version 3.0+ that collects metrics from the
@@ -28,8 +32,8 @@ buildGoModule {
       Prometheus.
     '';
     homepage = "https://github.com/tynany/frr_exporter";
-    license = licenses.mit;
-    maintainers = with maintainers; [ javaes ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ javaes ];
     mainProgram = "frr_exporter";
   };
 }

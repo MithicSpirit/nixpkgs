@@ -7,15 +7,18 @@
 }:
 mkKdeDerivation rec {
   pname = "pulseaudio-qt";
-  version = "1.5.0";
+  version = "1.8.1";
 
   src = fetchurl {
     url = "mirror://kde/stable/pulseaudio-qt/pulseaudio-qt-${version}.tar.xz";
-    hash = "sha256-zY9RyHAAc9D9kNV4QIOs63PnK6mnBOYF4KZ5CUJqhSA=";
+    hash = "sha256-eWGcVblICKp9MH+yNK05oQltCI8h+Aa+DniL55p2s8k=";
   };
 
-  extraNativeBuildInputs = [pkg-config];
-  extraBuildInputs = [pulseaudio];
+  extraNativeBuildInputs = [ pkg-config ];
+  extraBuildInputs = [ pulseaudio ];
 
-  meta.license = with lib.licenses; [lgpl21Only lgpl3Only];
+  meta.license = with lib.licenses; [
+    lgpl21Only
+    lgpl3Only
+  ];
 }

@@ -1,15 +1,19 @@
-{ stdenv
-, lib
-, fetchurl
-, copyDesktopItems
-, makeDesktopItem
-, makeWrapper
-, jre
-, libGL
-, libpulseaudio
-, libXxf86vm
+{
+  stdenv,
+  lib,
+  fetchurl,
+  copyDesktopItems,
+  makeDesktopItem,
+  makeWrapper,
+  jre,
+  libGL,
+  libpulseaudio,
+  libxxf86vm,
+  nix-update-script,
 }:
 let
+  version = "4.21.14";
+
   desktopItem = makeDesktopItem {
     name = "unciv";
     exec = "unciv";
@@ -20,29 +24,33 @@ let
   };
 
   desktopIcon = fetchurl {
-    url = "https://github.com/yairm210/Unciv/blob/4.13.0-patch1/extraImages/Icons/Unciv%20icon%20v6.png?raw=true";
+    url = "https://github.com/yairm210/Unciv/blob/${version}/extraImages/Icons/Unciv%20icon%20v6.png?raw=true";
     hash = "sha256-Zuz+HGfxjGviGBKTiHdIFXF8UMRLEIfM8f+LIB/xonk=";
   };
 
-  envLibPath = lib.makeLibraryPath (lib.optionals stdenv.isLinux [
-    libGL
-    libpulseaudio
-    libXxf86vm
-  ]);
-
+  envLibPath = lib.makeLibraryPath (
+    lib.optionals stdenv.hostPlatform.isLinux [
+      libGL
+      libpulseaudio
+      libxxf86vm
+    ]
+  );
 in
 stdenv.mkDerivation rec {
   pname = "unciv";
-  version = "4.13.0-patch1";
+  inherit version;
 
   src = fetchurl {
     url = "https://github.com/yairm210/Unciv/releases/download/${version}/Unciv.jar";
-    hash = "sha256-bZXBgSjmW+fBdDfG7cqKkF4VLYw7Iq2mw5j6iDh2ZhY=";
+    hash = "sha256-2h1NhCS01848KPso6RBWYJNfB5PZ6tdbl3YX0eGwXzE=";
   };
 
   dontUnpack = true;
 
-  nativeBuildInputs = [ copyDesktopItems makeWrapper ];
+  nativeBuildInputs = [
+    copyDesktopItems
+    makeWrapper
+  ];
 
   installPhase = ''
     runHook preInstall
@@ -59,13 +67,15 @@ stdenv.mkDerivation rec {
 
   desktopItems = [ desktopItem ];
 
-  meta = with lib; {
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "Open-source Android/Desktop remake of Civ V";
     mainProgram = "unciv";
     homepage = "https://github.com/yairm210/Unciv";
-    maintainers = with maintainers; [ tex ];
-    sourceProvenance = with sourceTypes; [ binaryBytecode ];
-    license = licenses.mpl20;
-    platforms = platforms.all;
+    maintainers = with lib.maintainers; [ iedame ];
+    sourceProvenance = with lib.sourceTypes; [ binaryBytecode ];
+    license = lib.licenses.mpl20;
+    platforms = lib.platforms.all;
   };
 }

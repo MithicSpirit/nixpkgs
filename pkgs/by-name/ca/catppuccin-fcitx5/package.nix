@@ -3,16 +3,18 @@
   stdenvNoCC,
   fetchFromGitHub,
   unstableGitUpdater,
+
+  withRoundedCorners ? false,
 }:
 stdenvNoCC.mkDerivation {
   pname = "catppuccin-fcitx5";
-  version = "0-unstable-2022-10-05";
+  version = "0-unstable-2025-05-16";
 
   src = fetchFromGitHub {
     owner = "catppuccin";
     repo = "fcitx5";
-    rev = "ce244cfdf43a648d984719fdfd1d60aab09f5c97";
-    hash = "sha256-uFaCbyrEjv4oiKUzLVFzw+UY54/h7wh2cntqeyYwGps=";
+    rev = "393845cf3ed0e0000bfe57fe1b9ad75748e2547f";
+    hash = "sha256-ss0kW+ulvMhxeZKBrjQ7E5Cya+02eJrGsE4OLEkqKks=";
   };
 
   dontConfigure = true;
@@ -20,8 +22,14 @@ stdenvNoCC.mkDerivation {
 
   installPhase = ''
     runHook preInstall
+  ''
+  + lib.optionalString withRoundedCorners ''
+    find src -name theme.conf -exec sed -i -E 's/^# (Image=(panel|highlight).svg)/\1/' {} +
+  ''
+  + ''
     mkdir -p $out/share/fcitx5
     cp -r src $out/share/fcitx5/themes
+
     runHook postInstall
   '';
 
@@ -31,7 +39,10 @@ stdenvNoCC.mkDerivation {
     description = "Soothing pastel theme for Fcitx5";
     homepage = "https://github.com/catppuccin/fcitx5";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ pluiedev Guanran928 ];
+    maintainers = with lib.maintainers; [
+      pluiedev
+      Guanran928
+    ];
     platforms = lib.platforms.all;
   };
 }

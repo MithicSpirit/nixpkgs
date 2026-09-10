@@ -1,19 +1,20 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, ldc
-, curl
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  ldc,
+  curl,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "dtools";
-  version = "2.109.1";
+  version = "2.112.1";
 
   src = fetchFromGitHub {
     owner = "dlang";
     repo = "tools";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-Pfj8Kwf5AlcrHhLs5A/0vIFWLZaNR3ro+esbs7oWN9I=";
+    hash = "sha256-WHgV33fu1YhRQCERVatqXKEqmfHlUvZ4IXhga/yOQ3w=";
     name = "dtools";
   };
 
@@ -38,11 +39,11 @@ stdenv.mkDerivation (finalAttrs: {
   doCheck = true;
   checkTarget = "test_rdmd";
 
-  meta = with lib; {
+  meta = {
     description = "Ancillary tools for the D programming language";
     homepage = "https://github.com/dlang/tools";
-    license = licenses.boost;
-    maintainers = with maintainers; [ jtbx ];
-    platforms = platforms.unix;
+    license = lib.licenses.boost;
+    maintainers = with lib.maintainers; [ jtbx ];
+    platforms = lib.platforms.unix;
   };
 })

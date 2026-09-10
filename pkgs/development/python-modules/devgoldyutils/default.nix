@@ -8,7 +8,7 @@
 buildPythonPackage rec {
   pname = "devgoldyutils";
   version = "3.0.0";
-  format = "pyproject";
+  pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
@@ -25,6 +25,6 @@ buildPythonPackage rec {
     description = "Collection of utility functions for Python used by mov-cli";
     homepage = "https://github.com/THEGOLDENPRO/devgoldyutils";
     license = lib.licenses.gpl3Only;
-    maintainers = with lib.maintainers; [ roshaen ];
+    maintainers = with lib.maintainers; [ youhaveme9 ];
   };
 }

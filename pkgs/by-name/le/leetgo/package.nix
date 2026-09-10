@@ -1,45 +1,47 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
-, installShellFiles
+{
+  lib,
+  stdenv,
+  buildGoModule,
+  fetchFromGitHub,
+  installShellFiles,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "leetgo";
-  version = "1.4.8";
+  version = "1.4.18";
 
   src = fetchFromGitHub {
     owner = "j178";
     repo = "leetgo";
-    rev = "v${version}";
-    hash = "sha256-4Y/NwgLNBdd2uL7oiIdM1I08ZnLjreHf397s/vhS+Ac=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-gbpSosOeEe0sapzDzQdokx8/PnfN/vDK5IRDvUgxMZs=";
   };
 
-  vendorHash = "sha256-zpS+6Z31m6g67we4JaQ0sPodqC315lgftqGzZkelDCU=";
+  vendorHash = "sha256-d+/XnkVODIg8tyiEUU+/01l8rKj7e6NeIEyWbvJ2Cyw=";
 
   nativeBuildInputs = [ installShellFiles ];
 
   ldflags = [
     "-s"
     "-w"
-    "-X=github.com/j178/leetgo/constants.Version=${version}"
+    "-X=github.com/j178/leetgo/constants.Version=${finalAttrs.version}"
   ];
 
   subPackages = [ "." ];
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd leetgo \
       --bash <($out/bin/leetgo completion bash) \
       --fish <($out/bin/leetgo completion fish) \
       --zsh <($out/bin/leetgo completion zsh)
   '';
 
-  meta = with lib; {
-    description = "A command-line tool for LeetCode";
+  meta = {
+    description = "Command-line tool for LeetCode";
     homepage = "https://github.com/j178/leetgo";
-    changelog = "https://github.com/j178/leetgo/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ Ligthiago ];
+    changelog = "https://github.com/j178/leetgo/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ Ligthiago ];
     mainProgram = "leetgo";
   };
-}
+})

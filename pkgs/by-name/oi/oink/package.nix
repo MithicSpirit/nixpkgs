@@ -1,17 +1,18 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "oink";
-  version = "1.2.0";
+  version = "1.4.0";
 
   src = fetchFromGitHub {
     owner = "rlado";
     repo = "oink";
-    rev = "v${version}";
-    hash = "sha256-ojvuA5IlayPMNajl2+a4lx8NU06Da0vp9TJHCQVMtlo=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-e8FtjORTTIDnDANk8sWH8kmS35wyndDd6F7Vhepskb8=";
   };
 
   vendorHash = null;
@@ -25,6 +26,9 @@ buildGoModule rec {
     homepage = "https://github.com/rlado/oink";
     license = lib.licenses.mit;
     mainProgram = "oink";
-    maintainers = with lib.maintainers; [ jtbx ];
+    maintainers = with lib.maintainers; [
+      jtbx
+      pmw
+    ];
   };
-}
+})

@@ -1,28 +1,27 @@
-{ lib
-, buildPythonApplication
-, fetchFromGitHub
-, cmake
-, colordiff
-, flex
-, libclang
-, llvm
-, unifdef
-, chardet
-, pebble
-, psutil
-, pytestCheckHook
+{
+  lib,
+  python3Packages,
+  fetchFromGitHub,
+  clang-tools,
+  colordiff,
+  flex,
+  libclang,
+  llvm,
+  unifdef,
+  testers,
+  cvise,
 }:
 
-buildPythonApplication rec {
+python3Packages.buildPythonApplication rec {
   pname = "cvise";
-  version = "2.10.0";
-  format = "other";
+  version = "2.12.0";
+  pyproject = false;
 
   src = fetchFromGitHub {
     owner = "marxin";
     repo = "cvise";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-0gk4O1q90eH1FMhj4ncNVqX/MfVyaU0nckh1xny2wlM=";
+    tag = "v${version}";
+    hash = "sha256-ObnhFe7hAKUoUxNJ+9jo0Q4AE6jQqDgI1Ta/jsumqpI=";
   };
 
   patches = [
@@ -34,15 +33,15 @@ buildPythonApplication rec {
     # Avoid blanket -Werror to evade build failures on less
     # tested compilers.
     substituteInPlace CMakeLists.txt \
-      --replace " -Werror " " "
+      --replace-fail " -Werror " " "
 
     substituteInPlace cvise/utils/testing.py \
-      --replace "'colordiff --version'" "'${colordiff}/bin/colordiff --version'" \
-      --replace "'colordiff'" "'${colordiff}/bin/colordiff'"
+      --replace-fail "'colordiff --version'" "'${colordiff}/bin/colordiff --version'" \
+      --replace-fail "'colordiff'" "'${colordiff}/bin/colordiff'"
   '';
 
   nativeBuildInputs = [
-    cmake
+    python3Packages.cmake # TODO: swap this out for the non-python cmake
     flex
     llvm.dev
   ];
@@ -54,15 +53,21 @@ buildPythonApplication rec {
     unifdef
   ];
 
-  propagatedBuildInputs = [
+  propagatedBuildInputs = with python3Packages; [
     chardet
     pebble
     psutil
   ];
 
   nativeCheckInputs = [
-    pytestCheckHook
+    python3Packages.pytestCheckHook
     unifdef
+  ];
+
+  cmakeFlags = [
+    # By default `cvise` looks it up in `llvm` bin directory. But
+    # `nixpkgs` moves it into a separate derivation.
+    "-DCLANG_FORMAT_PATH=${clang-tools}/bin/clang-format"
   ];
 
   disabledTests = [
@@ -70,11 +75,21 @@ buildPythonApplication rec {
     "test_simple_reduction"
   ];
 
-  meta = with lib; {
+  passthru = {
+    tests = {
+      # basic syntax check
+      help-output = testers.testVersion {
+        package = cvise;
+        command = "cvise --version";
+      };
+    };
+  };
+
+  meta = {
     homepage = "https://github.com/marxin/cvise";
     description = "Super-parallel Python port of C-Reduce";
-    license = licenses.ncsa;
-    maintainers = with maintainers; [ orivej ];
-    platforms = platforms.linux;
+    license = lib.licenses.ncsa;
+    maintainers = [ ];
+    platforms = lib.platforms.linux;
   };
 }

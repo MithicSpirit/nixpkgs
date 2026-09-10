@@ -5,5 +5,7 @@
 mkKdeDerivation {
   pname = "kjobwidgets";
 
-  extraNativeBuildInputs = [qttools];
+  extraNativeBuildInputs = [ qttools ];
+
+  hasPythonBindings = true;
 }

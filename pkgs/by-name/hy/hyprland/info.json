@@ -1,7 +1,7 @@
 {
-  "branch": "main",
-  "commit_hash": "9a09eac79b85c846e3a865a9078a3f8ff65a9259",
-  "commit_message": "props: bump version to 0.42.0",
-  "date": "2024-08-07",
-  "tag": "v0.42.0"
+  "branch": "v0.56.2-b",
+  "commit_hash": "efb50993780079460b0cbed1363e2166a2de1d9f",
+  "commit_message": "[gha] Nix: update inputs",
+  "date": "2026-08-05",
+  "tag": "v0.56.2"
 }

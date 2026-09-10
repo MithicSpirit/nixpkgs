@@ -9,20 +9,19 @@ let
     callPackage
       (import ./generic.nix rec {
         pname = "apptainer";
-        version = "1.3.3";
+        version = "1.5.0";
         projectName = "apptainer";
 
         src = fetchFromGitHub {
           owner = "apptainer";
           repo = "apptainer";
-          rev = "refs/tags/v${version}";
-          hash = "sha256-xQZCQa9z1aJ2tVtxMlwcNhlm0EV/nn8OnbfaVZRm4JI=";
+          tag = "v${version}";
+          hash = "sha256-zx3NPuwz3ZNJeYw4CG1/q8uwbGpA7G1/hvw6VmoCNkg=";
         };
 
-        # Update by running
-        # nix-prefetch -E "{ sha256 }: ((import ./. { }).apptainer.override { vendorHash = sha256; }).goModules"
-        # at the root directory of the Nixpkgs repository
-        vendorHash = "sha256-W853++SSvkAYYUczbl8vnoBQZnimUdsAEXp4MCkLPBU=";
+        # Override vendorHash with overrideAttrs.
+        # See https://nixos.org/manual/nixpkgs/unstable/#buildGoModule-vendorHash
+        vendorHash = "sha256-ZyYGCGZHHy1YYE7O9fN1qFQbLshsRFBSrNLt1GXNyU8=";
 
         extraDescription = " (previously known as Singularity)";
         extraMeta.homepage = "https://apptainer.org";
@@ -47,26 +46,25 @@ let
     callPackage
       (import ./generic.nix rec {
         pname = "singularity-ce";
-        version = "4.1.4";
+        version = "4.4.1";
         projectName = "singularity";
 
         src = fetchFromGitHub {
           owner = "sylabs";
           repo = "singularity";
-          rev = "refs/tags/v${version}";
-          hash = "sha256-+qwPzgwfF6A1c/rmSM/5T2N9/wVeWhMoAthj3eSQmh8=";
+          tag = "v${version}";
+          hash = "sha256-lFnxh+cs5y6F/1f5uyQ3vA1E8uBKJOyOYbJy6081I5U=";
         };
 
-        # Update by running
-        # nix-prefetch -E "{ sha256 }: ((import ./. { }).singularity.override { vendorHash = sha256; }).goModules"
-        # at the root directory of the Nixpkgs repository
-        vendorHash = "sha256-dTqOSk8APLOsqwEiZ/IL8Zu1SR48MyEYPgRe6PC2nd8=";
+        # Override vendorHash with overrideAttrs.
+        # See https://nixos.org/manual/nixpkgs/unstable/#buildGoModule-vendorHash
+        vendorHash = "sha256-uqEzYj8JmZWi2Rceh+JMJ5kzUmJ4T3JAt0rto1NewlM=";
 
-        # Do not build conmon and squashfuse from the Git submodule sources,
-        # Use Nixpkgs provided version
         extraConfigureFlags = [
-          "--without-conmon"
+          # Do not build squashfuse from the Git submodule sources, use Nixpkgs provided version
           "--without-squashfuse"
+          # Disable subid as it requires (unavailable?) libsubid headers:
+          "--without-libsubid"
         ];
 
         extraDescription = " (Sylabs Inc's fork of Singularity, a.k.a. SingularityCE)";
@@ -100,7 +98,7 @@ let
           description = "";
           longDescription = ''
             This package produces identical store derivations to `pkgs.${packageName}`
-            overriden and installed by the NixOS module `programs.singularity`
+            overridden and installed by the NixOS module `programs.singularity`
             with default configuration.
 
             This is for binary substitutes only. Use pkgs.${packageName} instead.

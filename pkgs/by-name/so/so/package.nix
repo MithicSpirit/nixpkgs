@@ -1,6 +1,5 @@
 {
   lib,
-  darwin,
   fetchFromGitHub,
   libiconv,
   openssl,
@@ -11,7 +10,6 @@
 }:
 
 let
-  inherit (darwin.apple_sdk.frameworks) Security;
   self = rustPlatform.buildRustPackage {
     pname = "so";
     version = "0.4.10";
@@ -25,16 +23,16 @@ let
       hash = "sha256-25jZEo1C9XF4m9YzDwtecQy468nHyv2wnRuK5oY2siU=";
     };
 
-    cargoHash = "sha256-F9DNY0jKhH6aQRqlXq6MEMoFa1qtvAdL5lSEsql6gcI=";
+    cargoHash = "sha256-cSLsfYYtdMiXGCG3jpq2Cxl8TgSb7iCWoeXNwEuv4FM=";
 
     nativeBuildInputs = [ pkg-config ];
 
-    buildInputs =
-      [ openssl ]
-      ++ lib.optionals stdenv.isDarwin [
-        libiconv
-        Security
-      ];
+    buildInputs = [
+      openssl
+    ]
+    ++ lib.optionals stdenv.hostPlatform.isDarwin [
+      libiconv
+    ];
 
     strictDeps = true;
 
@@ -56,7 +54,9 @@ let
       changelog = "https://github.com/samtay/so/blob/main/CHANGELOG.md";
       mainProgram = "so";
       license = lib.licenses.mit;
-      maintainers = with lib.maintainers; [ AndersonTorres ];
+      maintainers = with lib.maintainers; [
+        unsolvedcypher
+      ];
     };
   };
 in

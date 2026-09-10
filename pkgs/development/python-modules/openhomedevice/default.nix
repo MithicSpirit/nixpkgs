@@ -6,7 +6,6 @@
   fetchFromGitHub,
   lxml,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
 }:
 
@@ -15,12 +14,10 @@ buildPythonPackage rec {
   version = "2.3.1";
   pyproject = true;
 
-  disabled = pythonOlder "3.6";
-
   src = fetchFromGitHub {
     owner = "bazwilliams";
     repo = "openhomedevice";
-    rev = "refs/tags/${version}";
+    tag = version;
     hash = "sha256-u05aciRFCnqMJRClUMApAPDLpXOKn4wUTLgvR7BVZTA=";
   };
 
@@ -38,13 +35,13 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "openhomedevice" ];
 
-  pytestFlagsArray = [ "tests/*.py" ];
+  enabledTestPaths = [ "tests/*.py" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module to access Linn Ds and Openhome devices";
     homepage = "https://github.com/bazwilliams/openhomedevice";
     changelog = "https://github.com/bazwilliams/openhomedevice/releases/tag/${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

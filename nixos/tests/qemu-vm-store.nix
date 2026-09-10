@@ -1,8 +1,13 @@
-{ lib, ... }: {
+{ lib, ... }:
+{
 
   name = "qemu-vm-store";
 
   meta.maintainers = with lib.maintainers; [ nikstur ];
+
+  defaults = {
+    nix.enable = true; # disabled by default. See all-tests.nix / tag(no-nix-by-default)
+  };
 
   nodes = {
     sharedWritable = {

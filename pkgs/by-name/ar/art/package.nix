@@ -1,39 +1,60 @@
-{ lib
-, stdenv
-, fetchFromBitbucket
-, cmake
-, pkg-config
-, wrapGAppsHook3
-, makeWrapper
-, pixman
-, libpthreadstubs
-, gtkmm3
-, libXau
-, libXdmcp
-, lcms2
-, libiptcdata
-, fftw
-, expat
-, pcre
-, libsigcxx
-, lensfun
-, librsvg
-, libcanberra-gtk3
-, exiv2
-, exiftool
-, mimalloc
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  cmake,
+  pkg-config,
+  util-linux,
+  libselinux,
+  libsepol,
+  libthai,
+  libdatrie,
+  lerc,
+  libxkbcommon,
+  libepoxy,
+  libxtst,
+  wrapGAppsHook3,
+  pixman,
+  libpthread-stubs,
+  gtkmm3,
+  libxau,
+  libxdmcp,
+  lcms2,
+  libraw,
+  libiptcdata,
+  fftwSinglePrec,
+  expat,
+  pcre2,
+  libsigcxx,
+  lensfun,
+  librsvg,
+  libcanberra-gtk3,
+  exiv2,
+  exiftool,
+  mimalloc,
+  openexr,
+  opencolorio,
+  color-transformation-language,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "art";
-  version = "1.23";
+  version = "1.26.8";
 
-  src = fetchFromBitbucket {
-    owner = "agriggio";
-    repo = "art";
-    rev = version;
-    hash = "sha256-OB/Rr4rHNJc40o6esNPDRbhN4EPGf2zhlzzM+mBpUUU=";
+  src = fetchFromGitHub {
+    owner = "artraweditor";
+    repo = "ART";
+    tag = finalAttrs.version;
+    hash = "sha256-kgDmGxdmKK/19vxruTQ0845iaRSWthlkYoeAFVaju2U=";
   };
+
+  # Fix the build with CMake 4.
+  postPatch = ''
+    substituteInPlace CMakeLists.txt \
+      --replace-fail \
+        'cmake_minimum_required(VERSION 3.9)' \
+        'cmake_minimum_required(VERSION 3.10)'
+  '';
 
   nativeBuildInputs = [
     cmake
@@ -42,16 +63,26 @@ stdenv.mkDerivation rec {
   ];
 
   buildInputs = [
+    util-linux
+    libselinux
+    libsepol
+    libthai
+    libdatrie
+    lerc
+    libxkbcommon
+    libepoxy
+    libxtst
     pixman
-    libpthreadstubs
+    libpthread-stubs
     gtkmm3
-    libXau
-    libXdmcp
+    libxau
+    libxdmcp
     lcms2
+    libraw
     libiptcdata
-    fftw
+    fftwSinglePrec
     expat
-    pcre
+    pcre2
     libsigcxx
     lensfun
     librsvg
@@ -59,26 +90,38 @@ stdenv.mkDerivation rec {
     exiftool
     libcanberra-gtk3
     mimalloc
+    openexr
+    opencolorio
+    color-transformation-language
   ];
 
   cmakeFlags = [
     "-DPROC_TARGET_NUMBER=2"
     "-DCACHE_NAME_SUFFIX=\"\""
+    "-DENABLE_OCIO=True"
+    "-DENABLE_CTL=1"
+    "-DCTL_INCLUDE_DIR=${color-transformation-language}/include/CTL"
   ];
 
-  CMAKE_CXX_FLAGS = toString [
-    "-std=c++11"
-    "-Wno-deprecated-declarations"
-    "-Wno-unused-result"
-  ];
-  env.CXXFLAGS = "-include cstdint"; # needed at least with gcc13 on aarch64-linux
+  env = {
+    CMAKE_CXX_FLAGS = toString [
+      "-std=c++11"
+      "-Wno-deprecated-declarations"
+      "-Wno-unused-result"
+    ];
+    # needed at least with gcc13 on aarch64-linux
+    CXXFLAGS = toString [
+      "-include"
+      "cstdint"
+    ];
+  };
 
   meta = {
-    description = "A raw converter based on RawTherapee";
-    homepage = "https://bitbucket.org/agriggio/art/";
-    license = lib.licenses.gpl3Only;
+    description = "Raw converter based on RawTherapee";
+    homepage = "https://artraweditor.github.io";
+    license = lib.licenses.gpl3Plus;
     maintainers = with lib.maintainers; [ paperdigits ];
-    mainProgram = "art";
+    mainProgram = "ART";
     platforms = lib.platforms.linux;
   };
-}
+})

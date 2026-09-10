@@ -2,27 +2,61 @@
   lib,
   rustPlatform,
   fetchFromGitHub,
+  nix-update-script,
+  versionCheckHook,
+  vscode-extensions,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "harper";
-  version = "0.9.5";
+  version = "2.8.0";
+  __structuredAttrs = true;
+  strictDeps = true;
 
   src = fetchFromGitHub {
-    owner = "elijah-potter";
+    owner = "Automattic";
     repo = "harper";
-    rev = "v${version}";
-    hash = "sha256-Tk2YOY9myAGHrNTpgwyqo+P6gGQ+2cpKAJbsA3ZfhUA=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-jbJ2bYLIhxd6troB6JAKYmhvfhU+kwmOSYZpWCIjxpQ=";
   };
 
-  cargoHash = "sha256-9ITfjrtc8LPQ3u3G59xESzqky/PCiea5mJiTIiEAmSA=";
+  cargoHash = "sha256-ZxRG79CggsM8MbeXMCKU5/N7vlng3xex/mAfYkkDwew=";
+
+  cargoBuildFlags = [
+    "--package=harper-cli"
+    "--package=harper-ls"
+  ];
+
+  cargoTestFlags = [
+    "--package=harper-cli"
+    "--package=harper-ls"
+  ];
+
+  passthru = {
+    tests.vscode = vscode-extensions.elijah-potter.harper;
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--subpackage"
+        "tests.vscode"
+      ];
+    };
+  };
+
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+  doInstallCheck = true;
 
   meta = {
     description = "Grammar Checker for Developers";
-    homepage = "https://github.com/elijah-potter/harper";
-    changelog = "https://github.com/elijah-potter/harper/releases/tag/v${version}";
+    homepage = "https://github.com/Automattic/harper";
+    changelog = "https://github.com/Automattic/harper/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [ pbsds ];
-    mainProgram = "harper-cli";
+    maintainers = with lib.maintainers; [
+      pbsds
+      sumnerevans
+      ddogfoodd
+    ];
+    mainProgram = "harper-ls";
   };
-}
+})

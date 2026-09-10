@@ -2,38 +2,38 @@
   lib,
   fetchFromGitHub,
   stdenvNoCC,
-  nodejs,
+  nodejs-slim,
   fetchNpmDeps,
   buildPackages,
-  php83,
+  php85,
   nixosTests,
   nix-update-script,
   dataDir ? "/var/lib/firefly-iii-data-importer",
 }:
 
 let
+  php = php85;
+in
+stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "firefly-iii-data-importer";
-  version = "1.5.4";
+  version = "2.3.4";
 
   src = fetchFromGitHub {
     owner = "firefly-iii";
     repo = "data-importer";
-    rev = "v${version}";
-    hash = "sha256-XnPdoNtUoJpOpKVzQlFirh7u824H4xKAe2VRXfGIKeg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-869oPalwVdc7Ge8zcG6OniTZ6zhLOknlvFQkEHzLg0M=";
   };
-in
 
-stdenvNoCC.mkDerivation (finalAttrs: {
-  inherit pname src version;
-
-  buildInputs = [ php83 ];
+  buildInputs = [ php ];
 
   nativeBuildInputs = [
-    nodejs
-    nodejs.python
+    nodejs-slim
+    nodejs-slim.npm
+    nodejs-slim.python
     buildPackages.npmHooks.npmConfigHook
-    php83.composerHooks.composerInstallHook
-    php83.packages.composer-local-repo-plugin
+    php.composerHooks.composerInstallHook
+    php.packages.composer-local-repo-plugin
   ];
 
   composerNoDev = true;
@@ -42,15 +42,15 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   composerStrictValidation = true;
   strictDeps = true;
 
-  vendorHash = "sha256-EjEco8zBR787eQuPhNsRScfuPQ6eS6TIJmMJOcmZA+Q=";
+  vendorHash = "sha256-GEioAwqo9BHzoP4/uetqiQgv+O9Qzqyo/AcW9VP23n0=";
 
   npmDeps = fetchNpmDeps {
-    inherit src;
-    name = "${pname}-npm-deps";
-    hash = "sha256-VP1wM0+ca17aQU4FJ9gSbT2Np/sxb8wZ4pCJ6FV1V7w=";
+    inherit (finalAttrs) src;
+    name = "${finalAttrs.pname}-npm-deps";
+    hash = "sha256-FEEC89/7cEuKU4mY27Pm5nr5EkOoL7BWZRAOpCZK61I=";
   };
 
-  composerRepository = php83.mkComposerRepository {
+  composerRepository = php.mkComposerRepository {
     inherit (finalAttrs)
       pname
       src
@@ -68,9 +68,14 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   '';
 
   passthru = {
-    phpPackage = php83;
+    phpPackage = php;
     tests = nixosTests.firefly-iii-data-importer;
-    updateScript = nix-update-script { };
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version-regex"
+        "v(\\d+\\.\\d+\\.\\d+)"
+      ];
+    };
   };
 
   postInstall = ''
@@ -82,8 +87,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   '';
 
   meta = {
-    changelog = "https://github.com/firefly-iii/data-importer/releases/tag/v${version}";
-    description = "Firefly III Data Importer can import data into Firefly III.";
+    changelog = "https://github.com/firefly-iii/data-importer/releases/tag/v${finalAttrs.version}";
+    description = "Firefly III Data Importer can import data into Firefly III";
     homepage = "https://github.com/firefly-iii/data-importer";
     license = lib.licenses.agpl3Only;
     maintainers = [ lib.maintainers.savyajha ];

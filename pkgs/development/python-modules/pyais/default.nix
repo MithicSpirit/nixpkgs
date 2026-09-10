@@ -1,27 +1,27 @@
 {
   lib,
+  stdenv,
   attrs,
   bitarray,
   buildPythonPackage,
   fetchFromGitHub,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pyais";
-  version = "2.7.2";
+  version = "3.2.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "M0r13n";
     repo = "pyais";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-itv5tVM8ff2gNUDGxY4aMKrpJVgfwPB/FWYog+CzJY4=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-p66qlxuaGNYKtCjMtx/i2Ja/njGivigXgaLgH2HoeAE=";
   };
+
+  __darwinAllowLocalNetworking = true;
 
   build-system = [ setuptools ];
 
@@ -39,11 +39,16 @@ buildPythonPackage rec {
     "tests/test_examples.py"
   ];
 
-  meta = with lib; {
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
+    # OSError: [Errno 48] Address already in use
+    "test_full_message_flow"
+  ];
+
+  meta = {
     description = "Module for decoding and encoding AIS messages (AIVDM/AIVDO)";
     homepage = "https://github.com/M0r13n/pyais";
-    changelog = "https://github.com/M0r13n/pyais/blob/${version}/CHANGELOG.txt";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/M0r13n/pyais/blob/${finalAttrs.src.tag}/CHANGELOG.txt";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

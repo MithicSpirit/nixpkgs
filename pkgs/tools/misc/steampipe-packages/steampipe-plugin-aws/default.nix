@@ -8,16 +8,16 @@
 
 buildGoModule rec {
   pname = "steampipe-plugin-aws";
-  version = "0.145.0";
+  version = "1.32.0";
 
   src = fetchFromGitHub {
     owner = "turbot";
     repo = "steampipe-plugin-aws";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Nh+GlnAA3dwRD0EFhUXqPXJtwUMmLzUtwFSJcaECpbc=";
+    tag = "v${version}";
+    hash = "sha256-btP3GrcqfRA3ofbcNqWJ2DB2NrcgR1IgzHu43FP1RLk=";
   };
 
-  vendorHash = "sha256-h0+ffKSyEU7lSqbL+LwqRZp563AlAGpzMbtg3qdOjrk=";
+  vendorHash = "sha256-8ZVl70Lwz3j3PM3XljZGFaoGt+JP6TP+o5gOGoBlUY8=";
 
   ldflags = [
     "-s"
@@ -43,7 +43,7 @@ buildGoModule rec {
     changelog = "https://github.com/turbot/steampipe-plugin-aws/blob/v${version}/CHANGELOG.md";
     description = "AWS Plugin for Steampipe";
     homepage = "https://github.com/turbot/steampipe-plugin-aws";
-    license = lib.licenses.apsl20;
+    license = lib.licenses.asl20;
     longDescription = "Use SQL to instantly query AWS resources across regions and accounts.";
     maintainers = with lib.maintainers; [ anthonyroussel ];
     platforms = steampipe.meta.platforms;

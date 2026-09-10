@@ -6,12 +6,12 @@
 }:
 let
   pname = "bazecor";
-  version = "1.4.4";
+  version = "1.10.0";
   src = appimageTools.extract {
     inherit pname version;
     src = fetchurl {
       url = "https://github.com/Dygmalab/Bazecor/releases/download/v${version}/Bazecor-${version}-x64.AppImage";
-      hash = "sha256-ep+3lqWdktyvbTKxfLcPiVq9/5f0xBHwKG1+BxDDBQA=";
+      hash = "sha256-tdkuZ7YIdHetdLi5EUk9HMvW0mW0Oqsb28xseises2Q=";
     };
 
     # Workaround for https://github.com/Dygmalab/Bazecor/issues/370
@@ -19,8 +19,8 @@ let
       substituteInPlace \
         $out/usr/lib/bazecor/resources/app/.webpack/main/index.js \
         --replace-fail \
-          'checkUdev=()=>{try{if(c.default.existsSync(f))return c.default.readFileSync(f,"utf-8").trim()===d.trim()}catch(e){u.default.error(e)}return!1}' \
-          'checkUdev=()=>{return 1}'
+          't.checkUdev=()=>{try{if(l.default.existsSync(f))return l.default.readFileSync(f,"utf-8").trim()===h.trim()}catch(e){d.default.error(e)}return!1}' \
+          't.checkUdev=()=>{return 1}'
     '';
   };
 in
@@ -31,6 +31,8 @@ appimageTools.wrapAppImage {
   # taken from
   # https://github.com/Dygmalab/Bazecor/blob/v1.4.4/src/main/utils/udev.ts#L6
 
+  nativeBuildInputs = [ makeWrapper ];
+
   extraPkgs = pkgs: [ pkgs.glib ];
 
   # Also expose the udev rules here, so it can be used as:
@@ -38,12 +40,11 @@ appimageTools.wrapAppImage {
   # to allow non-root modifications to the keyboards.
 
   extraInstallCommands = ''
-    source "${makeWrapper}/nix-support/setup-hook"
     wrapProgram $out/bin/bazecor \
-      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}"
+      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}"
 
     install -m 444 -D ${src}/Bazecor.desktop -t $out/share/applications
-    install -m 444 -D ${src}/bazecor.png -t $out/share/pixmaps
+    install -m 444 -D ${src}/bazecor.png -t $out/share/icons/hicolor/512x512/apps
 
     mkdir -p $out/lib/udev/rules.d
     install -m 444 -D ${./60-dygma.rules} $out/lib/udev/rules.d/60-dygma.rules
@@ -59,7 +60,6 @@ appimageTools.wrapAppImage {
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
     license = lib.licenses.gpl3Only;
     maintainers = with lib.maintainers; [
-      amesgen
       gcleroux
     ];
     platforms = [ "x86_64-linux" ];
