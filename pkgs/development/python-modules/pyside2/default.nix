@@ -1,22 +1,20 @@
 {
   python,
-  pythonAtLeast,
   fetchurl,
   lib,
   stdenv,
   cmake,
-  libxcrypt,
   ninja,
   qt5,
   shiboken2,
 }:
 stdenv.mkDerivation rec {
   pname = "pyside2";
-  version = "5.15.14";
+  version = "5.15.17";
 
   src = fetchurl {
     url = "https://download.qt.io/official_releases/QtForPython/pyside2/PySide2-${version}-src/pyside-setup-opensource-src-${version}.tar.xz";
-    hash = "sha256-MmURlPamt7zkLwTmixQBrSCH5HiaTI8/uGSehhicY3I=";
+    hash = "sha256-hKSzKPamAjW4cXrVIriKe2AAWSYMV6IYntAFEJ8kxSc=";
   };
 
   patches = [
@@ -35,28 +33,17 @@ stdenv.mkDerivation rec {
     ./Modify-sendCommand-signatures.patch
   ];
 
-  postPatch =
-    (lib.optionalString (pythonAtLeast "3.12") ''
-      substituteInPlace \
-        ez_setup.py \
-        build_scripts/main.py \
-        build_scripts/options.py \
-        build_scripts/utils.py \
-        build_scripts/wheel_override.py \
-        build_scripts/wheel_utils.py \
-        sources/pyside2/CMakeLists.txt \
-        --replace-fail "from distutils" "import setuptools; from distutils"
-      substituteInPlace \
-        build_scripts/config.py \
-        build_scripts/main.py \
-        build_scripts/options.py \
-        build_scripts/setup_runner.py \
-        build_scripts/utils.py \
-        --replace-fail "import distutils" "import setuptools; import distutils"
-    '')
-    + ''
-      cd sources/pyside2
-    '';
+  postPatch = ''
+    cd sources/pyside2
+    for i in {.,doc}/CMakeLists.txt; do
+      substituteInPlace $i --replace-fail \
+        "cmake_minimum_required(VERSION 3.1)" \
+        "cmake_minimum_required(VERSION 3.10)"
+      substituteInPlace $i --replace-fail \
+        "cmake_policy(VERSION 3.1)" \
+        "cmake_policy(VERSION 3.10)"
+    done
+  '';
 
   cmakeFlags = [
     "-DBUILD_TESTS=OFF"
@@ -69,8 +56,12 @@ stdenv.mkDerivation rec {
     cmake
     ninja
     qt5.qmake
-    python
-    python.pkgs.setuptools
+    (python.withPackages (
+      ps: with ps; [
+        distutils
+        setuptools
+      ]
+    ))
   ];
 
   buildInputs =
@@ -83,19 +74,13 @@ stdenv.mkDerivation rec {
       qtlocation
       qtscript
       qtwebsockets
-      qtwebengine
       qtwebchannel
       qtcharts
       qtsensors
       qtsvg
       qt3d
     ])
-    ++ (with python.pkgs; [ setuptools ])
-    ++ (lib.optionals (python.pythonOlder "3.9") [
-      # see similar issue: 202262
-      # libxcrypt is required for crypt.h for building older python modules
-      libxcrypt
-    ]);
+    ++ (with python.pkgs; [ setuptools ]);
 
   propagatedBuildInputs = [ shiboken2 ];
 
@@ -107,12 +92,12 @@ stdenv.mkDerivation rec {
     cp -r PySide2.egg-info $out/${python.sitePackages}/
   '';
 
-  meta = with lib; {
+  meta = {
     description = "LGPL-licensed Python bindings for Qt";
-    license = licenses.lgpl21;
+    license = lib.licenses.lgpl21;
     homepage = "https://wiki.qt.io/Qt_for_Python";
-    maintainers = with maintainers; [ gebner ];
-    platforms = platforms.all;
-    broken = stdenv.isDarwin;
+    maintainers = [ ];
+    platforms = lib.platforms.all;
+    broken = stdenv.hostPlatform.isDarwin;
   };
 }

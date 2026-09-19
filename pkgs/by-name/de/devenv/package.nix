@@ -1,59 +1,163 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, makeWrapper
-, rustPlatform
-, testers
-
-, cachix
-, darwin
-, libgit2
-, nix
-, openssl
-, pkg-config
-
-, devenv  # required to run version test
+{
+  lib,
+  stdenv,
+  useMoldLinker,
+  fetchFromGitHub,
+  gitMinimal,
+  makeBinaryWrapper,
+  cmake,
+  installShellFiles,
+  rustPlatform,
+  testers,
+  cachix,
+  nixVersions,
+  openssl,
+  dbus,
+  protobuf,
+  sqlite,
+  pkg-config,
+  glibcLocalesUtf8,
+  boehmgc,
+  libghostty-vt,
+  llvmPackages,
+  nixd,
+  bash,
+  devenv, # required to run version test
 }:
 
 let
-  devenv_nix = nix.overrideAttrs (old: {
-    version = "2.21-devenv";
-    src = fetchFromGitHub {
-      owner = "domenkozar";
-      repo = "nix";
-      rev = "b24a9318ea3f3600c1e24b4a00691ee912d4de12";
-      hash = "sha256-BGvBhepCufsjcUkXnEEXhEVjwdJAwPglCC2+bInc794=";
-    };
-    buildInputs = old.buildInputs ++ [ libgit2 ];
-    doCheck = false;
-    doInstallCheck = false;
-  });
+  version = "2.3.1";
+  devenvNixVersion = "2.35";
+  devenvNixRev = "b9b81726b38469c55b9706d80d37d6c73cc7f76c";
 
-  version = "1.0.8";
-in rustPlatform.buildRustPackage {
+  devenvNixSrc = fetchFromGitHub {
+    name = "devenv-nix-${devenvNixVersion}-source";
+    owner = "cachix";
+    repo = "nix";
+    rev = devenvNixRev;
+    hash = "sha256-3NT3yTvoRT7+rxLDNovpyeTDIJkZlBoO72rcu2x9Y9o=";
+  };
+
+  nix_components = (nixVersions.nixComponents_git.overrideSource devenvNixSrc).overrideScope (
+    finalScope: prevScope: {
+      version = devenvNixVersion;
+    }
+  );
+  buildRustPackage = rustPlatform.buildRustPackage.override {
+    stdenv = if stdenv.hostPlatform.isLinux then useMoldLinker stdenv else stdenv;
+  };
+in
+buildRustPackage {
   pname = "devenv";
   inherit version;
 
   src = fetchFromGitHub {
     owner = "cachix";
     repo = "devenv";
-    rev = "v${version}";
-    hash = "sha256-q/ERT4Ui315opFz4h4+BsJ/zrTYdXkwq13vvrpL+KzM=";
+    tag = "v2.3.1";
+    hash = "sha256-zZB/UVcdL0VWuAPEe/ALY7onj8Q18efSUdL3ZJlUspk=";
   };
 
-  cargoHash = "sha256-fCXAFVmKns8uglbzyCznoVFGCU+Veq0t1h8T7i1P5XQ=";
+  cargoHash = "sha256-oaBQMX8gTj/jFliJnfl+lO4yndSrorJT/Y3p2/YoRas=";
 
-  buildAndTestSubdir = "devenv";
+  env = {
+    RUSTFLAGS = "--cfg tracing_unstable";
+    LIBSQLITE3_SYS_USE_PKG_CONFIG = "1";
+    OPENSSL_NO_VENDOR = "1";
+    DEVENV_IS_RELEASE = true;
+  };
 
-  nativeBuildInputs = [ makeWrapper pkg-config ];
-
-  buildInputs = [ openssl ] ++ lib.optionals stdenv.isDarwin [
-    darwin.apple_sdk.frameworks.SystemConfiguration
+  cargoBuildFlags = [
+    "-p"
+    "devenv"
+    "-p"
+    "devenv-run-tests"
+    "-p"
+    "devenv-proxy"
   ];
 
-  postInstall = ''
-    wrapProgram $out/bin/devenv --set DEVENV_NIX ${devenv_nix} --prefix PATH ":" "$out/bin:${cachix}/bin"
+  nativeBuildInputs = [
+    cmake
+    installShellFiles
+    makeBinaryWrapper
+    pkg-config
+    protobuf
+    rustPlatform.bindgenHook
+  ];
+
+  buildInputs = [
+    openssl
+    sqlite
+    dbus
+    libghostty-vt
+    llvmPackages.clang-unwrapped
+    nix_components.nix-expr-c
+    nix_components.nix-store-c
+    nix_components.nix-util-c
+    nix_components.nix-flake-c
+    nix_components.nix-cmd-c
+    nix_components.nix-fetchers-c
+    nix_components.nix-main-c
+  ];
+
+  nativeCheckInputs = [
+    gitMinimal
+    bash
+  ];
+
+  preCheck = ''
+    # Initialize git repo for tests that use git-root-relative imports
+    pushd $NIX_BUILD_TOP/source
+    git init -b main
+    git config user.email "test@example.com"
+    git config user.name "Test User"
+    git add -A
+    popd
   '';
+
+  useNextest = true;
+  # Binding a TCP socket is not permitted in the darwin sandbox.
+  checkFlags = [
+    "--skip"
+    "waits_for_previous_proxy_to_release_control_socket"
+  ];
+
+  cargoTestFlags = [
+    "-p"
+    "devenv"
+  ];
+
+  postInstall =
+    let
+      setDefaultLocaleArchive = lib.optionalString (glibcLocalesUtf8 != null) ''
+        --set-default LOCALE_ARCHIVE ${glibcLocalesUtf8}/lib/locale/locale-archive
+      '';
+    in
+    ''
+      wrapProgram $out/bin/devenv \
+        --prefix PATH ":" "$out/bin:${lib.getBin cachix}/bin:${lib.getBin nixd}/bin" \
+        ${setDefaultLocaleArchive}
+
+      wrapProgram $out/bin/devenv-run-tests \
+        --prefix PATH ":" "$out/bin:${lib.getBin cachix}/bin:${lib.getBin nixd}/bin" \
+        ${setDefaultLocaleArchive}
+
+      # Generate manpages
+      cargo xtask generate-manpages --out-dir man
+      installManPage man/*
+
+      # Generate shell completions (devenv must be in PATH)
+      compdir=./completions
+      export PATH="$out/bin:$PATH"
+      for shell in bash fish zsh; do
+        cargo xtask generate-shell-completion $shell --out-dir $compdir
+      done
+
+      installShellCompletion --cmd devenv \
+        --bash $compdir/devenv.bash \
+        --fish $compdir/devenv.fish \
+        --zsh $compdir/_devenv
+    '';
 
   passthru.tests = {
     version = testers.testVersion {
@@ -63,11 +167,14 @@ in rustPlatform.buildRustPackage {
   };
 
   meta = {
-    changelog = "https://github.com/cachix/devenv/releases/tag/v${version}";
+    changelog = "https://github.com/cachix/devenv/releases";
     description = "Fast, Declarative, Reproducible, and Composable Developer Environments";
     homepage = "https://github.com/cachix/devenv";
     license = lib.licenses.asl20;
     mainProgram = "devenv";
-    maintainers = with lib.maintainers; [ domenkozar ];
+    maintainers = with lib.maintainers; [
+      domenkozar
+      sandydoo
+    ];
   };
 }

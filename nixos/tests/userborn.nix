@@ -66,6 +66,10 @@ in
             isNormalUser = true;
             hashedPassword = newNormaloHashedPassword;
           };
+          normalo-disabled = {
+            enable = false;
+            isNormalUser = true;
+          };
         };
         groups = {
           new-group = { };
@@ -96,8 +100,17 @@ in
       assert 1000 > int(machine.succeed("id --user sysuser")), "sysuser user doesn't have a system UID"
       assert "${sysuserInitialHashedPassword}" in machine.succeed("getent shadow sysuser"), "system user password is not correct"
 
+    with subtest("normalo-disabled is NOT created"):
+      machine.fail("id normalo-disabled")
+      # Check if user's home has been created
+      machine.fail("[ -d '/home/normalo-disabled' ]")
+
     with subtest("sysusers group is created"):
       print(machine.succeed("getent group sysusers"))
+
+    with subtest("Check files"):
+      print(machine.succeed("grpck -r"))
+      print(machine.succeed("pwck -r"))
 
 
     machine.succeed("/run/current-system/specialisation/new-generation/bin/switch-to-configuration switch")
@@ -123,5 +136,9 @@ in
 
     with subtest("new-group group is created after switching to new generation"):
       print(machine.succeed("getent group new-group"))
+
+    with subtest("Check files"):
+      print(machine.succeed("grpck -r"))
+      print(machine.succeed("pwck -r"))
   '';
 }

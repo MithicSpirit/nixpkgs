@@ -1,9 +1,11 @@
 {
   mkKdeDerivation,
+  pkg-config,
   ffmpeg,
 }:
 mkKdeDerivation {
   pname = "ffmpegthumbs";
 
-  extraBuildInputs = [ffmpeg];
+  extraNativeBuildInputs = [ pkg-config ];
+  extraBuildInputs = [ ffmpeg ];
 }

@@ -11,9 +11,12 @@
   json-glib,
   desktop-file-utils,
   python3,
-  gtk,
+  gtk3,
   girara,
   gettext,
+  gnome,
+  libheif,
+  libjxl,
   libxml2,
   check,
   sqlite,
@@ -24,17 +27,22 @@
   file,
   librsvg,
   gtk-mac-integration,
+  webp-pixbuf-loader,
+  versionCheckHook,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "zathura";
-  version = "0.5.6";
+  version = "2026.05.20";
+
+  strictDeps = true;
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "pwmt";
     repo = "zathura";
-    rev = finalAttrs.version;
-    hash = "sha256-lTEBIZ3lkzjJ+L1qecrcL8iseo8AvSIo3Wh65/ikwac=";
+    tag = finalAttrs.version;
+    hash = "sha256-ChrIJKPVukkW6d/grGcMJ6sZ9sctIOmyJv6TAehh1T8=";
   };
 
   outputs = [
@@ -51,9 +59,12 @@ stdenv.mkDerivation (finalAttrs: {
     "-Dconvert-icon=enabled"
     "-Dsynctex=enabled"
     "-Dtests=disabled"
+    # by default, zathura searches for zathurarc under $out/etc
+    "-Dsysconfdir=/etc"
     # Make sure tests are enabled for doCheck
     # (lib.mesonEnable "tests" finalAttrs.finalPackage.doCheck)
     (lib.mesonEnable "seccomp" stdenv.hostPlatform.isLinux)
+    (lib.mesonEnable "landlock" stdenv.hostPlatform.isLinux)
   ];
 
   nativeBuildInputs = [
@@ -69,7 +80,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
-    gtk
+    gtk3
     girara
     libintl
     sqlite
@@ -79,17 +90,33 @@ stdenv.mkDerivation (finalAttrs: {
     check
     json-glib
     texlive.bin.core
-  ] ++ lib.optional stdenv.isLinux libseccomp ++ lib.optional stdenv.isDarwin gtk-mac-integration;
+  ]
+  ++ lib.optional stdenv.hostPlatform.isLinux libseccomp
+  ++ lib.optional stdenv.hostPlatform.isDarwin gtk-mac-integration;
 
-  doCheck = !stdenv.isDarwin;
+  # add support for more image formats
+  env.GDK_PIXBUF_MODULE_FILE = gnome._gdkPixbufCacheBuilder_DO_NOT_USE {
+    extraLoaders = [
+      libheif.lib
+      libjxl
+      librsvg
+      webp-pixbuf-loader
+    ];
+  };
+
+  doCheck = !stdenv.hostPlatform.isDarwin;
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
 
   passthru.updateScript = gitUpdater { };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://pwmt.org/projects/zathura";
     description = "Core component for zathura PDF viewer";
-    license = licenses.zlib;
-    platforms = platforms.unix;
-    maintainers = with maintainers; [ globin ];
+    license = lib.licenses.zlib;
+    platforms = lib.platforms.unix;
+    maintainers = with lib.maintainers; [ mithicspirit ];
+    mainProgram = "zathura";
   };
 })

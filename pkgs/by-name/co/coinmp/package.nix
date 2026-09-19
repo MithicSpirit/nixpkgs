@@ -1,4 +1,9 @@
-{ lib, stdenv, fetchurl, fetchpatch }:
+{
+  lib,
+  stdenv,
+  fetchurl,
+  fetchpatch,
+}:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "coinmp";
@@ -6,7 +11,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   src = fetchurl {
     url = "https://www.coin-or.org/download/source/CoinMP/CoinMP-${finalAttrs.version}.tgz";
-    sha256 = "13d3j1sdcjzpijp4qks3n0zibk649ac3hhv88hkk8ffxrc6gnn9l";
+    hash = "sha256-NFn7DMvdOTQnRGhDOJhKxMwVP7BDT0yujPdL1nSQo40=";
   };
 
   patches = [
@@ -33,10 +38,11 @@ stdenv.mkDerivation (finalAttrs: {
 
   hardeningDisable = [ "format" ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://projects.coin-or.org/CoinMP/";
     description = "COIN-OR lightweight API for COIN-OR libraries CLP, CBC, and CGL";
-    platforms = platforms.unix;
-    license = licenses.epl10;
+    maintainers = with lib.maintainers; [ coolcuber ];
+    platforms = lib.platforms.unix;
+    license = lib.licenses.epl10;
   };
 })

@@ -2,67 +2,105 @@
   lib,
   stdenv,
   buildPythonPackage,
-  rustPlatform,
   fetchFromGitHub,
-  darwin,
-  libiconv,
+  rustPlatform,
+  pythonAtLeast,
+
+  # nativeBuildInputs
   pkg-config,
+
+  # buildInputs
+  openssl,
   protobuf,
+
+  # dependencies
+  lance-namespace,
   numpy,
   pyarrow,
+
+  # optional-dependencies
+  torch,
+
+  # tests
+  datafusion,
+  duckdb,
   ml-dtypes,
   pandas,
   pillow,
   polars,
+  psutil,
+  pytest-xdist,
   pytestCheckHook,
-  torch,
   tqdm,
-  nix-update-script,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pylance";
-  version = "0.16.0";
+  version = "11.0.0";
   pyproject = true;
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "lancedb";
     repo = "lance";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-bB+6q3kkSxY8i5xf4wumREHizUGWWOZ8Tr5Gt10CVAs=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-+EHbyo+YLqp6TyUBWEbKRy44NUrRZjalRzjtVnaBDOk=";
   };
 
-  buildAndTestSubdir = "python";
+  sourceRoot = "${finalAttrs.src.name}/python";
 
-  cargoDeps = rustPlatform.importCargoLock { lockFile = ./Cargo.lock; };
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs)
+      pname
+      version
+      src
+      sourceRoot
+      ;
+    hash = "sha256-HtKqj7KcTrV1P4wi7wy24NwcSUgARrfht7uohh/JXnY=";
+  };
 
+  # `lance-linalg`'s AVX-512 VNNI u8-distance kernels call `_mm512_dpbusd_epi32` /
+  # `_mm512_dpwssd_epi32`. With the current toolchain, stdarch's signature for these intrinsics
+  # mismatches LLVM's `llvm.x86.avx512.vpdpbusd.512`, so the crate fails to compile.
+  # Drop the AVX-512 VNNI dispatch branch: the kernels then become dead code (their module is
+  # crate-private and otherwise only used from `#[cfg(test)]`, which is not built for
+  # dependencies), so they are never codegen'd and runtime dispatch falls back to the equivalent
+  # AVX2 / scalar kernels.
   postPatch = ''
-    ln -s ${./Cargo.lock} Cargo.lock
+    lanceDistance="../rust/lance-linalg/src/distance"
+
+    substituteInPlace "$lanceDistance/dot_u8.rs" \
+      --replace-fail "return |a, b| unsafe { x86::dot_u8_avx512_vnni(a, b) };" ""
+
+    substituteInPlace "$lanceDistance/l2_u8.rs" \
+      --replace-fail "return |a, b| unsafe { x86::l2_u8_avx512_vnni(a, b) };" ""
+
+    substituteInPlace "$lanceDistance/cosine_u8.rs" \
+      --replace-fail "return |a, b| unsafe { x86::cosine_u8_accum_avx512_vnni(a, b) };" ""
   '';
 
   nativeBuildInputs = [
     pkg-config
+    protobuf # for protoc
     rustPlatform.cargoSetupHook
   ];
 
-  build-system = [ rustPlatform.maturinBuildHook ];
+  build-system = [
+    rustPlatform.cargoSetupHook
+    rustPlatform.maturinBuildHook
+  ];
 
-  buildInputs =
-    [
-      libiconv
-      protobuf
-    ]
-    ++ lib.optionals stdenv.isDarwin (
-      with darwin.apple_sdk.frameworks;
-      [
-        Security
-        SystemConfiguration
-      ]
-    );
+  buildInputs = [
+    openssl
+    protobuf
+  ];
 
-  pythonRelaxDeps = [ "pyarrow" ];
-
+  pythonRelaxDeps = [
+    "lance-namespace"
+    "pyarrow"
+  ];
   dependencies = [
+    lance-namespace
     numpy
     pyarrow
   ];
@@ -74,36 +112,99 @@ buildPythonPackage rec {
   pythonImportsCheck = [ "lance" ];
 
   nativeCheckInputs = [
+    datafusion
+    duckdb
     ml-dtypes
     pandas
     pillow
     polars
+    psutil
+    pytest-xdist
     pytestCheckHook
     tqdm
-  ] ++ optional-dependencies.torch;
+  ]
+  ++ finalAttrs.passthru.optional-dependencies.torch;
 
   preCheck = ''
-    cd python/python/tests
+    cd python/tests
   '';
 
-  disabledTests = [
-    # Error during planning: Invalid function 'invert'.
-    "test_polar_scan"
-    "test_simple_predicates"
+  pytestFlags = lib.optionals (pythonAtLeast "3.14") [
+    # DeprecationWarning: '_UnionGenericAlias' is deprecated and slated for removal in Python 3.17
+    "-Wignore::DeprecationWarning"
   ];
 
-  passthru.updateScript = nix-update-script {
-    extraArgs = [
-      "--generate-lockfile"
-      "--lockfile-metadata-path"
-      "python"
-    ];
-  };
+  disabledTestPaths = lib.optionals (pythonAtLeast "3.14") [
+    # RuntimeError: torch.compile is not supported on Python 3.14+
+    "torch_tests/test_bench_utils.py"
+    "torch_tests/test_distance.py"
+    "torch_tests/test_torch_kmeans.py"
+  ];
+
+  disabledTests = [
+    # Failed: DID NOT RAISE <class 'RuntimeError'>
+    "test_create_index_progress_callback_error_before_completion_propagates"
+
+    # Hangs indefinitely
+    "test_all_permutations"
+
+    # Writes to read-only build directory
+    "test_add_data_storage_version"
+    "test_fix_data_storage_version"
+    "test_fts_backward_v0_27_0"
+
+    # AttributeError: 'SessionContext' object has no attribute 'register_table_provider'
+    "test_table_loading"
+
+    # subprocess.CalledProcessError: Command ... returned non-zero exit status 1.
+    # ModuleNotFoundError: No module named 'lance'
+    "test_lance_log_file"
+    "test_lance_log_file_invalid_path"
+    "test_lance_log_file_with_directory_creation"
+    "test_lance_log_filters_trace_event_targets"
+    "test_timestamp_precision"
+    "test_tracing"
+
+    # Flaky (AssertionError)
+    "test_index_cache_size"
+
+    # OSError: LanceError(IO): Failed to initialize default tokenizer:
+    # An invalid argument was passed:
+    # 'LinderaError { kind: Parse, source: failed to build tokenizer: LinderaError(kind=Io, source=No such file or directory (os error 2)) }', /build/source/rust/lance-index/src/scalar/inverted/tokenizer/lindera.rs:63:21
+    "test_lindera_load_config_fallback"
+
+    # OSError: LanceError(IO): Failed to load tokenizer config
+    "test_indexed_filter_with_fts_index_with_lindera_ipadic_jp_tokenizer"
+    "test_lindera_ipadic_jp_tokenizer_bin_user_dict"
+    "test_lindera_ipadic_jp_tokenizer_csv_user_dict"
+    "test_lindera_load_config_priority"
+  ]
+  ++ lib.optionals (stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64) [
+    # OSError: LanceError(IO): Resources exhausted: Failed to allocate additional 1245184 bytes for ExternalSorter[0]...
+    "test_merge_insert_large"
+
+    # RuntimeError: Failed to initialize cpuinfo!
+    "test_index_cast_centroids"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # Build hangs after all the tests are run due to a torch subprocess not exiting
+    "test_multiprocess_loading"
+  ]
+  ++ lib.optionals (pythonAtLeast "3.14") [
+    # RuntimeError: torch.compile is not supported on Python 3.14+
+    "test_create_index_unsupported_accelerator"
+    "test_index_cast_centroids"
+    "test_index_with_no_centroid_movement"
+    "test_torch_index_with_nans"
+  ];
+
+  __darwinAllowLocalNetworking = true;
 
   meta = {
     description = "Python wrapper for Lance columnar format";
     homepage = "https://github.com/lancedb/lance";
+    changelog = "https://github.com/lancedb/lance/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.asl20;
     maintainers = with lib.maintainers; [ natsukium ];
   };
-}
+})

@@ -10,13 +10,11 @@
   libndtypes,
   libxnd,
   libgumath,
-  isPy27,
 }:
 
 buildPythonPackage {
   pname = "gumath";
   format = "setuptools";
-  disabled = isPy27;
   inherit (libgumath) src version meta;
 
   patches = [
@@ -50,7 +48,7 @@ buildPythonPackage {
                 'add_runtime_library_dirs = ["${libndtypes}/lib", "${libxnd}/lib", "${libgumath}/lib"]'
   '';
 
-  postInstall = lib.optionalString stdenv.isDarwin ''
+  postInstall = lib.optionalString stdenv.hostPlatform.isDarwin ''
     install_name_tool -add_rpath ${libgumath}/lib $out/${python.sitePackages}/gumath/_gumath.*.so
   '';
 

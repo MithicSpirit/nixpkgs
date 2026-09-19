@@ -1,42 +1,43 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, rustPlatform
-, darwin
+{
+  lib,
+  pkgsStatic,
+  fetchFromGitHub,
 }:
 
-rustPlatform.buildRustPackage rec {
+pkgsStatic.rustPlatform.buildRustPackage (finalAttrs: {
   pname = "rcp";
-  version = "0.12.0";
+  version = "0.40.0";
 
   src = fetchFromGitHub {
     owner = "wykurz";
     repo = "rcp";
-    rev = "v${version}";
-    hash = "sha256-TQTn91FDqDpdPv6dn2cwseGF+3EcJ17sglHKD7EQLeY=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-xAuKhgnH5j5NioXDivwpaZFKkkTzGWJglbmVw5koaqE=";
   };
 
-  buildInputs = lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [
-    IOKit
-  ]);
+  cargoHash = "sha256-hNZhL+kZgm2pX28mKdCgpGyBexI33idlEfPB8OmgGOY=";
 
-  cargoHash = "sha256-uhE1AphdYKL6pFY8vsmdMGxHxFiVw75oDXNP8qGykBc=";
-
-  RUSTFLAGS = "--cfg tokio_unstable";
-
-  checkFlags = [
-    # this test also sets setuid permissions on a test file (3oXXX) which doesn't work in a sandbox
-    "--skip=copy::copy_tests::check_default_mode"
+  # Enable upstream's Nix sandbox test filter without replacing nixpkgs'
+  # target-specific Rust flags. Keep this config identical in both phases so
+  # Cargo can reuse the release artifacts built before the checks.
+  cargoBuildFlags = [
+    "--config"
+    ''target.'cfg(all())'.rustflags=["--cfg","tokio_unstable","--cfg","rcp_nix_sandbox"]''
   ];
+  cargoTestFlags = finalAttrs.cargoBuildFlags;
 
-  meta = with lib; {
-    changelog = "https://github.com/wykurz/rcp/releases/tag/v${version}";
+  # fixtures that mutate process-global admission, congestion, hook and file-descriptor
+  # state are only supported under nextest's process isolation or single-threaded libtest
+  dontUseCargoParallelTests = true;
+
+  meta = {
+    changelog = "https://github.com/wykurz/rcp/releases/tag/v${finalAttrs.version}";
     description = "Tools to efficiently copy, remove and link large filesets";
     homepage = "https://github.com/wykurz/rcp";
-    license = with licenses; [ mit ];
+    license = lib.licenses.mit;
     mainProgram = "rcp";
-    maintainers = with maintainers; [ wykurz ];
-    # = note: Undefined symbols for architecture x86_64: "_utimensat"
-    broken = stdenv.isDarwin && stdenv.isx86_64;
+    maintainers = with lib.maintainers; [ wykurz ];
+    # procfs only supports Linux and Android
+    broken = pkgsStatic.stdenv.hostPlatform.isDarwin;
   };
-}
+})

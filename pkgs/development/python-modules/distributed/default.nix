@@ -1,53 +1,46 @@
 {
   lib,
   buildPythonPackage,
+  fetchFromGitHub,
+
+  # build-system
+  setuptools,
+  setuptools-scm,
+
+  # dependencies
   click,
   cloudpickle,
   dask,
-  fetchFromGitHub,
   jinja2,
   locket,
   msgpack,
   packaging,
   psutil,
-  pythonOlder,
   pyyaml,
-  setuptools,
-  setuptools-scm,
   sortedcontainers,
   tblib,
   toolz,
   tornado,
-  urllib3,
-  versioneer,
   zict,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "distributed";
-  version = "2024.8.1";
+  version = "2026.7.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "dask";
     repo = "distributed";
-    rev = "refs/tags/${version}";
-    hash = "sha256-LKf0z/xGvMVjoG02G2doS/XOiDN2/PmR72rCmwaQqtM=";
+    tag = finalAttrs.version;
+    hash = "sha256-9QZb7PpPhdJEc4Kgoc3PE6TU7LHmiw58jkgfaoSNSg4=";
   };
-
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "versioneer[toml]==" "versioneer[toml]>=" \
-      --replace-fail 'dynamic = ["version"]' 'version = "${version}"'
-  '';
 
   build-system = [
     setuptools
     setuptools-scm
-    versioneer
-  ] ++ versioneer.optional-dependencies.toml;
+  ];
 
   pythonRelaxDeps = [ "dask" ];
 
@@ -65,7 +58,6 @@ buildPythonPackage rec {
     tblib
     toolz
     tornado
-    urllib3
     zict
   ];
 
@@ -77,8 +69,8 @@ buildPythonPackage rec {
   meta = {
     description = "Distributed computation in Python";
     homepage = "https://distributed.readthedocs.io/";
-    changelog = "https://github.com/dask/distributed/releases/tag/${version}";
+    changelog = "https://github.com/dask/distributed/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.bsd3;
     maintainers = with lib.maintainers; [ teh ];
   };
-}
+})

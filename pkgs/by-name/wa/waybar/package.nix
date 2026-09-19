@@ -9,10 +9,9 @@
   fftw,
   glib,
   gobject-introspection,
+  gpsd,
   gtk-layer-shell,
   gtkmm3,
-  howard-hinnant-date,
-  hyprland,
   iniparser,
   jsoncpp,
   libdbusmenu-gtk3,
@@ -36,9 +35,10 @@
   scdoc,
   sndio,
   spdlog,
-  sway,
+  systemdMinimal,
   udev,
   upower,
+  versionCheckHook,
   wayland,
   wayland-scanner,
   wireplumber,
@@ -48,51 +48,57 @@
   enableManpages ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
   evdevSupport ? true,
   experimentalPatches ? true,
-  hyprlandSupport ? true,
+  gpsSupport ? true,
   inputSupport ? true,
   jackSupport ? true,
   mpdSupport ? true,
-  mprisSupport ? stdenv.isLinux,
+  mprisSupport ? stdenv.hostPlatform.isLinux,
+  niriSupport ? true,
   nlSupport ? true,
   pipewireSupport ? true,
   pulseSupport ? true,
   rfkillSupport ? true,
   runTests ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
   sndioSupport ? true,
-  swaySupport ? true,
+  systemdSupport ? lib.meta.availableOn stdenv.hostPlatform systemdMinimal,
   traySupport ? true,
   udevSupport ? true,
   upowerSupport ? true,
   wireplumberSupport ? true,
   withMediaPlayer ? mprisSupport && false,
   nix-update-script,
-  testers,
-  waybar,
 }:
 
 let
-  # Derived from subprojects/cava.wrap
-  libcava.src = fetchFromGitHub {
-    owner = "LukashonakV";
-    repo = "cava";
-    rev = "0.10.2";
-    hash = "sha256-jU7RQV2txruu/nUUl0TzjK4nai7G38J1rcTjO7UXumY=";
-  };
+  libcava =
+    let
+      version = "0.10.7-beta";
+    in
+    {
+      inherit version;
+
+      src = fetchFromGitHub {
+        owner = "LukashonakV";
+        repo = "cava";
+        tag = "v${version}";
+        hash = "sha256-IX1B375gTwVDRjpRfwKGuzTAZOV2pgDWzUd4bW2cTDU=";
+      };
+    };
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "waybar";
-  version = "0.10.4";
+  version = "0.15.0";
 
   src = fetchFromGitHub {
     owner = "Alexays";
     repo = "Waybar";
-    rev = finalAttrs.version;
-    hash = "sha256-/JW3WnRLpfz8j+9Zc9YkK63i8DjHrKwv9PWKIMz3MVI=";
+    tag = finalAttrs.version;
+    hash = "sha256-49ZKgK96a9uFip+svOdnw397xcEjiftXzd9gyv1H3sU=";
   };
 
-  postUnpack = lib.optional cavaSupport ''
+  postUnpack = lib.optionalString cavaSupport ''
     pushd "$sourceRoot"
-    cp -R --no-preserve=mode,ownership ${libcava.src} subprojects/cava-0.10.2
+    cp -R --no-preserve=mode,ownership ${libcava.src} subprojects/cava-${libcava.version}
     patchShebangs .
     popd
   '';
@@ -103,7 +109,9 @@ stdenv.mkDerivation (finalAttrs: {
     pkg-config
     wayland-scanner
     wrapGAppsHook3
-  ] ++ lib.optional withMediaPlayer gobject-introspection ++ lib.optional enableManpages scdoc;
+  ]
+  ++ lib.optional withMediaPlayer gobject-introspection
+  ++ lib.optional enableManpages scdoc;
 
   propagatedBuildInputs = lib.optionals withMediaPlayer [
     glib
@@ -111,41 +119,39 @@ stdenv.mkDerivation (finalAttrs: {
     python3.pkgs.pygobject3
   ];
 
-  buildInputs =
-    [
-      gtk-layer-shell
-      gtkmm3
-      howard-hinnant-date
-      jsoncpp
-      libsigcxx
-      libxkbcommon
-      spdlog
-      wayland
-    ]
-    ++ lib.optionals cavaSupport [
-      SDL2
-      alsa-lib
-      fftw
-      iniparser
-      ncurses
-      portaudio
-    ]
-    ++ lib.optional evdevSupport libevdev
-    ++ lib.optional hyprlandSupport hyprland
-    ++ lib.optional inputSupport libinput
-    ++ lib.optional jackSupport libjack2
-    ++ lib.optional mpdSupport libmpdclient
-    ++ lib.optional mprisSupport playerctl
-    ++ lib.optional nlSupport libnl
-    ++ lib.optional pulseSupport libpulseaudio
-    ++ lib.optional sndioSupport sndio
-    ++ lib.optional swaySupport sway
-    ++ lib.optional traySupport libdbusmenu-gtk3
-    ++ lib.optional udevSupport udev
-    ++ lib.optional upowerSupport upower
-    ++ lib.optional wireplumberSupport wireplumber
-    ++ lib.optional (cavaSupport || pipewireSupport) pipewire
-    ++ lib.optional (!stdenv.isLinux) libinotify-kqueue;
+  buildInputs = [
+    gtk-layer-shell
+    gtkmm3
+    jsoncpp
+    libsigcxx
+    libxkbcommon
+    spdlog
+    wayland
+  ]
+  ++ lib.optionals cavaSupport [
+    SDL2
+    alsa-lib
+    fftw
+    iniparser
+    ncurses
+    portaudio
+  ]
+  ++ lib.optional evdevSupport libevdev
+  ++ lib.optional gpsSupport gpsd
+  ++ lib.optional inputSupport libinput
+  ++ lib.optional jackSupport libjack2
+  ++ lib.optional mpdSupport libmpdclient
+  ++ lib.optional mprisSupport playerctl
+  ++ lib.optional nlSupport libnl
+  ++ lib.optional pulseSupport libpulseaudio
+  ++ lib.optional sndioSupport sndio
+  ++ lib.optional systemdSupport systemdMinimal
+  ++ lib.optional traySupport libdbusmenu-gtk3
+  ++ lib.optional udevSupport udev
+  ++ lib.optional upowerSupport upower
+  ++ lib.optional wireplumberSupport wireplumber
+  ++ lib.optional (cavaSupport || pipewireSupport) pipewire
+  ++ lib.optional (!stdenv.hostPlatform.isLinux) libinotify-kqueue;
 
   nativeCheckInputs = [ catch2_3 ];
   doCheck = runTests;
@@ -154,6 +160,7 @@ stdenv.mkDerivation (finalAttrs: {
     (lib.mapAttrsToList lib.mesonEnable {
       "cava" = cavaSupport && lib.asserts.assertMsg sndioSupport "Sndio support is required for Cava";
       "dbusmenu-gtk" = traySupport;
+      "gps" = gpsSupport;
       "jack" = jackSupport;
       "libevdev" = evdevSupport;
       "libinput" = inputSupport;
@@ -166,12 +173,19 @@ stdenv.mkDerivation (finalAttrs: {
       "pulseaudio" = pulseSupport;
       "rfkill" = rfkillSupport;
       "sndio" = sndioSupport;
-      "systemd" = false;
+      "systemd" = systemdSupport;
       "tests" = runTests;
       "upower_glib" = upowerSupport;
       "wireplumber" = wireplumberSupport;
     })
-    ++ lib.optional experimentalPatches (lib.mesonBool "experimental" true);
+    ++ (lib.mapAttrsToList lib.mesonBool {
+      "experimental" = experimentalPatches;
+      "niri" = niriSupport;
+    });
+
+  env = lib.optionalAttrs systemdSupport {
+    PKG_CONFIG_SYSTEMD_SYSTEMDUSERUNITDIR = "${placeholder "out"}/lib/systemd/user";
+  };
 
   postPatch = ''
     substituteInPlace include/util/command.hpp \
@@ -185,12 +199,14 @@ stdenv.mkDerivation (finalAttrs: {
       --prefix PYTHONPATH : "$PYTHONPATH:$out/${python3.sitePackages}"
   '';
 
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+
+  doInstallCheck = true;
+
   passthru = {
     updateScript = nix-update-script { };
-    tests.version = testers.testVersion {
-      package = waybar;
-      version = "v${finalAttrs.version}";
-    };
   };
 
   meta = {
@@ -204,7 +220,6 @@ stdenv.mkDerivation (finalAttrs: {
       lovesegfault
       minijackson
       rodrgz
-      synthetica
       khaneliman
     ];
     platforms = lib.platforms.linux;

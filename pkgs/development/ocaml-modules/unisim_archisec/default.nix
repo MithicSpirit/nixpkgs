@@ -1,12 +1,16 @@
-{ lib, buildDunePackage, fetchurl }:
+{
+  lib,
+  buildDunePackage,
+  fetchurl,
+}:
 
-buildDunePackage rec {
+buildDunePackage {
   pname = "unisim_archisec";
-  version = "0.0.8";
+  version = "0.0.13";
 
   src = fetchurl {
-    url = "https://github.com/binsec/unisim_archisec/releases/download/0.0.8/unisim_archisec-0.0.8.tbz";
-    sha256 = "sha256-D8DumHaQnLsMaVHoUL7w8KgGRTh9Rk+22NNSa0a/qII=";
+    url = "https://github.com/binsec/unisim_archisec/releases/download/0.0.13/unisim_archisec-0.0.13.tbz";
+    sha256 = "sha256-pDLbsF6n4HSGQyWWEb7/RWK+nCWfS+p6Dy/G5jlnlk0=";
   };
 
   duneVersion = "3";

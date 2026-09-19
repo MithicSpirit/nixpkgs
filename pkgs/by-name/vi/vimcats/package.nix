@@ -6,33 +6,33 @@
   vimcats,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "vimcats";
-  version = "1.0.2";
+  version = "1.2.0";
 
   src = fetchFromGitHub {
     owner = "mrcjkb";
     repo = "vimcats";
-    rev = "v${version}";
-    sha256 = "sha256-YZPLZgC0v5zw/+X3r0G1MZ+46c0K8J3ClFQYH5BqbUE=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-Pg6vIp/2H4YyqaGKF/pvuhsD/j3hBms/+4cAbH89oKs=";
   };
 
   buildFeatures = [ "cli" ];
 
-  cargoHash = "sha256-gxCsB8lx9gTEsWV3uCX2TKTzxCUZ9JHo+1+voU7gKhY=";
+  cargoHash = "sha256-EeCp1VFNFrlPmJnqthZoFBEzi4VV+U53lmXT0NmJWI8=";
 
   passthru.tests.version = testers.testVersion { package = vimcats; };
 
-  meta = with lib; {
-    description = "A CLI to generate vim/nvim help doc from LuaCATS. Forked from lemmy-help";
+  meta = {
+    description = "CLI to generate vim/nvim help doc from LuaCATS. Forked from lemmy-help";
     longDescription = ''
       `vimcats` is a LuaCATS parser as well as a CLI which takes that parsed tree and converts it into vim help docs.
       It is a fork of lemmy-help that aims to support more recent LuaCATS features.
     '';
     homepage = "https://github.com/mrcjkb/vimcats";
-    changelog = "https://github.com/mrcjkb/vimcats/CHANGELOG.md";
-    license = with licenses; [ gpl2Plus ];
-    maintainers = with maintainers; [ mrcjkb ];
+    changelog = "https://github.com/mrcjkb/vimcats/blob/${finalAttrs.src.rev}/CHANGELOG.md";
+    license = lib.licenses.gpl2Plus;
+    maintainers = with lib.maintainers; [ mrcjkb ];
     mainProgram = "vimcats";
   };
-}
+})

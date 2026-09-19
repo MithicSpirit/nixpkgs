@@ -1,27 +1,39 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 let
   cfg = config.services.matrix-appservice-irc;
 
   pkg = pkgs.matrix-appservice-irc;
   bin = "${pkg}/bin/matrix-appservice-irc";
 
-  jsonType = (pkgs.formats.json {}).type;
+  jsonType = (pkgs.formats.json { }).type;
 
-  configFile = pkgs.runCommand "matrix-appservice-irc.yml" {
-    # Because this program will be run at build time, we need `nativeBuildInputs`
-    nativeBuildInputs = [ (pkgs.python3.withPackages (ps: [ ps.jsonschema ])) pkgs.remarshal ];
-    preferLocalBuild = true;
+  configFile =
+    pkgs.runCommand "matrix-appservice-irc.yml"
+      {
+        # Because this program will be run at build time, we need `nativeBuildInputs`
+        nativeBuildInputs = [
+          (pkgs.python3.withPackages (ps: [ ps.jsonschema ]))
+          pkgs.remarshal
+        ];
+        preferLocalBuild = true;
 
-    config = builtins.toJSON cfg.settings;
-    passAsFile = [ "config" ];
-  } ''
-    # The schema is given as yaml, we need to convert it to json
-    remarshal --if yaml --of json -i ${pkg}/config.schema.yml -o config.schema.json
-    python -m jsonschema config.schema.json -i $configPath
-    cp "$configPath" "$out"
-  '';
+        config = builtins.toJSON cfg.settings;
+        passAsFile = [ "config" ];
+      }
+      ''
+        # The schema is given as yaml, we need to convert it to json
+        remarshal --if yaml --of json -i ${pkg}/config.schema.yml -o config.schema.json
+        python -m jsonschema config.schema.json -i $configPath
+        cp "$configPath" "$out"
+      '';
   registrationFile = "/var/lib/matrix-appservice-irc/registration.yml";
-in {
+in
+{
   options.services.matrix-appservice-irc = with lib.types; {
     enable = lib.mkEnableOption "the Matrix/IRC bridge";
 
@@ -65,14 +77,14 @@ in {
         <https://github.com/matrix-org/matrix-appservice-irc/blob/${pkgs.matrix-appservice-irc.version}/config.sample.yaml>
         for supported values
       '';
-      default = {};
+      default = { };
       type = submodule {
         freeformType = jsonType;
 
         options = {
           homeserver = lib.mkOption {
             description = "Homeserver configuration";
-            default = {};
+            default = { };
             type = submodule {
               freeformType = jsonType;
 
@@ -94,7 +106,7 @@ in {
           };
 
           database = lib.mkOption {
-            default = {};
+            default = { };
             description = "Configuration for the database";
             type = submodule {
               freeformType = jsonType;
@@ -118,7 +130,7 @@ in {
           };
 
           ircService = lib.mkOption {
-            default = {};
+            default = { };
             description = "IRC bridge configuration";
             type = submodule {
               freeformType = jsonType;
@@ -137,6 +149,40 @@ in {
                   type = submodule { freeformType = jsonType; };
                   description = "IRC servers to connect to";
                 };
+
+                mediaProxy = {
+                  signingKeyPath = lib.mkOption {
+                    type = path;
+                    default = "/var/lib/matrix-appservice-irc/media-signingkey.jwk";
+                    description = ''
+                      Path to the signing key file for authenticated media.
+                    '';
+                  };
+                  ttlSeconds = lib.mkOption {
+                    type = ints.unsigned;
+                    default = 3600;
+                    example = 0;
+                    description = ''
+                      Lifetime in seconds, that generated URLs stay valid.
+
+                      Set the lifetime to 0 to prevent URLs from becoming invalid.
+                    '';
+                  };
+                  bindPort = lib.mkOption {
+                    type = port;
+                    default = 11111;
+                    description = ''
+                      Port that the media proxy binds to.
+                    '';
+                  };
+                  publicUrl = lib.mkOption {
+                    type = str;
+                    example = "https://matrix.example.com/media";
+                    description = ''
+                      URL under which the media proxy is publicly acccessible.
+                    '';
+                  };
+                };
               };
             };
           };
@@ -144,12 +190,13 @@ in {
       };
     };
   };
+
   config = lib.mkIf cfg.enable {
     systemd.services.matrix-appservice-irc = {
       description = "Matrix-IRC bridge";
       before = [ "matrix-synapse.service" ]; # So the registration can be used by Synapse
       after = lib.optionals (cfg.settings.database.engine == "postgres") [
-        "postgresql.service"
+        "postgresql.target"
       ];
       wantedBy = [ "multi-user.target" ];
 
@@ -180,6 +227,9 @@ in {
           sed -i "s/^id:.*$/$id/g" ${registrationFile}
           sed -i "s/^hs_token:.*$/$hs_token/g" ${registrationFile}
           sed -i "s/^as_token:.*$/$as_token/g" ${registrationFile}
+        fi
+        if ! [ -f "${cfg.settings.ircService.mediaProxy.signingKeyPath}" ]; then
+          ${lib.getExe pkgs.nodejs-slim} ${pkg}/lib/generate-signing-key.js > "${cfg.settings.ircService.mediaProxy.signingKeyPath}"
         fi
         # Allow synapse access to the registration
         if ${pkgs.getent}/bin/getent group matrix-synapse > /dev/null; then
@@ -221,7 +271,7 @@ in {
       };
     };
 
-    users.groups.matrix-appservice-irc = {};
+    users.groups.matrix-appservice-irc = { };
     users.users.matrix-appservice-irc = {
       description = "Service user for the Matrix-IRC bridge";
       group = "matrix-appservice-irc";

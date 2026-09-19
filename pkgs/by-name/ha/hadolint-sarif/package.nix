@@ -5,16 +5,16 @@
   nix-update-script,
   versionCheckHook,
 }:
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "hadolint-sarif";
-  version = "0.6.5";
+  version = "0.8.0";
 
   src = fetchCrate {
-    inherit pname version;
-    hash = "sha256-wMb/taAAR0W8YVowNik0S8nFSmsD6LAQ5Egn0k52U74=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-7xvo194lCQpDtLgwX6rZEkwG3hYTp5czjw4GrEaivsI=";
   };
 
-  cargoHash = "sha256-OpUUmte/NfMNbyO3H4ikJF5ALnvfNkUBwFhIN9vefd0=";
+  cargoHash = "sha256-R4fGlo65/suNozEzRaQ3k6Ys4CMBheT2+rHZZZuIstM=";
 
   nativeInstallCheckInputs = [ versionCheckHook ];
   doInstallCheck = true;
@@ -24,10 +24,10 @@ rustPlatform.buildRustPackage rec {
   };
 
   meta = {
-    description = "A CLI tool to convert hadolint diagnostics into SARIF";
+    description = "CLI tool to convert hadolint diagnostics into SARIF";
     homepage = "https://psastras.github.io/sarif-rs";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ getchoo ];
     mainProgram = "hadolint-sarif";
   };
-}
+})

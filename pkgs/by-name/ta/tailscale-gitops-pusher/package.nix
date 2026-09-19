@@ -1,11 +1,19 @@
-{ lib
-, tailscale
-, buildGoModule
+{
+  lib,
+  tailscale,
+  buildGoModule,
 }:
 
 buildGoModule {
-  inherit (tailscale) version src vendorHash CGO_ENABLED;
   pname = "tailscale-gitops-pusher";
+  inherit (tailscale) version;
+
+  # It's hosted in the `tailscale` monorepo.
+  inherit (tailscale) src vendorHash;
+
+  env = {
+    inherit (tailscale) CGO_ENABLED;
+  };
 
   subPackages = [
     "cmd/gitops-pusher"
@@ -18,11 +26,14 @@ buildGoModule {
     "-X tailscale.com/version.shortStamp=${tailscale.version}"
   ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://tailscale.com";
     description = "Allows users to use a GitOps flow for managing Tailscale ACLs";
-    license = licenses.bsd3;
+    license = lib.licenses.bsd3;
     mainProgram = "gitops-pusher";
-    maintainers = with maintainers; [ xanderio ];
+    maintainers = with lib.maintainers; [
+      e1mo
+      xanderio
+    ];
   };
 }

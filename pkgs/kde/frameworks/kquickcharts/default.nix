@@ -1,9 +1,11 @@
 {
   mkKdeDerivation,
   qtdeclarative,
+  kirigami,
 }:
 mkKdeDerivation {
   pname = "kquickcharts";
 
-  extraBuildInputs = [qtdeclarative];
+  extraBuildInputs = [ qtdeclarative ];
+  extraPropagatedBuildInputs = [ kirigami ];
 }

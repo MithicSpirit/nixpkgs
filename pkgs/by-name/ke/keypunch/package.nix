@@ -3,6 +3,7 @@
   stdenv,
   fetchFromGitHub,
   rustPlatform,
+  nix-update-script,
   cargo,
   rustc,
   meson,
@@ -18,19 +19,18 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "keypunch";
-  version = "1.0";
+  version = "7.0";
 
   src = fetchFromGitHub {
     owner = "bragefuglseth";
     repo = "keypunch";
-    rev = "refs/tags/v${finalAttrs.version}";
-    hash = "sha256-S4RckHwrVVQrxy9QngTisNM4+cMM+1dXucwEDnM98Rg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-I6nHobhQqcUdfTXDP9oIx+0BJz/VKaQb/OD77VQsWek=";
   };
 
-  cargoDeps = rustPlatform.fetchCargoTarball {
-    name = "${finalAttrs.pname}-${finalAttrs.version}";
-    inherit (finalAttrs) src;
-    hash = "sha256-YzENAGy7zEu1dyuhme+x+gJQlE74Vw0JZvRso0vNQXs=";
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs) pname version src;
+    hash = "sha256-gQg6CCb5OzK2fLWMtkRTv1hK642IezRN+5qLMGVV6s8=";
   };
 
   strictDeps = true;
@@ -54,12 +54,24 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildInputs = [ libadwaita ];
 
+  # Required to avoid building with development assets.
+  # See https://github.com/bragefuglseth/keypunch/blob/v7.0/meson.build#L18-L21
+  mesonBuildType = "release";
+
+  passthru = {
+    updateScript = nix-update-script { };
+  };
+
   meta = {
     description = "Practice your typing skills";
     homepage = "https://github.com/bragefuglseth/keypunch";
+    changelog = "https://github.com/bragefuglseth/keypunch/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.gpl3Plus;
     mainProgram = "keypunch";
-    maintainers = with lib.maintainers; [ tomasajt ];
+    maintainers = with lib.maintainers; [
+      tomasajt
+    ];
+    teams = [ lib.teams.gnome-circle ];
     platforms = lib.platforms.linux;
   };
 })

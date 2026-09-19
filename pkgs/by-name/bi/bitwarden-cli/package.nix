@@ -1,23 +1,26 @@
-{ lib
-, stdenv
-, buildNpmPackage
-, nodejs_20
-, fetchFromGitHub
-, python3
-, cctools
-, nixosTests
-, xcbuild
+{
+  lib,
+  stdenv,
+  buildNpmPackage,
+  fetchFromGitHub,
+  nodejs_22,
+  perl,
+  xcbuild,
+  writableTmpDirAsHomeHook,
+  versionCheckHook,
+  nixosTests,
+  nix-update-script,
 }:
 
-buildNpmPackage rec {
+buildNpmPackage (finalAttrs: {
   pname = "bitwarden-cli";
-  version = "2024.8.1";
+  version = "2026.8.0";
 
   src = fetchFromGitHub {
     owner = "bitwarden";
     repo = "clients";
-    rev = "cli-v${version}";
-    hash = "sha256-l9fLh1YFivVcMs688vM0pHoN0Um2r/EDpo7dvwvZFwY=";
+    tag = "cli-v${finalAttrs.version}";
+    hash = "sha256-Kz7vy3mt4uLGA6wGtH527P5vY55UYSZtq6e8IyNJvc4=";
   };
 
   postPatch = ''
@@ -25,14 +28,13 @@ buildNpmPackage rec {
     rm -r bitwarden_license
   '';
 
-  nodejs = nodejs_20;
+  nodejs = nodejs_22;
+  npmDepsFetcherVersion = 2;
 
-  npmDepsHash = "sha256-/6yWdTy6/GvYy8u5eZB+x5KRG6vhPVE0DIn+RUAO5MI=";
+  npmDepsHash = "sha256-5i6/TlqBhPLv00tN0sxFA/iRQ8QRyUxhCqYkhVBLz3w=";
 
-  nativeBuildInputs = [
-    (python3.withPackages (ps: with ps; [ setuptools ]))
-  ] ++ lib.optionals stdenv.isDarwin [
-    cctools
+  nativeBuildInputs = lib.optionals stdenv.hostPlatform.isDarwin [
+    perl
     xcbuild.xcrun
   ];
 
@@ -43,31 +45,73 @@ buildNpmPackage rec {
     npm_config_build_from_source = "true";
   };
 
-  # node-argon2 builds with LTO, but that causes missing symbols. So disable it
-  # and rebuild. See https://github.com/ranisalt/node-argon2/pull/415
-  preConfigure = ''
-    pushd node_modules/argon2
-    substituteInPlace binding.gyp --replace-fail '"-flto", ' ""
-    "$npm_config_node_gyp" rebuild
-    popd
-  '';
-
   npmBuildScript = "build:oss:prod";
 
   npmWorkspace = "apps/cli";
 
   npmFlags = [ "--legacy-peer-deps" ];
 
-  passthru.tests = {
-    vaultwarden = nixosTests.vaultwarden.sqlite;
+  npmRebuildFlags = [
+    # we'll run npm rebuild manually later
+    "--ignore-scripts"
+  ];
+
+  postConfigure = ''
+    # we want to build everything from source
+    shopt -s globstar
+    rm -r node_modules/**/prebuilds
+    shopt -u globstar
+
+    npm rebuild --verbose
+  '';
+
+  postBuild = ''
+    # remove build artifacts that bloat the closure
+    shopt -s globstar
+    rm -r node_modules/**/{*.target.mk,binding.Makefile,config.gypi,Makefile,Release/.deps}
+    shopt -u globstar
+  '';
+
+  postInstall = ''
+    # The @bitwarden modules are actually npm workspaces inside the source tree, which
+    # leave dangling symlinks behind. They can be safely removed, because their source is
+    # bundled via webpack and thus not needed at run-time.
+    rm -rf $out/lib/node_modules/@bitwarden/clients/node_modules/{@bitwarden,.bin}
+  ''
+  + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd bw --zsh <($out/bin/bw completion --shell zsh)
+  '';
+
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [
+    writableTmpDirAsHomeHook
+    versionCheckHook
+  ];
+  versionCheckKeepEnvironment = [ "HOME" ];
+
+  passthru = {
+    inherit (finalAttrs) npmDeps;
+    tests = {
+      vaultwarden = nixosTests.vaultwarden.sqlite;
+    };
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version=stable"
+        "--version-regex=^cli-v(.*)$"
+      ];
+    };
   };
 
-  meta = with lib; {
-    changelog = "https://github.com/bitwarden/clients/releases/tag/${src.rev}";
+  meta = {
+    changelog = "https://github.com/bitwarden/clients/releases/tag/${finalAttrs.src.tag}";
     description = "Secure and free password manager for all of your devices";
     homepage = "https://bitwarden.com";
     license = lib.licenses.gpl3Only;
     mainProgram = "bw";
-    maintainers = with maintainers; [ dotlambda ];
+    maintainers = with lib.maintainers; [
+      xiaoxiangmoe
+      dotlambda
+      caverav
+    ];
   };
-}
+})

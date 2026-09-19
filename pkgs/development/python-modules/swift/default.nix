@@ -11,7 +11,6 @@
   libredirect,
   lxml,
   mock,
-  netifaces,
   pastedeploy,
   pbr,
   pyeclib,
@@ -23,50 +22,46 @@
   xattr,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "swift";
-  version = "2.33.0";
-  format = "setuptools";
+  version = "2.38.1";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-4TlJcquK8MC9zQfLKmb88B5xHje1kbPD2jSLiR+N8hs=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-wjHdXNHPPlePVMLMtLc+ovEe5swe9m2SEE3xtqv8Zxw=";
   };
 
-  postPatch = ''
-    # files requires boto which is incompatible with python 3.9
-    rm test/functional/s3api/{__init__.py,s3_test_client.py}
-  '';
+  nativeBuildInputs = [ installShellFiles ];
 
-  nativeBuildInputs = [
-    installShellFiles
+  build-system = [
     pbr
+    setuptools
   ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     cryptography
     eventlet
     greenlet
     lxml
-    netifaces
     pastedeploy
     pyeclib
     requests
-    setuptools
     six
     xattr
+  ];
+
+  nativeCheckInputs = [
+    boto3
+    libredirect.hook
+    mock
+    stestr
+    swiftclient
   ];
 
   postInstall = ''
     installManPage doc/manpages/*
   '';
-
-  nativeCheckInputs = [
-    boto3
-    mock
-    stestr
-    swiftclient
-  ];
 
   # a lot of tests currently fail while establishing a connection
   doCheck = false;
@@ -74,7 +69,6 @@ buildPythonPackage rec {
   checkPhase = ''
     echo "nameserver 127.0.0.1" > resolv.conf
     export NIX_REDIRECTS=/etc/protocols=${iana-etc}/etc/protocols:/etc/resolv.conf=$(realpath resolv.conf)
-    export LD_PRELOAD=${libredirect}/lib/libredirect.so
 
     export SWIFT_TEST_CONFIG_FILE=test/sample.conf
 
@@ -83,10 +77,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "swift" ];
 
-  meta = with lib; {
+  meta = {
     description = "OpenStack Object Storage";
     homepage = "https://github.com/openstack/swift";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

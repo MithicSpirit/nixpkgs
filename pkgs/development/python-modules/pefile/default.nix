@@ -1,39 +1,33 @@
 {
   lib,
   buildPythonPackage,
-  future,
   fetchPypi,
-  setuptools-scm,
-  pythonOlder,
+  setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "pefile";
-  version = "2023.2.7";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.6";
+  version = "2024.8.26";
+  pyproject = true;
 
   # DON'T fetch from github, the repo is >60 MB due to test artifacts, which we cannot use
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-guYRQASz1pEcd8OVPjg4ZUsEURuLZuhYPbcMZZmAF9w=";
+    hash = "sha256-P/bF2LQ+jDe7bm3VCFZY1linoL3NILagex/PwcTp1jI=";
   };
 
-  nativeBuildInputs = [ setuptools-scm ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [ future ];
-
-  # Test data contains properitary executables and malware, and is therefore encrypted
+  # Test data contains proprietary executables and malware, and is therefore encrypted
   doCheck = false;
 
   pythonImportsCheck = [ "pefile" ];
 
-  meta = with lib; {
+  meta = {
     description = "Multi-platform Python module to parse and work with Portable Executable (aka PE) files";
     homepage = "https://github.com/erocarrera/pefile";
     changelog = "https://github.com/erocarrera/pefile/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ pamplemousse ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ pamplemousse ];
   };
 }

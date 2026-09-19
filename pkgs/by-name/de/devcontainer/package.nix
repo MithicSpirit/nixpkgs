@@ -5,27 +5,29 @@
   fetchFromGitHub,
   fixup-yarn-lock,
   nodejs,
+  node-gyp,
   python3,
   makeBinaryWrapper,
   git,
   docker,
   yarn,
   docker-compose,
+  nix-update-script,
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "devcontainer";
-  version = "0.65.0";
+  version = "0.89.0";
 
   src = fetchFromGitHub {
     owner = "devcontainers";
     repo = "cli";
-    rev = "refs/tags/v${finalAttrs.version}";
-    hash = "sha256-Q1qQjIRyOeFr8qrZJZ1IkO12RM2hp4IxI1NI7WqpmZA=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-Ql/SniQxTioe5emRRg2+67KXhcWzFIu+cV/laP5MQCo=";
   };
 
   yarnOfflineCache = fetchYarnDeps {
     yarnLock = "${finalAttrs.src}/yarn.lock";
-    hash = "sha256-tN7qAvfYmDz5ZtgZL5+ZZtkuxZxvlS9FM3+dGl+daUQ=";
+    hash = "sha256-ZizvdWh9YD5siJ/IxWg6Nn17wClVVrENZi7t93pQL0s=";
   };
 
   nativeBuildInputs = [
@@ -34,6 +36,7 @@ stdenv.mkDerivation (finalAttrs: {
     python3
     makeBinaryWrapper
     nodejs
+    node-gyp
   ];
 
   buildPhase = ''
@@ -76,6 +79,8 @@ stdenv.mkDerivation (finalAttrs: {
         ]
       }
   '';
+
+  passthru.updateScript = nix-update-script { };
 
   meta = {
     description = "Dev container CLI, run and manage your dev environments via a devcontainer.json";

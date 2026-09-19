@@ -14,12 +14,12 @@
   stdenv,
   unstableGitUpdater,
   util-linux,
-  xorg,
+  xset,
   xxd,
 }:
 
 let
-  deps = [
+  deps = lib.makeBinPath [
     acpica-tools
     bc
     coreutils
@@ -30,24 +30,24 @@ let
     pciutils
     powertop
     util-linux
-    xorg.xset
+    xset
     xxd
   ];
 in
 stdenv.mkDerivation {
   pname = "s0ix-selftest-tool";
-  version = "0-unstable-2024-08-20";
+  version = "0-unstable-2025-07-01";
 
   src = fetchFromGitHub {
     owner = "intel";
     repo = "S0ixSelftestTool";
-    rev = "73b540d0b15d874ebb462eb3296399d4556aff64";
-    hash = "sha256-p0IxhG0P0G+DQ5UykC+uVlMZUZQwrWG/iiJprdmsLm0=";
+    rev = "2707d34bf8130feb21e5902efbdecbd2dc915148";
+    hash = "sha256-2quAiVYt6elULJTqMFhnciNWork6ViTWcPTRJQfvu+I=";
   };
 
   # don't use the bundled turbostat binary
   postPatch = ''
-    substituteInPlace s0ix-selftest-tool.sh --replace '"$DIR"/turbostat' 'turbostat'
+    substituteInPlace s0ix-selftest-tool.sh --replace-fail '"$DIR"/turbostat' 'turbostat'
   '';
 
   nativeBuildInputs = [ makeWrapper ];
@@ -57,18 +57,18 @@ stdenv.mkDerivation {
   installPhase = ''
     runHook preInstall
     install -Dm555 s0ix-selftest-tool.sh "$out/bin/s0ix-selftest-tool"
-    wrapProgram "$out/bin/s0ix-selftest-tool" --prefix PATH : ${lib.escapeShellArg deps}
+    wrapProgram "$out/bin/s0ix-selftest-tool" --prefix PATH : ${deps}
     runHook postInstall
   '';
 
   passthru.updateScript = unstableGitUpdater { };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/intel/S0ixSelftestTool";
     description = "Tool for testing the S2idle path CPU Package C-state and S0ix failures";
-    license = licenses.gpl2Only;
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ adamcstephens ];
+    license = lib.licenses.gpl2Only;
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [ adamcstephens ];
     mainProgram = "s0ix-selftest-tool";
   };
 }

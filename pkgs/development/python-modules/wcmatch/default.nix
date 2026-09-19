@@ -9,12 +9,12 @@
 
 buildPythonPackage rec {
   pname = "wcmatch";
-  version = "9.0";
-  format = "pyproject";
+  version = "10.1";
+  pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-Vn1msRrXQ4SVTIr4b2B4V8O9+TaCNJrTIGYjGr1VbJI=";
+    hash = "sha256-8R+UIIyMhIShb09IY4qF13HZUT9Ks/N1lZeIAcuUZa8=";
   };
 
   nativeBuildInputs = [ hatchling ];
@@ -31,10 +31,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "wcmatch" ];
 
-  meta = with lib; {
-    description = "Wilcard File Name matching library";
+  meta = {
+    description = "Wildcard File Name matching library";
     homepage = "https://github.com/facelessuser/wcmatch";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
 }

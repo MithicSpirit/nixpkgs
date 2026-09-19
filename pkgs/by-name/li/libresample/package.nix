@@ -2,7 +2,6 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  cmake,
   meson,
   ninja,
   pkg-config,
@@ -39,15 +38,14 @@ stdenv.mkDerivation (finalAttrs: {
     pkg-config
   ];
 
-  buildInputs =
-    [
-      # For `resample-sndfile`
-      libsndfile
-    ]
-    ++ lib.optionals (!libsamplerate.meta.broken) [
-      # For `compareresample`
-      libsamplerate
-    ];
+  buildInputs = [
+    # For `resample-sndfile`
+    libsndfile
+  ]
+  ++ lib.optionals (!libsamplerate.meta.broken) [
+    # For `compareresample`
+    libsamplerate
+  ];
 
   mesonFlags = [ (lib.mesonEnable "compareresample" (!libsamplerate.meta.broken)) ];
 
@@ -60,7 +58,6 @@ stdenv.mkDerivation (finalAttrs: {
     sourceProvenance = [ lib.sourceTypes.fromSource ];
     platforms = lib.platforms.all;
     maintainers = [
-      lib.maintainers.sander
       lib.maintainers.emily
     ];
     mainProgram = "resample-sndfile";

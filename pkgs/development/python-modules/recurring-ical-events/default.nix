@@ -1,10 +1,10 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
-  fetchpatch2,
-  setuptools,
+  git,
+  hatch-vcs,
+  hatchling,
   icalendar,
   python-dateutil,
   tzdata,
@@ -17,31 +17,25 @@
 
 buildPythonPackage rec {
   pname = "recurring-ical-events";
-  version = "3.2.0";
-
-  disabled = pythonOlder "3.8";
-
+  version = "3.9.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "niccokunzmann";
     repo = "python-recurring-ical-events";
-    rev = "v${version}";
-    hash = "sha256-qglApMoRtMqg03HBO00k9anRquA5X9ew919QUMWIpjo=";
+    tag = "v${version}";
+    hash = "sha256-hBZg1u6JtWGC+l1D1M18al6OQ298Z76tkiqYrBQYIzQ=";
   };
 
-  patches = [
-    # https://github.com/niccokunzmann/python-recurring-ical-events/pull/169
-    (fetchpatch2 {
-      name = "make-tests-compatible-with-icalendar-v5.patch";
-      url = "https://github.com/niccokunzmann/python-recurring-ical-events/commit/0bb4b4586b55978a1d154cd7abbc42eaf1cefb92.patch";
-      hash = "sha256-1tG/U0ELMIwS50eolXNou0aFQBZGNjcc2Zcz1gd8rd4=";
-    })
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace 'dynamic = ["urls", "version"]' 'version = "${version}"'
+  '';
+
+  build-system = [
+    hatch-vcs
+    hatchling
   ];
-
-  build-system = [ setuptools ];
-
-  pythonRelaxDeps = [ "icalendar" ];
 
   dependencies = [
     icalendar
@@ -60,7 +54,7 @@ buildPythonPackage rec {
   pythonImportsCheck = [ "recurring_ical_events" ];
 
   meta = {
-    changelog = "https://github.com/niccokunzmann/python-recurring-ical-events/blob/${src.rev}/README.rst#changelog";
+    changelog = "https://github.com/niccokunzmann/python-recurring-ical-events/blob/${src.tag}/docs/changelog.md";
     description = "Repeat ICalendar events by RRULE, RDATE and EXDATE";
     homepage = "https://github.com/niccokunzmann/python-recurring-ical-events";
     license = lib.licenses.lgpl3Plus;

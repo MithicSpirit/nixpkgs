@@ -2,29 +2,40 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  isPy27,
+  bleach,
+  html5lib,
   nbconvert,
   pytestCheckHook,
   requests,
   responses,
+  setuptools,
+  traitlets,
+  versioneer,
 }:
 
 buildPythonPackage rec {
   pname = "nbconflux";
   version = "0.7.0";
-  format = "setuptools";
-  disabled = isPy27; # no longer compatible with python 2 urllib
+  pyproject = true;
 
   src = fetchFromGitHub {
-    owner = "Valassis-Digital-Media";
+    owner = "vericast";
     repo = "nbconflux";
-    rev = "refs/tags/${version}";
+    tag = version;
     hash = "sha256-kHIuboFKLVsu5zlZ0bM1BUoQR8f1l0XWcaaVI9bECJw=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [
+    setuptools
+    versioneer
+  ];
+
+  dependencies = [
+    bleach
+    html5lib
     nbconvert
     requests
+    traitlets
   ];
 
   nativeCheckInputs = [
@@ -37,17 +48,22 @@ buildPythonPackage rec {
     ./setup-py.patch
   ];
 
-  JUPYTER_PATH = "${nbconvert}/share/jupyter";
+  postPatch = ''
+    # remove vendorized versioneer.py
+    rm versioneer.py
+  '';
+
+  env.JUPYTER_PATH = "${nbconvert}/share/jupyter";
   disabledTests = [
     "test_post_to_confluence"
     "test_optional_components"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Converts Jupyter Notebooks to Atlassian Confluence (R) pages using nbconvert";
     mainProgram = "nbconflux";
     homepage = "https://github.com/Valassis-Digital-Media/nbconflux";
-    license = licenses.bsd3;
-    maintainers = [ maintainers.arnoldfarkas ];
+    license = lib.licenses.bsd3;
+    maintainers = [ ];
   };
 }

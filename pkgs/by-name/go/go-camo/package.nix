@@ -1,31 +1,61 @@
-{ lib, buildGoModule, fetchFromGitHub }:
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+  installShellFiles,
+  nixosTests,
+  scdoc,
+}:
 
 buildGoModule rec {
   pname = "go-camo";
-  version = "2.5.1";
+  version = "2.7.6";
 
   src = fetchFromGitHub {
     owner = "cactus";
-    repo = pname;
-    rev = "v${version}";
-    sha256 = "sha256-xNdikp3Kd/VAzn7QjqIrNvifFI0mMTJ5U+zk+QbJAk0=";
+    repo = "go-camo";
+    tag = "v${version}";
+    hash = "sha256-QFCvsX+F8OclFrRME0STRThkS/UvkMJovWJrKKaptgY=";
   };
 
-  vendorHash = "sha256-xN0FJntfQ2V2IsxD8dEi0vR+psnjGR7G6+ssxNTuzc4=";
+  vendorHash = "sha256-s+2tt0e93KeEcc3sWx94c2p5d684lwxn/vzsdRDWLxE=";
 
-  ldflags = [ "-s" "-w" "-X=main.ServerVersion=${version}" ];
+  __darwinAllowLocalNetworking = true;
+
+  nativeBuildInputs = [
+    installShellFiles
+    scdoc
+  ];
+
+  ldflags = [
+    "-s"
+    "-w"
+    "-X=main.ServerVersion=${version}"
+  ];
+
+  postBuild = ''
+    make man
+  '';
+
+  postInstall = ''
+    installManPage build/man/*
+  '';
 
   preCheck = ''
     # requires network access
     rm pkg/camo/proxy_{,filter_}test.go
   '';
 
-  meta = with lib; {
+  passthru.tests = {
+    inherit (nixosTests) go-camo;
+  };
+
+  meta = {
     description = "Camo server is a special type of image proxy that proxies non-secure images over SSL/TLS";
     homepage = "https://github.com/cactus/go-camo";
     changelog = "https://github.com/cactus/go-camo/releases/tag/v${version}";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     mainProgram = "go-camo";
-    maintainers = with maintainers; [ viraptor ];
+    maintainers = with lib.maintainers; [ viraptor ];
   };
 }

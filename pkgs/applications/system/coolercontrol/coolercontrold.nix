@@ -1,14 +1,24 @@
-{ rustPlatform
-, buildNpmPackage
-, testers
-, libdrm
-, coolercontrol
-, runtimeShell
+{
+  lib,
+  rustPlatform,
+  testers,
+  hwdata,
+  pkg-config,
+  libdrm,
+  libglvnd,
+  vulkan-loader,
+  coolercontrol,
+  runtimeShell,
+  addDriverRunpath,
+  python3Packages,
+  liquidctl,
+  which,
 }:
 
-{ version
-, src
-, meta
+{
+  version,
+  src,
+  meta,
 }:
 
 rustPlatform.buildRustPackage {
@@ -16,38 +26,63 @@ rustPlatform.buildRustPackage {
   inherit version src;
   sourceRoot = "${src.name}/coolercontrold";
 
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-    outputHashes = {
-      "nvml-wrapper-0.10.0" = "sha256-pMiULWT+nJXcDfLDeACG/DaPF5+AbzpoIUWWWz8mQ+0=";
-    };
-  };
+  cargoHash = "sha256-tbGNVyYrTRmxOqVM7mjNgwZXXcUY205mKuFjrptr+m4=";
 
   buildInputs = [
+    hwdata
     libdrm
+    libglvnd
+    vulkan-loader
   ];
+
+  nativeBuildInputs = [
+    pkg-config
+    addDriverRunpath
+    python3Packages.wrapPython
+  ];
+
+  pythonPath = [ liquidctl ];
 
   postPatch = ''
     # copy the frontend static resources to a directory for embedding
     mkdir -p ui-build
-    cp -R ${coolercontrol.coolercontrol-ui-data}/* ui-build/
-    substituteInPlace build.rs --replace '"./resources/app"' '"./ui-build"'
+    cp -R ${coolercontrol.coolercontrol-ui-data}/* resources/app/
 
     # Hardcode a shell
-    substituteInPlace src/repositories/utils.rs \
+    substituteInPlace daemon/src/repositories/utils.rs \
       --replace-fail 'Command::new("sh")' 'Command::new("${runtimeShell}")'
   '';
 
   postInstall = ''
     install -Dm444 "${src}/packaging/systemd/coolercontrold.service" -t "$out/lib/systemd/system"
     substituteInPlace "$out/lib/systemd/system/coolercontrold.service" \
-      --replace '/usr/bin' "$out/bin"
+      --replace-fail '/usr/bin' "$out/bin"
+  '';
+
+  postFixup = ''
+    addDriverRunpath "$out/bin/coolercontrold"
+
+    patchelf --add-rpath ${
+      lib.strings.makeLibraryPath [
+        # could instead patch out dynamic_loading for libdrm_amdgpu_sys in daemon/Cargo.toml,
+        # but we have to add other libraries to the search path anyway
+        libdrm
+
+        # Finding GPUs for stress-testing
+        libglvnd
+        vulkan-loader
+      ]
+    } $out/bin/coolercontrold
+
+    buildPythonPath "''${pythonPath[*]}"
+    wrapProgram "$out/bin/coolercontrold" \
+      --prefix PATH : ${lib.makeBinPath [ which ]} \
+      --prefix PATH : $program_PATH \
+      --prefix PYTHONPATH : $program_PYTHONPATH
   '';
 
   passthru.tests.version = testers.testVersion {
     package = coolercontrol.coolercontrold;
-    # coolercontrold prints its version with "v" prefix
-    version = "v${version}";
   };
 
   meta = meta // {

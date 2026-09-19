@@ -20,24 +20,24 @@
   desktop-file-utils,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "gnome-taquin";
   version = "3.38.1";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/gnome-taquin/${lib.versions.majorMinor version}/gnome-taquin-${version}.tar.xz";
-    sha256 = "0kw131q0ad0rbsp6qifjc8fjlhvjxyihil8a76kj8ya9mn7kvnwn";
+    url = "mirror://gnome/sources/gnome-taquin/${lib.versions.majorMinor finalAttrs.version}/gnome-taquin-${finalAttrs.version}.tar.xz";
+    hash = "sha256-lts9j61JeSSnOQrRCKPvckMqHWLSRWyuXhk0BXAYgU8=";
   };
 
   patches = [
     # Fix build with recent Vala.
     (fetchpatch {
       url = "https://gitlab.gnome.org/GNOME/gnome-taquin/-/commit/99dea5e7863e112f33f16e59898c56a4f1a547b3.patch";
-      sha256 = "U7djuMhb1XJaKAPyogQjaunOkbBK24r25YD7BgH05P4=";
+      hash = "sha256-U7djuMhb1XJaKAPyogQjaunOkbBK24r25YD7BgH05P4=";
     })
     (fetchpatch {
       url = "https://gitlab.gnome.org/GNOME/gnome-taquin/-/commit/66be44dc20d114e449fc33156e3939fd05dfbb16.patch";
-      sha256 = "RN41RCLHlJyXTARSH9qjsmpYi1UFeMRssoYxRsbngDQ=";
+      hash = "sha256-RN41RCLHlJyXTARSH9qjsmpYi1UFeMRssoYxRsbngDQ=";
     })
   ];
 
@@ -65,12 +65,12 @@ stdenv.mkDerivation rec {
     updateScript = gnome.updateScript { packageName = "gnome-taquin"; };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://gitlab.gnome.org/GNOME/gnome-taquin";
     description = "Move tiles so that they reach their places";
     mainProgram = "gnome-taquin";
-    maintainers = teams.gnome.members;
-    license = licenses.gpl3Plus;
-    platforms = platforms.unix;
+    teams = [ lib.teams.gnome ];
+    license = lib.licenses.gpl3Plus;
+    platforms = lib.platforms.unix;
   };
-}
+})

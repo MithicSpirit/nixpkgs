@@ -1,6 +1,6 @@
 {
   lib,
-  crossLibcStdenv,
+  stdenvNoLibc,
   makeScopeWithSplicing',
   generateSplicesForMkScope,
   buildPackages,
@@ -20,9 +20,9 @@ makeScopeWithSplicing' {
       directory = ./pkgs;
     }
     // {
-      version = "7.5";
+      version = "7.9";
 
-      stdenvLibcMinimal = crossLibcStdenv.override (old: {
+      stdenvLibcMinimal = stdenvNoLibc.override (old: {
         cc = old.cc.override {
           libc = self.libcMinimal;
           noLibc = false;
