@@ -1,12 +1,16 @@
 {
   mkKdeDerivation,
-  qt5compat,
   qtmultimedia,
+  libssh,
 }:
 mkKdeDerivation {
   pname = "konsole";
 
-  extraBuildInputs = [qt5compat qtmultimedia];
+  extraBuildInputs = [
+    qtmultimedia
+
+    libssh
+  ];
 
   meta.mainProgram = "konsole";
 }

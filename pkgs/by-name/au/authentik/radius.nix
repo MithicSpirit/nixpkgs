@@ -1,12 +1,18 @@
-{ buildGoModule, authentik }:
+{
+  buildGoModule,
+  authentik,
+  apiGoVendorHook,
+  vendorHash,
+}:
 
 buildGoModule {
   pname = "authentik-radius-outpost";
   inherit (authentik) version src;
+  inherit vendorHash;
 
-  vendorHash = "sha256-hxtyXyCfVemsjYQeo//gd68x4QO/4Vcww8i2ocsUVW8=";
+  nativeBuildInputs = [ apiGoVendorHook ];
 
-  CGO_ENABLED = 0;
+  env.CGO_ENABLED = 0;
 
   subPackages = [ "cmd/radius" ];
 

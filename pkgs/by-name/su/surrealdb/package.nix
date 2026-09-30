@@ -1,62 +1,75 @@
-{ lib
-, stdenv
-, rustPlatform
-, fetchFromGitHub
-, pkg-config
-, openssl
-, rocksdb_8_3
-, testers
-, surrealdb
-, darwin
-, protobuf
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  pkg-config,
+  openssl,
+  rocksdb,
+  testers,
+  protobuf,
+  backend ? "rocksdb",
 }:
-
 let
-  rocksdb = rocksdb_8_3;
+  hasRocksDB = backend == "rocksdb";
 in
-rustPlatform.buildRustPackage rec {
-  pname = "surrealdb";
-  version = "1.5.4";
+assert lib.assertMsg (builtins.elem backend [
+  "rocksdb"
+  "surrealkv"
+]) "surrealdb: backend must be one of [ \"rocksdb\" \"surrealkv\" ]";
+rustPlatform.buildRustPackage (finalAttrs: {
+  pname = if hasRocksDB then "surrealdb" else "surrealdb-surrealkv";
+  version = "3.0.0";
+
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "surrealdb";
     repo = "surrealdb";
-    rev = "v${version}";
-    hash = "sha256-KtR+qU2Xys4NkEARZBbO8mTPa7EI9JplWvXdtuLt2vE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-KDVc5BTkJ5OwxANeXOBnerJihnKU6y72Dw8h1ARcj3U=";
   };
 
-  cargoPatches = [
-    ./time.patch # TODO: remove when https://github.com/surrealdb/surrealdb/pull/4565 merged
-  ];
+  cargoHash = "sha256-yemnwhcC5CsQgO29Qiau39QAVbGnrNsOG1dNen987HM=";
 
-  cargoHash = "sha256-5qIIPdE6HYov5EIR4do+pMeZ1Lo3at39aKOP9scfMy8=";
-
-  # error: linker `aarch64-linux-gnu-gcc` not found
+  # Upstream hard-codes `aarch64-linux-gnu-gcc` in `.cargo/config.toml`.
+  # Remove it so Cargo uses nixpkgs' wrapped C toolchain instead.
   postPatch = ''
     rm .cargo/config.toml
+    sed -i '1i #![recursion_limit = "256"]' surrealdb/server/src/lib.rs
   '';
 
-  PROTOC = "${protobuf}/bin/protoc";
-  PROTOC_INCLUDE = "${protobuf}/include";
+  buildNoDefaultFeatures = true;
+  buildFeatures = [
+    "allocator"
+    "allocation-tracking"
+    "http"
+    "scripting"
+    "storage-mem"
+    "storage-surrealkv"
+  ]
+  ++ lib.optional hasRocksDB "storage-rocksdb";
 
-  ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
-  ROCKSDB_LIB_DIR = "${rocksdb}/lib";
-
-  RUSTFLAGS = "--cfg surrealdb_unstable";
+  env = {
+    PROTOC = "${protobuf}/bin/protoc";
+    PROTOC_INCLUDE = "${protobuf}/include";
+  }
+  // lib.optionalAttrs hasRocksDB {
+    ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
+    ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+  };
 
   nativeBuildInputs = [
     pkg-config
     rustPlatform.bindgenHook
   ];
 
-  buildInputs = [ openssl ]
-    ++ lib.optionals stdenv.isDarwin [ darwin.apple_sdk.frameworks.SystemConfiguration ];
+  buildInputs = [
+    openssl
+  ];
 
   doCheck = false;
 
   checkFlags = [
-    # flaky
-    "--skip=ws_integration::none::merge"
     # requires docker
     "--skip=database_upgrade"
   ];
@@ -64,15 +77,24 @@ rustPlatform.buildRustPackage rec {
   __darwinAllowLocalNetworking = true;
 
   passthru.tests.version = testers.testVersion {
-    package = surrealdb;
+    package = finalAttrs.finalPackage;
     command = "surreal version";
   };
 
-  meta = with lib; {
-    description = "Scalable, distributed, collaborative, document-graph database, for the realtime web";
+  meta = {
+    description =
+      if hasRocksDB then
+        "Scalable, distributed, collaborative, document-graph database, for the realtime web"
+      else
+        "SurrealDB with the SurrealKV storage backend";
     homepage = "https://surrealdb.com/";
     mainProgram = "surreal";
-    license = licenses.bsl11;
-    maintainers = with maintainers; [ sikmir happysalada siriobalmelli ];
+    license = lib.licenses.bsl11;
+    maintainers = with lib.maintainers; [
+      aln730
+      sikmir
+      happysalada
+      siriobalmelli
+    ];
   };
-}
+})

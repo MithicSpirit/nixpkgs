@@ -1,10 +1,19 @@
 {
   mkKdeDerivation,
+  pkg-config,
   qtsvg,
   qtmultimedia,
+  wayland-protocols,
 }:
 mkKdeDerivation {
   pname = "kclock";
 
-  extraBuildInputs = [qtsvg qtmultimedia];
+  extraNativeBuildInputs = [ pkg-config ];
+
+  extraBuildInputs = [
+    qtsvg
+    qtmultimedia
+
+    wayland-protocols
+  ];
 }

@@ -56,8 +56,19 @@ in
         '';
         description = ''
           Extra environment variables for Open-WebUI.
-          For more details see https://docs.openwebui.com/getting-started/env-configuration/
+          For more details see <https://docs.openwebui.com/reference/env-configuration>
         '';
+      };
+
+      environmentFile = lib.mkOption {
+        description = ''
+          Environment file to be passed to the systemd service.
+          Useful for passing secrets to the service to prevent them from being
+          world-readable in the Nix store.
+        '';
+        type = lib.types.nullOr lib.types.path;
+        default = null;
+        example = "/var/lib/secrets/openWebuiSecrets";
       };
 
       openFirewall = lib.mkOption {
@@ -78,14 +89,35 @@ in
       after = [ "network.target" ];
 
       environment = {
-        STATIC_DIR = ".";
-        DATA_DIR = ".";
-        HF_HOME = ".";
-        SENTENCE_TRANSFORMERS_HOME = ".";
-      } // cfg.environment;
+        STATIC_DIR = "${cfg.stateDir}/static";
+        DATA_DIR = "${cfg.stateDir}/data";
+        HOME = cfg.stateDir;
+        HF_HOME = "${cfg.stateDir}/hf_home";
+        SENTENCE_TRANSFORMERS_HOME = "${cfg.stateDir}/transformers_home";
+        WEBUI_URL = "http://localhost:${toString cfg.port}";
+      }
+      // cfg.environment;
+
+      # backwards compatibility migration
+      preStart = ''
+        if [ -d "${cfg.stateDir}/data" ] && [ -n "$(ls -A "${cfg.stateDir}/data" 2>/dev/null)" ]; then
+          exit 0
+        fi
+
+        mkdir -p "${cfg.stateDir}/data"
+
+        [ -f "${cfg.stateDir}/webui.db" ] && mv "${cfg.stateDir}/webui.db" "${cfg.stateDir}/data/"
+
+        for dir in cache uploads vector_db; do
+          [ -d "${cfg.stateDir}/$dir" ] && mv "${cfg.stateDir}/$dir" "${cfg.stateDir}/data/"
+        done
+
+        exit 0
+      '';
 
       serviceConfig = {
-        ExecStart = "${lib.getExe cfg.package} serve --host ${cfg.host} --port ${toString cfg.port}";
+        ExecStart = "${lib.getExe cfg.package} serve --host \"${cfg.host}\" --port ${toString cfg.port}";
+        EnvironmentFile = lib.optional (cfg.environmentFile != null) cfg.environmentFile;
         WorkingDirectory = cfg.stateDir;
         StateDirectory = "open-webui";
         RuntimeDirectory = "open-webui";
@@ -107,6 +139,33 @@ in
         RestrictRealtime = true;
         SystemCallArchitectures = "native";
         UMask = "0077";
+        CapabilityBoundingSet = "";
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+          "AF_UNIX"
+        ];
+        ProtectClock = true;
+        ProtectProc = "invisible";
+        SystemCallFilter = [
+          "@system-service"
+          "~@privileged"
+        ];
+        SupplementaryGroups = [ "render" ]; # for rocm to access /dev/dri/renderD* devices
+        DeviceAllow = [
+          # CUDA
+          # https://docs.nvidia.com/dgx/pdf/dgx-os-5-user-guide.pdf
+          "char-nvidiactl"
+          "char-nvidia-caps"
+          "char-nvidia-frontend"
+          "char-nvidia-uvm"
+          # ROCm
+          "char-drm"
+          "char-fb"
+          "char-kfd"
+          # WSL (Windows Subsystem for Linux)
+          "/dev/dxg"
+        ];
       };
     };
 

@@ -1,25 +1,24 @@
-{ lib
-, fetchFromGitHub
-, python3Packages
-, installShellFiles
-, scdoc
+{
+  lib,
+  fetchFromGitHub,
+  python3Packages,
+  installShellFiles,
+  scdoc,
+  ffmpeg,
+  writableTmpDirAsHomeHook,
 }:
 
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "twitch-dl";
-  version = "2.3.1";
+  version = "3.3.2";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "ihabunek";
     repo = "twitch-dl";
-    rev = "refs/tags/${version}";
-    hash = "sha256-ixkIDJbysa3TOJiNmAG2SuJwCv5MaX6nCtUnS4901rg=";
+    tag = finalAttrs.version;
+    hash = "sha256-c9vWmpaq6A6njl72TAQFVgBFjwWVfZPUwHvOaJyJY3w=";
   };
-
-  pythonRelaxDeps = [
-    "m3u8"
-  ];
 
   nativeBuildInputs = [
     python3Packages.setuptools
@@ -32,10 +31,12 @@ python3Packages.buildPythonApplication rec {
     click
     httpx
     m3u8
+    wcwidth
   ];
 
   nativeCheckInputs = [
     python3Packages.pytestCheckHook
+    writableTmpDirAsHomeHook
   ];
 
   disabledTestPaths = [
@@ -47,7 +48,7 @@ python3Packages.buildPythonApplication rec {
   pythonImportsCheck = [
     "twitchdl"
     "twitchdl.cli"
-    "twitchdl.download"
+    "twitchdl.naming"
     "twitchdl.entities"
     "twitchdl.http"
     "twitchdl.output"
@@ -58,17 +59,27 @@ python3Packages.buildPythonApplication rec {
     "twitchdl.commands"
   ];
 
+  makeWrapperArgs = [
+    "--prefix"
+    "PATH"
+    ":"
+    (lib.makeBinPath [ ffmpeg ])
+  ];
+
   postInstall = ''
     scdoc < twitch-dl.1.scd > twitch-dl.1
     installManPage twitch-dl.1
   '';
 
-  meta = with lib; {
+  meta = {
     description = "CLI tool for downloading videos from Twitch";
     homepage = "https://github.com/ihabunek/twitch-dl";
-    changelog = "https://github.com/ihabunek/twitch-dl/blob/${src.rev}/CHANGELOG.md";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ pbsds ];
+    changelog = "https://github.com/ihabunek/twitch-dl/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [
+      pbsds
+      hausken
+    ];
     mainProgram = "twitch-dl";
   };
-}
+})

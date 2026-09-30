@@ -4,46 +4,35 @@
   automat,
   buildPythonPackage,
   cryptography,
-  fetchpatch2,
   fetchPypi,
   geoip,
-  incremental,
   lsof,
   mock,
   pytestCheckHook,
-  pythonOlder,
+  setuptools,
   twisted,
   zope-interface,
 }:
 
 buildPythonPackage rec {
   pname = "txtorcon";
-  version = "23.11.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  version = "26.6.0";
+  pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-cfha6T121yZRAFnJ7XTmCLxaXJ99EDhTtJ5BQoBAai8=";
+    hash = "sha256-BAjwY6n8uN9Snayle7c3PqD1tOuv/NUQN1S3xWF3P2g=";
   };
 
-  patches = [
-    # https://github.com/meejah/txtorcon/pull/400
-    (fetchpatch2 {
-      name = "twisted-24.7.0-fixes.patch";
-      url = "https://github.com/meejah/txtorcon/commit/88b5dc2971514babd36d837c93550715dea44b09.patch";
-      hash = "sha256-O7kFZw+y1PHJRcMdxCczy8UZd3ruLhjLMxh2tcawWI4=";
-    })
-  ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     cryptography
-    incremental
     twisted
     automat
     zope-interface
-  ] ++ twisted.optional-dependencies.tls;
+  ]
+  ++ twisted.optional-dependencies.tls;
 
   nativeCheckInputs = [
     pytestCheckHook
@@ -52,16 +41,18 @@ buildPythonPackage rec {
     geoip
   ];
 
-  doCheck = !(stdenv.isDarwin && stdenv.isAarch64);
+  doCheck = !(stdenv.hostPlatform.isDarwin && stdenv.hostPlatform.isAarch64);
 
-  meta = with lib; {
+  pythonImportsCheck = [ "txtorcon" ];
+
+  meta = {
     description = "Twisted-based Tor controller client, with state-tracking and configuration abstractions";
     homepage = "https://github.com/meejah/txtorcon";
     changelog = "https://github.com/meejah/txtorcon/releases/tag/v${version}";
-    maintainers = with maintainers; [
+    maintainers = with lib.maintainers; [
       jluttine
       exarkun
     ];
-    license = licenses.mit;
+    license = lib.licenses.mit;
   };
 }

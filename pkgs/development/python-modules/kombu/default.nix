@@ -4,46 +4,51 @@
   azure-identity,
   azure-servicebus,
   azure-storage-queue,
-  backports-zoneinfo,
   boto3,
   buildPythonPackage,
   confluent-kafka,
-  fetchPypi,
+  fetchFromGitHub,
+  google-cloud-pubsub,
+  google-cloud-monitoring,
+  grpcio,
   hypothesis,
   kazoo,
   msgpack,
+  packaging,
+  protobuf,
   pycurl,
   pymongo,
   #, pyro4
   pytestCheckHook,
-  pythonOlder,
   pyyaml,
   redis,
+  setuptools,
   sqlalchemy,
-  typing-extensions,
+  tzdata,
   urllib3,
   vine,
 }:
 
 buildPythonPackage rec {
   pname = "kombu";
-  version = "5.4.0";
-  format = "setuptools";
+  version = "5.6.2";
+  pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-rSAKjb2qorvF8m0u59cH2aH97TU6D0vXUc6MfZ9EnGA=";
+  src = fetchFromGitHub {
+    owner = "celery";
+    repo = "kombu";
+    tag = "v${version}";
+    hash = "sha256-J0cEQsMHKethrfDVDDvIjc/iZpoCYLH9INHtgKmH9Pk=";
   };
 
-  propagatedBuildInputs =
-    [
-      amqp
-      vine
-    ]
-    ++ lib.optionals (pythonOlder "3.10") [ typing-extensions ]
-    ++ lib.optionals (pythonOlder "3.9") [ backports-zoneinfo ];
+  build-system = [ setuptools ];
+
+  dependencies = [
+    amqp
+    packaging
+    tzdata
+    vine
+  ];
 
   optional-dependencies = {
     msgpack = [ msgpack ];
@@ -63,7 +68,13 @@ buildPythonPackage rec {
     ];
     azureservicebus = [ azure-servicebus ];
     confluentkafka = [ confluent-kafka ];
-    # pyro4 doesn't suppport Python 3.11
+    gcpubsub = [
+      google-cloud-pubsub
+      google-cloud-monitoring
+      grpcio
+      protobuf
+    ];
+    # pyro4 doesn't support Python 3.11
     #pyro = [
     #  pyro4
     #];
@@ -72,20 +83,25 @@ buildPythonPackage rec {
   nativeCheckInputs = [
     hypothesis
     pytestCheckHook
-  ] ++ lib.flatten (lib.attrValues optional-dependencies);
+  ]
+  ++ lib.concatAttrValues optional-dependencies;
 
   pythonImportsCheck = [ "kombu" ];
 
   disabledTests = [
     # Disable pyro4 test
     "test_driver_version"
+    # AssertionError: assert [call('WATCH'..., 'test-tag')] ==...
+    "test_global_keyprefix_transaction"
+    # Broken on latest redis-py, see https://github.com/celery/kombu/issues/2362
+    "test_connparams_health_check_interval_supported"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Messaging library for Python";
     homepage = "https://github.com/celery/kombu";
     changelog = "https://github.com/celery/kombu/blob/v${version}/Changelog.rst";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

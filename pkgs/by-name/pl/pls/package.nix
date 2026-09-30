@@ -1,33 +1,28 @@
-{ lib
-, stdenv
-, rustPlatform
-, fetchFromGitHub
-, darwin
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "pls";
-  version = "0.0.1-beta.7";
+  version = "0.0.1-beta.10";
 
   src = fetchFromGitHub {
     owner = "pls-rs";
     repo = "pls";
-    rev = "v${version}";
-    hash = "sha256-X4HGVwBZdDXH5RuBiugEd4I+aXRqZvXoRDZnm8GY3cM=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-j0bYikR0DoHRcArNnHsuYxdYqT9YjsH1g+T3s16UmcI=";
   };
 
-  cargoHash = "sha256-d6HfIEROudINn2Jbnc3EEDZCD833FFFeUk6mvlu0ErA=";
-
-  buildInputs = lib.optionals stdenv.isDarwin [
-    darwin.apple_sdk.frameworks.Security
-  ];
+  cargoHash = "sha256-eh0beK1UYf/Xe30wGxli6dfPKh875yTnOn7CCN2XTtI=";
 
   meta = {
-    changelog = "https://github.com/pls-rs/pls/releases/tag/${src.rev}";
+    changelog = "https://github.com/pls-rs/pls/releases/tag/${finalAttrs.src.tag}";
     description = "Prettier and powerful ls";
     homepage = "http://pls.cli.rs";
     license = lib.licenses.gpl3Plus;
     mainProgram = "pls";
     maintainers = with lib.maintainers; [ tomasajt ];
   };
-}
+})

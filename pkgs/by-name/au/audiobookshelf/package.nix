@@ -4,8 +4,9 @@
   fetchFromGitHub,
   runCommand,
   buildNpmPackage,
-  nodejs_18,
-  ffmpeg-full,
+  nodejs_22,
+  ffmpeg_8-full,
+  nunicode,
   util-linux,
   python3,
   getopt,
@@ -13,21 +14,27 @@
 }:
 
 let
-  nodejs = nodejs_18;
+  ffmpeg-full = ffmpeg_8-full;
 
-  source = builtins.fromJSON (builtins.readFile ./source.json);
-  pname = "audiobookshelf";
+  source = {
+    version = "2.36.1";
+    hash = "sha256-HBaTTfZEbhR2n/XafScZB/gX29erTQHZ+IdErwhA11A=";
+    npmDepsHash = "sha256-kp0LbSKaHTBppeyfLAFrGYnSWS3V2trO5yaZWoxVPo8=";
+    clientNpmDepsHash = "sha256-g3Y/4UU2YH/CeU8Z/NNkLP0OTeBM+4/rQfL406uVdio=";
+  };
 
   src = fetchFromGitHub {
     owner = "advplyr";
     repo = "audiobookshelf";
-    rev = "refs/tags/v${source.version}";
+    tag = "v${source.version}";
     inherit (source) hash;
   };
 
   client = buildNpmPackage {
     pname = "audiobookshelf-client";
     inherit (source) version;
+
+    nodejs = nodejs_22;
 
     src = runCommand "cp-source" { } ''
       cp -r ${src}/client $out
@@ -38,54 +45,51 @@ let
     NODE_OPTIONS = "--openssl-legacy-provider";
 
     npmBuildScript = "generate";
-    npmDepsHash = source.clientDepsHash;
+    npmDepsHash = source.clientNpmDepsHash;
   };
 
   wrapper = import ./wrapper.nix {
     inherit
       stdenv
       ffmpeg-full
-      pname
-      nodejs
+      nunicode
       getopt
       ;
   };
 
 in
 buildNpmPackage {
-  inherit pname src;
-  inherit (source) version;
+  pname = "audiobookshelf";
 
-  postPatch = ''
-    # Always skip version checks of the binary manager.
-    # We provide our own binaries, and don't want to trigger downloads.
-    substituteInPlace server/managers/BinaryManager.js --replace-fail \
-      'if (!this.validVersions.length) return true' \
-      'return true'
-  '';
+  inherit src;
+  inherit (source) npmDepsHash version;
+  nodejs = nodejs_22;
 
   buildInputs = [ util-linux ];
   nativeBuildInputs = [ python3 ];
 
   dontNpmBuild = true;
   npmInstallFlags = [ "--only-production" ];
-  npmDepsHash = source.depsHash;
 
   installPhase = ''
+    runHook preInstall
+
     mkdir -p $out/opt/client
     cp -r index.js server package* node_modules $out/opt/
     cp -r ${client}/lib/node_modules/audiobookshelf-client/dist $out/opt/client/dist
     mkdir $out/bin
 
     echo '${wrapper}' > $out/bin/audiobookshelf
-    echo "  exec ${nodejs}/bin/node $out/opt/index.js" >> $out/bin/audiobookshelf
+    echo "  exec ${nodejs_22}/bin/node $out/opt/index.js" >> $out/bin/audiobookshelf
 
     chmod +x $out/bin/audiobookshelf
+
+    runHook postInstall
   '';
 
   passthru = {
     tests.basic = nixosTests.audiobookshelf;
-    updateScript = ./update.nu;
+    updateScript = ./update.sh;
   };
 
   meta = {
@@ -96,6 +100,7 @@ buildNpmPackage {
     maintainers = with lib.maintainers; [
       jvanbruegge
       adamcstephens
+      tebriel
     ];
     platforms = lib.platforms.linux;
     mainProgram = "audiobookshelf";

@@ -21,7 +21,7 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   # will probably be fixed in https://github.com/NixOS/nixpkgs/pull/302481
-  postPatch = lib.optionalString stdenv.isDarwin ''
+  postPatch = lib.optionalString stdenv.hostPlatform.isDarwin ''
     substituteInPlace Makefile \
         --replace-fail "-flto" ""
   '';
@@ -66,7 +66,7 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   meta = {
-    description = "The fast and accurate Genesis emulator";
+    description = "Fast and accurate Genesis emulator";
     homepage = "https://www.retrodev.com/blastem/";
     license = lib.licenses.gpl3Plus;
     mainProgram = "blastem";
@@ -74,7 +74,6 @@ stdenv.mkDerivation (finalAttrs: {
     platforms = [
       "i686-linux"
       "x86_64-linux"
-      "x86_64-darwin"
     ];
   };
 })

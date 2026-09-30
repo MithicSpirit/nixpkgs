@@ -1,49 +1,47 @@
 {
   lib,
   stdenv,
-  fetchFromGitLab,
+  fetchFromGitHub,
   rustPlatform,
   asciidoctor,
   installShellFiles,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "qrtool";
-  version = "0.11.4";
+  version = "0.13.2";
 
-  src = fetchFromGitLab {
+  src = fetchFromGitHub {
     owner = "sorairolake";
     repo = "qrtool";
-    rev = "v${version}";
-    hash = "sha256-lD/xi2k5baZGUUixy/032jTBevr0uQIT/JmX+d+kPyA=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-N/kxis/nLwl+cfmlIC0TzZe0nApp160VXWoWeDtOctU=";
   };
 
-  cargoHash = "sha256-lR/LusIgdA+G7YeSLHjxdcC96tOSqSyalVamS42ORs0=";
+  cargoHash = "sha256-PgtVl55gpVsDg3VMuqtQaR7hD2ebL5+ffLNdpHggxfg=";
 
   nativeBuildInputs = [
     asciidoctor
     installShellFiles
   ];
 
-  postInstall =
-    ''
-      # Built by ./build.rs using `asciidoctor`
-      installManPage ./target/*/release/build/qrtool*/out/*.?
+  postInstall = ''
+    asciidoctor -b manpage docs/man/man1/*.1.adoc
+    installManPage docs/man/man1/*.1
+  ''
+  + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd qrtool \
+      --bash <($out/bin/qrtool completion bash) \
+      --fish <($out/bin/qrtool completion fish) \
+      --zsh <($out/bin/qrtool completion zsh)
+  '';
 
-    ''
-    + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-      installShellCompletion --cmd qrtool \
-        --bash <($out/bin/qrtool --generate-completion bash) \
-        --fish <($out/bin/qrtool --generate-completion fish) \
-        --zsh <($out/bin/qrtool --generate-completion zsh)
-    '';
-
-  meta = with lib; {
-    maintainers = with maintainers; [ philiptaron ];
+  meta = {
     description = "Utility for encoding and decoding QR code images";
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
     homepage = "https://sorairolake.github.io/qrtool/book/index.html";
     changelog = "https://sorairolake.github.io/qrtool/book/changelog.html";
     mainProgram = "qrtool";
+    maintainers = with lib.maintainers; [ philiptaron ];
   };
-}
+})

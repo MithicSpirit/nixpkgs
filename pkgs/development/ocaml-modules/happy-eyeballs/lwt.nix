@@ -1,14 +1,15 @@
-{ buildDunePackage
-, happy-eyeballs
-, cmdliner
-, dns
-, duration
-, domain-name
-, ipaddr
-, fmt
-, logs
-, lwt
-, mtime
+{
+  buildDunePackage,
+  happy-eyeballs,
+  cmdliner,
+  dns,
+  duration,
+  domain-name,
+  ipaddr,
+  fmt,
+  logs,
+  lwt,
+  mtime,
 }:
 
 buildDunePackage {
@@ -16,19 +17,17 @@ buildDunePackage {
 
   inherit (happy-eyeballs) src version;
 
-  minimalOCamlVersion = "4.08";
-
   buildInputs = [
     cmdliner
     duration
     domain-name
     ipaddr
     fmt
-    mtime
+    dns
   ];
 
   propagatedBuildInputs = [
-    dns
+    mtime
     happy-eyeballs
     logs
     lwt

@@ -5,10 +5,9 @@
   poetry-core,
   crossandra,
   dahlia,
-  pythonRelaxDepsHook
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "samarium";
   version = "0.6.2";
   pyproject = true;
@@ -16,20 +15,21 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "samarium-lang";
     repo = "samarium";
-    rev = "refs/tags/${version}";
+    tag = finalAttrs.version;
     hash = "sha256-sOkJ67B8LaIA2cwCHaFnc16lMG8uaegBJCzF6Li77vk=";
   };
 
-  build-system = [ poetry-core pythonRelaxDepsHook ];
-  dependencies = [ crossandra dahlia ];
+  build-system = [ poetry-core ];
+  dependencies = [
+    crossandra
+    dahlia
+  ];
 
-  pythonRelaxDeps = [ "crossandra" ];
-
-  meta = with lib; {
-    changelog = "https://github.com/samarium-lang/samarium/blob/${src.rev}/CHANGELOG.md";
-    description = "The Samarium Programming Language";
-    license = licenses.mit;
+  meta = {
+    changelog = "https://github.com/samarium-lang/samarium/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    description = "Samarium Programming Language";
+    license = lib.licenses.mit;
     homepage = "https://samarium-lang.github.io/Samarium";
-    maintainers = with maintainers; [ sigmanificient ];
+    maintainers = with lib.maintainers; [ sigmanificient ];
   };
-}
+})

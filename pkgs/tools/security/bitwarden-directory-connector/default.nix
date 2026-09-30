@@ -1,63 +1,98 @@
 {
   lib,
   buildNpmPackage,
+  cargo,
   electron,
   fetchFromGitHub,
-  buildPackages,
-  python3,
-  pkg-config,
   libsecret,
-  nodejs_18,
+  nodejs_24,
+  pkg-config,
+  python3,
+  rustc,
+  rustPlatform,
 }:
 
 let
-  common = { name, npmBuildScript, installPhase }: buildNpmPackage rec {
-    pname = name;
-    version = "2024.3.2";
-    nodejs = nodejs_18;
+  common =
+    {
+      name,
+      npmBuildScript,
+      installPhase,
+    }:
+    buildNpmPackage (finalAttrs: {
+      pname = name;
+      version = "2026.6.1";
+      nodejs = nodejs_24;
 
-    src = fetchFromGitHub {
-      owner = "bitwarden";
-      repo = "directory-connector";
-      rev = "v${version}";
-      hash = "sha256-CB5HrT+p63zANg1SEoynk6hPPW5DcC9Qfo2+QDy2iwc=";
-    };
+      src = fetchFromGitHub {
+        owner = "bitwarden";
+        repo = "directory-connector";
+        tag = "v${finalAttrs.version}";
+        hash = "sha256-4u1RwZfjjdwK8mPb7jV4Vg22CqjcHBwX+CXdQDHCVFw=";
+      };
 
-    postPatch = ''
-      ${lib.getExe buildPackages.jq} 'del(.scripts.preinstall)' package.json > package.json.tmp
-      mv -f package.json{.tmp,}
+      patches = [
+        ./lockfile-add-resolved.patch
+      ];
 
-      substituteInPlace electron-builder.json \
-        --replace-fail '"afterSign": "scripts/notarize.js",' "" \
-        --replace-fail "AppImage" "dir"
-    '';
+      postPatch = ''
+        substituteInPlace package.json \
+          --replace-fail '"preinstall": "npm run sub:init",' "" \
+          --replace-fail "cd native && npm install && npm run build:release" "cd native && npm run build:release"
 
-    npmDepsHash = "sha256-6WYNaF6z8OwWmi/Mv091LsuTUEUhWd8cDD11QKE8A5U=";
+        substituteInPlace electron-builder.json \
+          --replace-fail '"afterSign": "scripts/notarize.mjs",' ""
+      '';
 
-    env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
+      npmDepsFetcherVersion = 2;
+      npmDepsHash = "sha256-1Yu/drKTE6GgFetnJpQSOiTHCUK2XN3KGFGEXeu5vKA=";
 
-    makeCacheWritable = true;
-    inherit npmBuildScript installPhase;
+      cargoRoot = "native";
+      cargoDeps = rustPlatform.fetchCargoVendor {
+        inherit (finalAttrs)
+          pname
+          src
+          version
+          cargoRoot
+          ;
+        hash = "sha256-1YcdUuAAIFevZJg4dY9xEBw0TLsUFoMGoMW7ZPKbqjQ=";
+      };
 
-    buildInputs = [
-      libsecret
-    ];
+      env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
 
-    nativeBuildInputs = [
-      (python3.withPackages (ps: with ps; [ setuptools ]))
-      pkg-config
-    ];
+      makeCacheWritable = true;
+      inherit npmBuildScript installPhase;
 
-    meta = with lib; {
-      description = "LDAP connector for Bitwarden";
-      homepage = "https://github.com/bitwarden/directory-connector";
-      license = licenses.gpl3Only;
-      maintainers = with maintainers; [ Silver-Golden SuperSandro2000 ];
-      platforms = platforms.linux;
-      mainProgram = name;
-    };
-  };
-in {
+      preBuild = ''
+        ln -s ../node_modules native/node_modules
+      '';
+
+      buildInputs = [
+        libsecret
+      ];
+
+      nativeBuildInputs = [
+        cargo
+        (python3.withPackages (ps: with ps; [ setuptools ]))
+        pkg-config
+        rustc
+        rustPlatform.cargoSetupHook
+      ];
+
+      meta = {
+        description = "LDAP connector for Bitwarden";
+        homepage = "https://github.com/bitwarden/directory-connector";
+        license = lib.licenses.gpl3Only;
+        maintainers = with lib.maintainers; [
+          Silver-Golden
+          SuperSandro2000
+        ];
+        platforms = lib.platforms.linux;
+        mainProgram = name;
+      };
+    });
+in
+{
   bitwarden-directory-connector = common {
     name = "bitwarden-directory-connector";
     npmBuildScript = "build:dist";
@@ -75,7 +110,7 @@ in {
 
       makeWrapper ${lib.getExe electron} $out/bin/bitwarden-directory-connector \
         --add-flags $out/share/bitwarden-directory-connector/resources/app.asar \
-        --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
+        --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}" \
         --set-default ELECTRON_IS_DEV 0 \
         --inherit-argv0
 
@@ -90,7 +125,7 @@ in {
       runHook preInstall
 
       mkdir -p $out/libexec/bitwarden-directory-connector
-      cp -R build-cli node_modules $out/libexec/bitwarden-directory-connector
+      cp -R build-cli native node_modules $out/libexec/bitwarden-directory-connector
 
       # needs to be wrapped with nodejs so that it can be executed
       chmod +x $out/libexec/bitwarden-directory-connector/build-cli/bwdc.js

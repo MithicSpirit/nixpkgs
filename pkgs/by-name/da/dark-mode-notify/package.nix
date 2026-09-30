@@ -1,17 +1,14 @@
-{ lib
-, fetchFromGitHub
-, stdenv
-, swift
-, swiftpm
-, swiftPackages
-, darwin
+{
+  lib,
+  fetchFromGitHub,
+  stdenv,
+  swift,
+  swiftpm,
 }:
 
-# Use the same stdenv, including clang, as Swift itself
-# Fixes build issues, see https://github.com/NixOS/nixpkgs/pull/296082 and https://github.com/NixOS/nixpkgs/issues/295322
-swiftPackages.stdenv.mkDerivation (final: {
+stdenv.mkDerivation (finalAttrs: {
   pname = "dark-mode-notify";
-  version = "unstable-2022-07-18";
+  version = "0-unstable-2022-07-18";
 
   src = fetchFromGitHub {
     owner = "bouk";
@@ -25,18 +22,14 @@ swiftPackages.stdenv.mkDerivation (final: {
     swiftpm
   ];
 
-  buildInputs = with darwin.apple_sdk.frameworks; [
-    Foundation
-    Cocoa
-  ];
-
   makeFlags = [ "prefix=$(out)" ];
+
+  dontUseSwiftpmInstall = true;
 
   meta = {
     description = "Run a script whenever dark mode changes in macOS";
     homepage = "https://github.com/bouk/dark-mode-notify";
-    # Doesn't build on x86_64 because of some CoreGraphics issue, even with SDK 11.0
-    platforms = [ "aarch64-darwin" ];
+    platforms = lib.platforms.darwin;
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ YorikSar ];
     mainProgram = "dark-mode-notify";

@@ -1,40 +1,53 @@
 {
   lib,
   aiohttp,
+  aioresponses,
   buildPythonPackage,
   fetchFromGitHub,
   hatchling,
-  pythonOlder,
+  mashumaro,
+  pytest-asyncio,
+  pytestCheckHook,
+  syrupy,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "fyta-cli";
-  version = "0.5.1";
+  version = "0.7.3";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "dontinelli";
     repo = "fyta_cli";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-V6yf5XFPPePQkRKyH6pyVFDsviYjnIs9g+PavCTDiZo=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-+gPPECRMhhx7H+K3//PRH3ALyY2k6eQ/o9qAVHyyoes=";
   };
 
   build-system = [ hatchling ];
 
-  dependencies = [ aiohttp ];
+  dependencies = [
+    aiohttp
+    mashumaro
+  ];
 
-  # Module has no tests
-  doCheck = false;
+  doCheck = false; # Failed: async def functions are not natively supported.
+
+  nativeCheckInputs = [
+    aioresponses
+    pytest-asyncio
+    pytestCheckHook
+    syrupy
+  ];
 
   pythonImportsCheck = [ "fyta_cli" ];
 
-  meta = with lib; {
+  pytestFlags = [ "--snapshot-update" ];
+
+  meta = {
     description = "Module to access the FYTA API";
     homepage = "https://github.com/dontinelli/fyta_cli";
-    changelog = "https://github.com/dontinelli/fyta_cli/releases/tag/v${version}";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/dontinelli/fyta_cli/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

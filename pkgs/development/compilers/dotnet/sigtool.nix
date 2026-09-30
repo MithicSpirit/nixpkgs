@@ -1,7 +1,8 @@
-{ cctools
-, darwin
-, fetchFromGitHub
-, makeWrapper
+{
+  cctools,
+  darwin,
+  fetchFromGitHub,
+  makeWrapper,
 }:
 
 darwin.sigtool.overrideAttrs (old: {
@@ -14,7 +15,7 @@ darwin.sigtool.overrideAttrs (old: {
     sha256 = "sha256-EVM5ZG3sAHrIXuWrnqA9/4pDkJOpWCeBUl5fh0mkK4k=";
   };
 
-  nativeBuildInputs = old.nativeBuildInputs or [] ++ [
+  nativeBuildInputs = old.nativeBuildInputs or [ ] ++ [
     makeWrapper
   ];
 

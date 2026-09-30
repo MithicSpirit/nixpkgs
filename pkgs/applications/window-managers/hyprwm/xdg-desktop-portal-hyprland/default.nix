@@ -2,62 +2,73 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  fetchpatch,
   cmake,
-  pkg-config,
-  wayland-scanner,
   makeWrapper,
+  pkg-config,
   wrapQtAppsHook,
   nix-update-script,
+  grim,
+  hyprland,
   hyprland-protocols,
   hyprlang,
+  hyprutils,
+  hyprwayland-scanner,
   libdrm,
-  mesa,
+  libgbm,
   pipewire,
   qtbase,
   qttools,
   qtwayland,
-  sdbus-cpp,
-  systemd,
+  sdbus-cpp_2,
+  slurp,
   wayland,
   wayland-protocols,
-  hyprland,
-  hyprpicker,
-  slurp,
+  wayland-scanner,
+  debug ? false,
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "xdg-desktop-portal-hyprland";
-  version = "1.3.3";
+  version = "1.4.1";
 
   src = fetchFromGitHub {
     owner = "hyprwm";
     repo = "xdg-desktop-portal-hyprland";
-    rev = "v${finalAttrs.version}";
-    hash = "sha256-cyyxu/oj4QEFp3CVx2WeXa9T4OAUyynuBJHGkBZSxJI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-sRAGZVUPgwxpx19uZwaSERa86g1AbsBUQ3SxhaRPgeg=";
   };
+
+  depsBuildBuild = [
+    pkg-config
+  ];
 
   nativeBuildInputs = [
     cmake
-    pkg-config
-    wayland-scanner
     makeWrapper
+    pkg-config
     wrapQtAppsHook
+    hyprwayland-scanner
   ];
 
   buildInputs = [
     hyprland-protocols
     hyprlang
+    hyprutils
     libdrm
-    mesa
+    libgbm
     pipewire
     qtbase
     qttools
     qtwayland
-    sdbus-cpp
-    systemd
+    sdbus-cpp_2
     wayland
     wayland-protocols
+    wayland-scanner
   ];
+
+  cmakeBuildType = if debug then "Debug" else "RelWithDebInfo";
+
+  dontStrip = debug;
+  separateDebugInfo = !debug;
 
   dontWrapQtApps = true;
 
@@ -75,7 +86,7 @@ stdenv.mkDerivation (finalAttrs: {
       --prefix PATH ":" ${
         lib.makeBinPath [
           (placeholder "out")
-          hyprpicker
+          grim
         ]
       }
   '';
@@ -90,7 +101,7 @@ stdenv.mkDerivation (finalAttrs: {
     changelog = "https://github.com/hyprwm/xdg-desktop-portal-hyprland/releases/tag/v${finalAttrs.version}";
     mainProgram = "hyprland-share-picker";
     license = lib.licenses.bsd3;
-    maintainers = with lib.maintainers; [ fufexan ];
+    teams = [ lib.teams.hyprland ];
     platforms = lib.platforms.linux;
   };
 })

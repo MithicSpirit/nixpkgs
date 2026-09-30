@@ -1,46 +1,48 @@
 {
   lib,
+  stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
-  stdenv,
-  packaging,
   setuptools,
-  dbus-next,
+  bidict,
+  packaging,
+  typing-extensions,
+  dbus-fast,
   rubicon-objc,
 }:
 
 buildPythonPackage rec {
   pname = "desktop-notifier";
-  version = "5.0.1";
+  version = "6.2.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "SamSchott";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-A+25T0xgUcE1NaOKNZgeP80VlEmqa137YGn3g/pwpxM=";
+    repo = "desktop-notifier";
+    tag = "v${version}";
+    hash = "sha256-VVbBKhGCtdsNOfRJPpDk9wwsTtdEwbTSZjheXLydO70=";
   };
 
   build-system = [ setuptools ];
 
-  dependencies =
-    [ packaging ]
-    ++ lib.optionals stdenv.isLinux [ dbus-next ]
-    ++ lib.optionals stdenv.hostPlatform.isDarwin [ rubicon-objc ];
+  dependencies = [
+    bidict
+    packaging
+    typing-extensions
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [ dbus-fast ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [ rubicon-objc ];
 
   # no tests available, do the imports check instead
   doCheck = false;
 
   pythonImportsCheck = [ "desktop_notifier" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library for cross-platform desktop notifications";
     homepage = "https://github.com/samschott/desktop-notifier";
-    changelog = "https://github.com/samschott/desktop-notifier/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ sfrijters ];
+    changelog = "https://github.com/samschott/desktop-notifier/releases/tag/${src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ sfrijters ];
   };
 }

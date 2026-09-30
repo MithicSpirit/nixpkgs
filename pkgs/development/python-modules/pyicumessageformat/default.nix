@@ -13,8 +13,7 @@ buildPythonPackage rec {
   build-system = [ setuptools ];
 
   src = fetchPypi {
-    pname = "pyicumessageformat";
-    inherit version;
+    inherit pname version;
     hash = "sha256-s+l8DtEMKxA/DzpwGqZSlwDqCrZuDzsj3I5K7hgfyEA=";
   };
 
@@ -22,11 +21,13 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "pyicumessageformat" ];
 
-  meta = with lib; {
+  meta = {
     description = "Unopinionated Python3 parser for ICU MessageFormat";
     homepage = "https://github.com/SirStendec/pyicumessageformat/";
-    license = licenses.mit;
-    maintainers = with maintainers; [ erictapen ];
+    # Based on master, as upstream doesn't tag their releases on GitHub anymore
+    changelog = "https://github.com/SirStendec/pyicumessageformat/blob/master/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ erictapen ];
   };
 
 }

@@ -1,12 +1,10 @@
 {
   buildPythonPackage,
-  pythonOlder,
   flaky,
   hatchling,
   opentelemetry-api,
   opentelemetry-semantic-conventions,
   opentelemetry-test-utils,
-  setuptools,
   typing-extensions,
   pytestCheckHook,
 }:
@@ -16,8 +14,6 @@ let
     inherit (opentelemetry-api) version src;
     pname = "opentelemetry-sdk";
     pyproject = true;
-
-    disabled = pythonOlder "3.8";
 
     sourceRoot = "${opentelemetry-api.src.name}/opentelemetry-sdk";
 

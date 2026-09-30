@@ -5,14 +5,17 @@
   See also
   - ./nix.nix
   - ./nix-flakes.nix
- */
-{ config, lib, ... }:
+*/
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   inherit (lib)
-    mkDefault
     mkIf
     mkOption
-    stringAfter
     types
     ;
 
@@ -39,16 +42,17 @@ in
         };
       };
 
-      nixPath = mkOption {
+      settings.nix-path = mkOption {
         type = types.listOf types.str;
         default =
-          if cfg.channel.enable
-          then [
-            "nixpkgs=/nix/var/nix/profiles/per-user/root/channels/nixos"
-            "nixos-config=/etc/nixos/configuration.nix"
-            "/nix/var/nix/profiles/per-user/root/channels"
-          ]
-          else [ ];
+          if cfg.channel.enable then
+            [
+              "nixpkgs=/nix/var/nix/profiles/per-user/root/channels/nixos"
+              "nixos-config=/etc/nixos/configuration.nix"
+              "/nix/var/nix/profiles/per-user/root/channels"
+            ]
+          else
+            [ ];
         defaultText = ''
           if nix.channel.enable
           then [
@@ -70,20 +74,22 @@ in
       defaultChannel = mkOption {
         internal = true;
         type = types.str;
-        default = "https://nixos.org/channels/nixos-unstable";
+        default = "https://channels.nixos.org/nixos-unstable";
         description = "Default NixOS channel to which the root user is subscribed.";
       };
     };
   };
 
-  config = mkIf cfg.enable {
+  imports = [
+    (lib.mkRenamedOptionModule [ "nix" "nixPath" ] [ "nix" "settings" "nix-path" ])
+  ];
 
-    environment.extraInit =
-      mkIf cfg.channel.enable ''
-        if [ -e "$HOME/.nix-defexpr/channels" ]; then
-          export NIX_PATH="$HOME/.nix-defexpr/channels''${NIX_PATH:+:$NIX_PATH}"
-        fi
-      '';
+  config = mkIf cfg.enable {
+    environment.extraInit = mkIf cfg.channel.enable ''
+      if [ -e "$HOME/.nix-defexpr/channels" ]; then
+        export NIX_PATH="$HOME/.nix-defexpr/channels''${NIX_PATH:+:$NIX_PATH}"
+      fi
+    '';
 
     environment.extraSetup = mkIf (!cfg.channel.enable) ''
       rm --force $out/bin/nix-channel
@@ -92,14 +98,17 @@ in
     # NIX_PATH has a non-empty default according to Nix docs, so we don't unset
     # it when empty.
     environment.sessionVariables = {
-      NIX_PATH = cfg.nixPath;
+      NIX_PATH = cfg.settings.nix-path;
     };
 
     systemd.tmpfiles.rules = lib.mkIf cfg.channel.enable [
       ''f /root/.nix-channels - - - - ${config.system.defaultChannel} nixos\n''
     ];
 
-    system.activationScripts.no-nix-channel = mkIf (!cfg.channel.enable)
-      (stringAfter [ "etc" "users" ] (builtins.readFile ./nix-channel/activation-check.sh));
+    system.preSwitchChecks.no-nix-channel = mkIf (!cfg.channel.enable) (
+      lib.replaceStrings [ "@getent@" ] [ (lib.getExe pkgs.getent) ] (
+        builtins.readFile ./nix-channel/pre-switch-check.sh
+      )
+    );
   };
 }

@@ -2,43 +2,51 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  freezegun,
+
+  # build-system
+  hatchling,
+
+  # dependencies
   huggingface-hub,
   langchain-core,
   sentence-transformers,
   tokenizers,
   transformers,
+
+  # tests
+  freezegun,
+  httpx,
   lark,
   pandas,
-  poetry-core,
   pytest-asyncio,
   pytest-mock,
   pytest-socket,
   pytestCheckHook,
-  pythonOlder,
   requests-mock,
   responses,
   syrupy,
   toml,
+
+  # passthru
+  gitUpdater,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "langchain-huggingface";
-  version = "0.0.3";
+  version = "1.2.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "langchain-ai";
     repo = "langchain";
-    rev = "refs/tags/langchain-huggingface==${version}";
-    hash = "sha256-4k3C6T2N7SBM/wP8KAwMQqt9DkXDdYNt2i/OkZilWw0=";
+    tag = "langchain-huggingface==${finalAttrs.version}";
+    hash = "sha256-jMbFqui0XoKZ15B+5kJAamW5Dasv/JCIZS2KtteRBXg=";
   };
 
-  sourceRoot = "${src.name}/libs/partners/huggingface";
+  sourceRoot = "${finalAttrs.src.name}/libs/partners/huggingface";
 
-  build-system = [ poetry-core ];
+  build-system = [ hatchling ];
 
   dependencies = [
     huggingface-hub
@@ -50,6 +58,7 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [
     freezegun
+    httpx
     lark
     pandas
     pytest-asyncio
@@ -62,15 +71,34 @@ buildPythonPackage rec {
     toml
   ];
 
-  pytestFlagsArray = [ "tests/unit_tests" ];
+  enabledTestPaths = [ "tests/unit_tests" ];
+
+  disabledTests = [
+    # Requires a circular dependency on langchain
+    "test_init_chat_model_huggingface"
+    # AssertionError: Expected 'bind' to have been called once. Called 0 times.
+    "test_bind_tools"
+  ];
 
   pythonImportsCheck = [ "langchain_huggingface" ];
 
+  passthru = {
+    # python updater script sets the wrong tag
+    skipBulkUpdate = true;
+    updateScript = gitUpdater {
+      rev-prefix = "langchain-huggingface==";
+      ignoredVersions = "a|b|dev|rc";
+    };
+  };
+
   meta = {
-    changelog = "https://github.com/langchain-ai/langchain/releases/tag/langchain-huggingface==${version}";
-    description = "An integration package connecting Huggingface related classes and LangChain";
+    changelog = "https://github.com/langchain-ai/langchain/releases/tag/${finalAttrs.src.tag}";
+    description = "Integration package connecting Huggingface related classes and LangChain";
     homepage = "https://github.com/langchain-ai/langchain/tree/master/libs/partners/huggingface";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ natsukium ];
+    maintainers = with lib.maintainers; [
+      natsukium
+      sarahec
+    ];
   };
-}
+})

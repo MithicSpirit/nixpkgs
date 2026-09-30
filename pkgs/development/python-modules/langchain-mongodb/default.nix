@@ -2,71 +2,116 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  freezegun,
+  pythonAtLeast,
+
+  # build-system
+  hatchling,
+
+  # dependencies
   langchain,
+  langchain-classic,
   langchain-core,
-  pymongo,
+  langchain-text-splitters,
   lark,
-  pandas,
-  poetry-core,
+  numpy,
+  pymongo,
+  pymongo-search-utils,
+
+  # test
+  freezegun,
+  httpx,
+  langchain-community,
+  langchain-ollama,
+  langchain-openai,
+  langchain-tests,
+  mongomock,
   pytest-asyncio,
-  pytest-mock,
-  pytest-socket,
   pytestCheckHook,
-  pythonOlder,
-  requests-mock,
-  responses,
+  pytest-mock,
   syrupy,
-  toml,
+
+  # passthru
+  gitUpdater,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "langchain-mongodb";
-  version = "0.1.8";
+  version = "0.12.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "langchain-ai";
-    repo = "langchain";
-    rev = "refs/tags/langchain-mongodb==${version}";
-    hash = "sha256-fjSvn9O/CrKBexcwuILXFR7AGx/tZtGDWjA0L6XV4Hk=";
+    repo = "langchain-mongodb";
+    tag = "libs/langchain-mongodb/v${finalAttrs.version}";
+    hash = "sha256-cNrVB2YKS6vP6O+gA47G3cAlxEiOrI8soL44G/BQYMM=";
   };
 
-  sourceRoot = "${src.name}/libs/partners/mongodb";
+  sourceRoot = "${finalAttrs.src.name}/libs/langchain-mongodb";
 
-  build-system = [ poetry-core ];
+  build-system = [ hatchling ];
 
   dependencies = [
+    langchain
+    langchain-classic
     langchain-core
+    langchain-text-splitters
+    numpy
     pymongo
+    pymongo-search-utils
   ];
 
   nativeCheckInputs = [
     freezegun
-    langchain
+    httpx
+    langchain-community
+    langchain-ollama
+    langchain-openai
+    langchain-tests
     lark
-    pandas
+    mongomock
     pytest-asyncio
-    pytest-mock
-    pytest-socket
     pytestCheckHook
-    requests-mock
-    responses
+    pytest-mock
     syrupy
-    toml
   ];
 
-  pytestFlagsArray = [ "tests/unit_tests" ];
+  enabledTestPaths = [ "tests/unit_tests" ];
+
+  disabledTestPaths = [
+    # Expects a MongoDB cluster and are very slow
+    "tests/unit_tests/test_index.py"
+  ];
+
+  pytestFlags = [
+    # DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated
+    "-Wignore::DeprecationWarning"
+    "-Wignore::PendingDeprecationWarning"
+  ]
+  ++ lib.optionals (pythonAtLeast "3.14") [
+    # UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14
+    "-Wignore::UserWarning"
+  ];
 
   pythonImportsCheck = [ "langchain_mongodb" ];
 
-  meta = {
-    changelog = "https://github.com/langchain-ai/langchain/releases/tag/langchain-mongodb==${version}";
-    description = "Integration package connecting MongoDB and LangChain";
-    homepage = "https://github.com/langchain-ai/langchain/tree/master/libs/partners/mongodb";
-    license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ natsukium ];
+  passthru = {
+    # python updater script sets the wrong tag
+    skipBulkUpdate = true;
+    updateScript = gitUpdater {
+      rev-prefix = "libs/langchain-mongodb/v";
+      ignoredVersions = "a|b|dev|rc";
+    };
   };
-}
+
+  meta = {
+    changelog = "https://github.com/langchain-ai/langchain-mongodb/releases/tag/${finalAttrs.src.tag}";
+    description = "Integration package connecting MongoDB and LangChain";
+    homepage = "https://github.com/langchain-ai/langchain-mongodb";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      natsukium
+      sarahec
+    ];
+  };
+})

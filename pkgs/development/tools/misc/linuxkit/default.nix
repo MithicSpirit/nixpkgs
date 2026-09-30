@@ -1,14 +1,23 @@
-{ lib, stdenv, buildGoModule, fetchFromGitHub, git, Cocoa, Virtualization, sigtool, testers, linuxkit }:
+{
+  lib,
+  stdenv,
+  buildGoModule,
+  fetchFromGitHub,
+  git,
+  sigtool,
+  testers,
+  linuxkit,
+}:
 
 buildGoModule rec {
   pname = "linuxkit";
-  version = "1.5.0";
+  version = "1.8.2";
 
   src = fetchFromGitHub {
     owner = "linuxkit";
     repo = "linuxkit";
     rev = "v${version}";
-    sha256 = "sha256-Tcc2FdZ0h97r1C5BMTVb45HB8AuN/wPD+A8samhaJY8=";
+    sha256 = "sha256-0W3YWj6amNI6jr10FfLAqF1kEUwx4BU5+gjkg4iqX1Q=";
   };
 
   vendorHash = null;
@@ -24,8 +33,7 @@ buildGoModule rec {
   #   able to use the Virtualization framework at runtime.
   # - sigtool is allows us to validly sign such executables with a dummy
   #   authority.
-  nativeBuildInputs = lib.optionals stdenv.isDarwin [ sigtool ];
-  buildInputs = lib.optionals stdenv.isDarwin [ Cocoa Virtualization ];
+  nativeBuildInputs = lib.optionals stdenv.hostPlatform.isDarwin [ sigtool ];
 
   ldflags = [
     "-s"
@@ -43,7 +51,7 @@ buildGoModule rec {
   # - Finally, at the start of the fixup phase, the working directory is
   #   $sourceRoot/src/cmd/linuxkit, so it's simpler to use the sign target from
   #   the Makefile in that directory rather than $sourceRoot/Makefile.
-  postFixup = lib.optionalString stdenv.isDarwin ''
+  postFixup = lib.optionalString stdenv.hostPlatform.isDarwin ''
     make sign LOCAL_TARGET=$out/bin/linuxkit
   '';
   passthru.tests.version = testers.testVersion {
@@ -51,11 +59,11 @@ buildGoModule rec {
     command = "linuxkit version";
   };
 
-  meta = with lib; {
+  meta = {
     description = "Toolkit for building secure, portable and lean operating systems for containers";
     mainProgram = "linuxkit";
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
     homepage = "https://github.com/linuxkit/linuxkit";
-    maintainers = with maintainers; [ nicknovitski ];
+    maintainers = with lib.maintainers; [ nicknovitski ];
   };
 }

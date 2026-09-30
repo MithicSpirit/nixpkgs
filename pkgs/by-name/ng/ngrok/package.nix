@@ -2,38 +2,35 @@
   lib,
   stdenv,
   fetchurl,
+  testers,
 }:
 
 let
-  versions = lib.importJSON ./versions.json;
-  arch =
-    if stdenv.isi686 then
-      "386"
-    else if stdenv.isx86_64 then
-      "amd64"
-    else if stdenv.isAarch32 then
-      "arm"
-    else if stdenv.isAarch64 then
-      "arm64"
-    else
-      throw "Unsupported architecture";
-  os =
-    if stdenv.isLinux then
-      "linux"
-    else if stdenv.isDarwin then
-      "darwin"
-    else
-      throw "Unsupported os";
-  versionInfo = versions."${os}-${arch}";
-  inherit (versionInfo) version sha256 url;
-
+  version = "3.39.10";
+  sources = {
+    i686-linux = fetchurl {
+      url = "https://bin.ngrok.com/a/3fcY7AHuPyf/ngrok-v3-3.39.10-linux-386";
+      hash = "sha256-D7YyL4y/mQM32Ibb705phAAPd3+ePdzobpdaijNGmOw=";
+    };
+    x86_64-linux = fetchurl {
+      url = "https://bin.ngrok.com/a/jhBAuesrzKn/ngrok-v3-3.39.10-linux-amd64";
+      hash = "sha256-tHXDG0Ce00Jgkb3ni2D64n7e5HDCMgyzBldDwVm5sns=";
+    };
+    aarch64-linux = fetchurl {
+      url = "https://bin.ngrok.com/a/55PuHLixvyF/ngrok-v3-3.39.10-linux-arm64";
+      hash = "sha256-otHU2Nrrza4FQVO+26lvD6vHhZ8En20WbvJSbvZiCr4=";
+    };
+    aarch64-darwin = fetchurl {
+      url = "https://bin.ngrok.com/a/aQGG8qqiJvo/ngrok-v3-3.39.10-darwin-arm64";
+      hash = "sha256-0zWkegTd5yaJei51MYfp9I+/QGFsSL4yZpVMe5F1oJ4=";
+    };
+  };
 in
-stdenv.mkDerivation {
+stdenv.mkDerivation (finalAttrs: {
   pname = "ngrok";
   inherit version;
 
-  # run ./update
-  src = fetchurl { inherit sha256 url; };
+  src = sources.${stdenv.hostPlatform.system};
 
   sourceRoot = ".";
 
@@ -55,10 +52,15 @@ stdenv.mkDerivation {
     runHook postInstall
   '';
 
-  passthru.updateScript = ./update.sh;
+  passthru = {
+    platforms = builtins.attrNames sources;
+    inherit sources;
+    updateScript = ./update.sh;
+    tests.version = testers.testVersion { package = finalAttrs.finalPackage; };
+  };
 
   # Stripping causes SEGFAULT on darwin
-  dontStrip = stdenv.isDarwin;
+  dontStrip = stdenv.hostPlatform.isDarwin;
 
   meta = {
     description = "Allows you to expose a web server running on your local machine to the internet";
@@ -67,11 +69,11 @@ stdenv.mkDerivation {
     changelog = "https://ngrok.com/docs/agent/changelog/";
     sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
     license = lib.licenses.unfree;
-    platforms = lib.platforms.unix;
+    platforms = builtins.attrNames sources;
     maintainers = with lib.maintainers; [
       bobvanderlinden
       brodes
     ];
     mainProgram = "ngrok";
   };
-}
+})

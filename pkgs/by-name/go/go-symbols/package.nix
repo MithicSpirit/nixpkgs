@@ -5,7 +5,7 @@
   fetchpatch,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "go-symbols";
   version = "0.1.1";
 
@@ -14,8 +14,8 @@ buildGoModule rec {
   src = fetchFromGitHub {
     owner = "acroca";
     repo = "go-symbols";
-    rev = "v${version}";
-    sha256 = "0yyzw6clndb2r5j9isyd727njs98zzp057v314vfvknsm8g7hqrz";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-P2N4Hqrazu02CWOfAu7/KGlpjzjN65hkyWI1S5nh33s=";
   };
 
   patches = [
@@ -36,4 +36,4 @@ buildGoModule rec {
     ];
     license = lib.licenses.mit;
   };
-}
+})

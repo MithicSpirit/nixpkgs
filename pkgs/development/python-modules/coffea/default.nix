@@ -1,7 +1,6 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
 
   # build-system
@@ -14,11 +13,10 @@
   cachetools,
   cloudpickle,
   correctionlib,
-  dask,
-  dask-awkward,
-  dask-histogram,
-  fsspec-xrootd,
+  fsspec,
   hist,
+  ipywidgets,
+  loky,
   lz4,
   matplotlib,
   mplhep,
@@ -27,31 +25,34 @@
   packaging,
   pandas,
   pyarrow,
+  pydantic,
+  pyyaml,
   requests,
+  rich,
   scipy,
   toml,
   tqdm,
   uproot,
   vector,
 
-  # checks
+  # tests
   distributed,
   pyinstrument,
+  pytest-xdist,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "coffea";
-  version = "2024.8.2";
+  version = "2026.9.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "CoffeaTeam";
     repo = "coffea";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Lgen4HNZpnd+IDXRHk3U0kFiFZh72RcqAOIg+eyd150=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-zVcTAlL4Wl6oUm2VOmX0zBgsHbEyI93RNQwf4NBhE9s=";
   };
 
   build-system = [
@@ -65,11 +66,10 @@ buildPythonPackage rec {
     cachetools
     cloudpickle
     correctionlib
-    dask
-    dask-awkward
-    dask-histogram
-    fsspec-xrootd
+    fsspec
     hist
+    ipywidgets
+    loky
     lz4
     matplotlib
     mplhep
@@ -78,17 +78,21 @@ buildPythonPackage rec {
     packaging
     pandas
     pyarrow
+    pydantic
+    pyyaml
     requests
+    rich
     scipy
     toml
     tqdm
     uproot
     vector
-  ] ++ dask.optional-dependencies.array;
+  ];
 
   nativeCheckInputs = [
     distributed
     pyinstrument
+    pytest-xdist
     pytestCheckHook
   ];
 
@@ -98,6 +102,11 @@ buildPythonPackage rec {
     # Requires internet access
     # https://github.com/CoffeaTeam/coffea/issues/1094
     "test_lumimask"
+
+    # Flaky: FileNotFoundError: [Errno 2] No such file or directory
+    # https://github.com/scikit-hep/coffea/issues/1246
+    "test_packed_selection_cutflow_dak" # cutflow.npz
+    "test_packed_selection_nminusone_dak" # nminusone.npz
   ];
 
   __darwinAllowLocalNetworking = true;
@@ -105,8 +114,8 @@ buildPythonPackage rec {
   meta = {
     description = "Basic tools and wrappers for enabling not-too-alien syntax when running columnar Collider HEP analysis";
     homepage = "https://github.com/CoffeaTeam/coffea";
-    changelog = "https://github.com/CoffeaTeam/coffea/releases/tag/v${version}";
-    license = with lib.licenses; [ bsd3 ];
+    changelog = "https://github.com/CoffeaTeam/coffea/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.bsd3;
     maintainers = with lib.maintainers; [ veprbl ];
   };
-}
+})

@@ -6,7 +6,7 @@
   lib,
   libjpeg,
   numba,
-  opencv4,
+  opencv-python,
   pandas,
   pkg-config,
   pytorch-pfn-extras,
@@ -17,6 +17,7 @@
   psutil,
   torchvision,
   webdataset,
+  stdenv,
 }:
 
 buildPythonPackage rec {
@@ -30,7 +31,7 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "libffcv";
     repo = pname;
-    rev = "refs/tags/v${version}";
+    tag = "v${version}";
     hash = "sha256-L2mwGFivq/gtAw+1D6U2jbW6VxYgetHX7OUrjwyybqE=";
   };
 
@@ -39,15 +40,14 @@ buildPythonPackage rec {
     substituteInPlace setup.py \
       --replace-fail "'assertpy'," "" \
       --replace-fail "'fastargs'," "" \
-      --replace-fail "'opencv-python'," "" \
-      --replace-fail "'psutil'," "" \
+      --replace-fail "'psutil'," ""
   '';
 
   build-system = [ setuptools ];
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ libjpeg ];
   propagatedBuildInputs = [
-    opencv4
+    opencv-python
     numba
     pandas
     pytorch-pfn-extras
@@ -108,5 +108,8 @@ buildPythonPackage rec {
       samuela
       djacu
     ];
+    # OSError: dlopen(libc.so.6, 0x0006): tried: '/usr/lib/libc.so.6' (no such file, not in dyld cache),
+    # 'libc.so.6' (no such file), '/usr/local/lib/libc.so.6' (no such file), '/usr/lib/libc.so.6' (no such file, not in dyld cache)
+    broken = stdenv.hostPlatform.isDarwin;
   };
 }

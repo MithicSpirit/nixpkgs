@@ -1,24 +1,37 @@
-{ lib
-, fetchFromGitHub
-, buildGoModule
-, testers
-, athens
+{
+  lib,
+  fetchFromGitHub,
+  # Requires Go 1.26, drop when that's the default.
+  buildGo126Module,
+  nix-update-script,
+  versionCheckHook,
+  applyPatches,
 }:
-buildGoModule rec {
-  pname = "athens";
-  version = "0.14.1";
 
-  src = fetchFromGitHub {
-    owner = "gomods";
-    repo = "athens";
-    rev = "v${version}";
-    hash = "sha256-vpg5EcQSxVFjDFKa4oHwF5fNHhLWtj3ZMi2wbMZNn/8=";
+buildGo126Module (finalAttrs: {
+  pname = "athens";
+  version = "0.18.1";
+
+  src = applyPatches {
+    src = fetchFromGitHub {
+      owner = "gomods";
+      repo = "athens";
+      tag = "v${finalAttrs.version}";
+      hash = "sha256-msn/Kwwm8vdW25dSaax3dsCnCvwvsagaD/6KkqXL5dA=";
+    };
+    # Trim the patch version, not needed anyway.
+    postPatch = ''
+      sed -i 's/go 1.26.2/go 1.26/' go.mod
+    '';
   };
 
-  vendorHash = "sha256-LajNPzGbWqW+9aqiquk2LvSUjKwi1gbDY4cKXmn3PWk=";
+  vendorHash = "sha256-9DiDSR9M25F9rQSLy671V6SopicnDizpWdL+Zd4M5A0=";
 
-  CGO_ENABLED = "0";
-  ldflags = [ "-s" "-w" "-X github.com/gomods/athens/pkg/build.version=${version}" ];
+  env.CGO_ENABLED = "0";
+  ldflags = [
+    "-s"
+    "-X github.com/gomods/athens/pkg/build.version=${finalAttrs.version}"
+  ];
 
   subPackages = [ "cmd/proxy" ];
 
@@ -26,19 +39,21 @@ buildGoModule rec {
     mv $out/bin/proxy $out/bin/athens
   '';
 
-  passthru = {
-    tests.version = testers.testVersion {
-      package = athens;
-    };
-  };
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [ versionCheckHook ];
 
-  meta = with lib; {
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "Go module datastore and proxy";
     homepage = "https://github.com/gomods/athens";
-    changelog = "https://github.com/gomods/athens/releases/tag/v${version}";
-    license = licenses.mit;
+    changelog = "https://github.com/gomods/athens/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
     mainProgram = "athens";
-    maintainers = with maintainers; [ katexochen malt3 ];
-    platforms = platforms.unix;
+    maintainers = with lib.maintainers; [
+      katexochen
+      malt3
+    ];
+    platforms = lib.platforms.unix;
   };
-}
+})

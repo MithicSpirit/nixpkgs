@@ -1,97 +1,92 @@
-{ lib
-, stdenv
-, python3
-, groff
-, less
-, fetchFromGitHub
-, fetchpatch
-, installShellFiles
-, nix-update-script
-, testers
-, awscli2
+{
+  lib,
+  stdenv,
+  python3,
+  groff,
+  less,
+  fetchFromGitHub,
+  fetchpatch,
+  installShellFiles,
+  nix-update-script,
+  testers,
+  awscli2,
+  addBinToPathHook,
+  writableTmpDirAsHomeHook,
+  cacert,
 }:
 
 let
   py = python3 // {
-    pkgs = python3.pkgs.overrideScope (final: prev: {
-      sphinx = prev.sphinx.overridePythonAttrs (prev: {
-        disabledTests = prev.disabledTests ++ [
-          "test_check_link_response_only" # fails on hydra https://hydra.nixos.org/build/242624087/nixlog/1
-        ];
-      });
-      python-dateutil = prev.python-dateutil.overridePythonAttrs (prev: {
-        version = "2.8.2";
-        pyproject = null;
-        src = prev.src.override {
+    pkgs = python3.pkgs.overrideScope (
+      final: prev: {
+        # https://github.com/NixOS/nixpkgs/issues/449266
+        prompt-toolkit = prev.prompt-toolkit.overridePythonAttrs (prev: rec {
+          version = "3.0.51";
+          src = prev.src.override {
+            tag = version;
+            hash = "sha256-pNYmjAgnP9nK40VS/qvPR3g+809Yra2ISASWJDdQKrU=";
+          };
+        });
+
+        # backends/build_system/utils.py cannot parse PEP 440 version
+        # for python-dateutil 2.9.0.post0 (eg. post0)
+        python-dateutil = prev.python-dateutil.overridePythonAttrs (prev: rec {
           version = "2.8.2";
-          hash = "sha256-ASPKzBYnrhnd88J6XeW9Z+5FhvvdZEDZdI+Ku0g9PoY=";
-        };
-        patches = [
-          # https://github.com/dateutil/dateutil/pull/1285
-          (fetchpatch {
-            url = "https://github.com/dateutil/dateutil/commit/f2293200747fb03d56c6c5997bfebeabe703576f.patch";
-            relative = "src";
-            hash = "sha256-BVEFGV/WGUz9H/8q+l62jnyN9VDnoSR71DdL+LIkb0o=";
-          })
-        ];
-        postPatch = null;
-      });
-      ruamel-yaml = prev.ruamel-yaml.overridePythonAttrs (prev: {
-        src = prev.src.override {
-          version = "0.17.21";
-          hash = "sha256-i3zml6LyEnUqNcGsQURx3BbEJMlXO+SSa1b/P10jt68=";
-        };
-      });
-      urllib3 = prev.urllib3.overridePythonAttrs (prev: rec {
-        pyproject = true;
-        version = "1.26.18";
-        nativeBuildInputs = with final; [
-          setuptools
-        ];
-        src = prev.src.override {
-          inherit version;
-          hash = "sha256-+OzBu6VmdBNFfFKauVW/jGe0XbeZ0VkGYmFxnjKFgKA=";
-        };
-      });
-    });
+          format = "setuptools";
+          pyproject = null;
+          src = prev.src.override {
+            inherit version;
+            hash = "sha256-ASPKzBYnrhnd88J6XeW9Z+5FhvvdZEDZdI+Ku0g9PoY=";
+          };
+          patches = [
+            # https://github.com/dateutil/dateutil/pull/1285
+            (fetchpatch {
+              url = "https://github.com/dateutil/dateutil/commit/f2293200747fb03d56c6c5997bfebeabe703576f.patch";
+              relative = "src";
+              hash = "sha256-BVEFGV/WGUz9H/8q+l62jnyN9VDnoSR71DdL+LIkb0o=";
+            })
+          ];
+          postPatch = null;
+        });
+      }
+    );
   };
 
 in
 py.pkgs.buildPythonApplication rec {
   pname = "awscli2";
-  version = "2.17.18"; # N.B: if you change this, check if overrides are still up-to-date
+  version = "2.35.11"; # N.B: if you change this, check if overrides are still up-to-date
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "aws";
     repo = "aws-cli";
-    rev = "refs/tags/${version}";
-    hash = "sha256-HxFtMFeGR6XAMsP5LM0tvJ/ECWVpveIhWRTKvf8uYA0=";
+    tag = version;
+    hash = "sha256-sjbuzDRFvqTD087vSwOM2IyG++El3NaDNCqHlyQwsxo=";
   };
-
-  patches = [
-    # Temporary test fix until https://github.com/aws/aws-cli/pull/8838 is merged upstream
-    (fetchpatch {
-      url = "https://github.com/aws/aws-cli/commit/b5f19fe136ab0752cd5fcab21ff0ab59bddbea99.patch";
-      hash = "sha256-NM+nVlpxGAHVimrlV0m30d4rkFVb11tiH8Y6//2QhMI=";
-    })
-  ];
 
   postPatch = ''
     substituteInPlace pyproject.toml \
-      --replace-fail 'awscrt>=0.19.18,<=0.20.11' 'awscrt>=0.19.18' \
-      --replace-fail 'cryptography>=3.3.2,<40.0.2' 'cryptography>=3.3.2' \
+      --replace-fail 'flit_core>=3.7.1,<3.12.1' 'flit_core>=3.7.1' \
+      --replace-fail 'awscrt==' 'awscrt>=' \
       --replace-fail 'distro>=1.5.0,<1.9.0' 'distro>=1.5.0' \
       --replace-fail 'docutils>=0.10,<0.20' 'docutils>=0.10' \
-      --replace-fail 'prompt-toolkit>=3.0.24,<3.0.39' 'prompt-toolkit>=3.0.24'
+      --replace-fail 'jmespath>=0.7.1,<1.1.0' 'jmespath>=0.7.1' \
+      --replace-fail 'prompt-toolkit>=3.0.24,<3.0.52' 'prompt-toolkit>=3.0.24' \
+      --replace-fail 'ruamel_yaml>=0.15.0,<=0.19.1' 'ruamel_yaml>=0.15.0' \
+      --replace-fail 'ruamel_yaml_clib>=0.2.0,<=0.2.15' 'ruamel_yaml_clib>=0.2.0' \
+      --replace-fail 'urllib3>=1.25.4,<=2.6.3' 'urllib3>=1.25.4' \
+      --replace-fail 'wcwidth<0.3.0' 'wcwidth>=0.3.0'
 
     substituteInPlace requirements-base.txt \
-      --replace-fail "wheel==0.43.0" "wheel>=0.43.0"
+      --replace-fail "wheel==0.46.3" "wheel>=0.46.3"
 
     # Upstream needs pip to build and install dependencies and validates this
     # with a configure script, but we don't as we provide all of the packages
     # through PYTHONPATH
     sed -i '/pip>=/d' requirements/bootstrap.txt
+
+    ln -sf ${cacert}/etc/ssl/certs/ca-no-trust-rules-bundle.crt awscli/botocore/cacert.pem
   '';
 
   nativeBuildInputs = [
@@ -104,16 +99,12 @@ py.pkgs.buildPythonApplication rec {
 
   dependencies = with py.pkgs; [
     awscrt
-    bcdoc
-    botocore
     colorama
-    cryptography
     distro
     docutils
     jmespath
     prompt-toolkit
     python-dateutil
-    pyyaml
     ruamel-yaml
     urllib3
   ];
@@ -123,26 +114,47 @@ py.pkgs.buildPythonApplication rec {
     less
   ];
 
+  # Prevent breakage when running in a Python environment: https://github.com/NixOS/nixpkgs/issues/47900
+  makeWrapperArgs = [
+    "--unset"
+    "NIX_PYTHONPATH"
+    "--unset"
+    "PYTHONPATH"
+  ];
+
   nativeCheckInputs = with py.pkgs; [
+    addBinToPathHook
     jsonschema
     mock
     pytestCheckHook
+    writableTmpDirAsHomeHook
   ];
 
   postInstall = ''
+    cat > aws.zsh <<EOF
+    #compdef aws
+    autoload -U +X bashcompinit && bashcompinit
+    complete -C $out/bin/aws_completer aws
+    EOF
+
     installShellCompletion --cmd aws \
       --bash <(echo "complete -C $out/bin/aws_completer aws") \
-      --zsh $out/bin/aws_zsh_completer.sh
-  '' + lib.optionalString (!stdenv.hostPlatform.isWindows) ''
+      --zsh aws.zsh
+  ''
+  + lib.optionalString (!stdenv.hostPlatform.isWindows) ''
     rm $out/bin/aws.cmd
   '';
 
-  preCheck = ''
-    export PATH=$PATH:$out/bin
-    export HOME=$(mktemp -d)
+  # Propagating dependencies leaks them through $PYTHONPATH which causes issues
+  # when used in nix-shell.
+  postFixup = ''
+    rm $out/nix-support/propagated-build-inputs
   '';
 
-  pytestFlagsArray = [
+  # tests/unit/customizations/sso/test_utils.py uses sockets
+  __darwinAllowLocalNetworking = true;
+
+  pytestFlags = [
     "-Wignore::DeprecationWarning"
   ];
 
@@ -158,6 +170,15 @@ py.pkgs.buildPythonApplication rec {
     "tests/functional"
   ];
 
+  disabledTests = [
+    # Requires networking (socket binding not possible in sandbox)
+    "test_is_socket"
+    "test_is_special_file_warning"
+
+    # Disable slow tests
+    "test_details_disabled_for_choice_wo_details"
+  ];
+
   pythonImportsCheck = [
     "awscli"
   ];
@@ -166,7 +187,10 @@ py.pkgs.buildPythonApplication rec {
     python = py; # for aws_shell
     updateScript = nix-update-script {
       # Excludes 1.x versions from the Github tags list
-      extraArgs = [ "--version-regex" "^(2\.(.*))" ];
+      extraArgs = [
+        "--version-regex"
+        "^(2\\.(.*))"
+      ];
     };
     tests.version = testers.testVersion {
       package = awscli2;
@@ -175,12 +199,16 @@ py.pkgs.buildPythonApplication rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Unified tool to manage your AWS services";
     homepage = "https://aws.amazon.com/cli/";
     changelog = "https://github.com/aws/aws-cli/blob/${version}/CHANGELOG.rst";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ bhipple davegallant bryanasdev000 devusb anthonyroussel ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
+      davegallant
+      devusb
+      anthonyroussel
+    ];
     mainProgram = "aws";
   };
 }

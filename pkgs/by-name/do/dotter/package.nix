@@ -4,25 +4,22 @@
   fetchFromGitHub,
   nix-update-script,
   rustPlatform,
-  darwin,
   which,
   installShellFiles,
 }:
 
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "dotter";
-  version = "0.13.2-unstable-2024-08-02";
+  version = "0.13.5";
 
   src = fetchFromGitHub {
     owner = "SuperCuber";
     repo = "dotter";
-    rev = "d5199df24e6db039c460fa37fe3279f89c3bfc63";
-    hash = "sha256-8/drsrJq8mfrWvTCcNX0eoPHzywxQNuyRdxQE/zb8lA=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-xA/6j+wMTPx9p4aOHaqixlzUZcqgRazfJ1PwKaByTrw=";
   };
 
-  cargoHash = "sha256-+LBmswq2mvM0hb6wwCQMxL+C/TdpRGZQGufgsqC1KSQ=";
-
-  buildInputs = lib.optionals stdenv.isDarwin [ darwin.apple_sdk.frameworks.CoreServices ];
+  cargoHash = "sha256-0yBuaTwP2IxZjRzC8jMhZ8eNDdFHKyJjSP0ZH15F3LI=";
 
   nativeCheckInputs = [
     which
@@ -40,11 +37,11 @@ rustPlatform.buildRustPackage {
     updateScript = nix-update-script { };
   };
 
-  meta = with lib; {
-    description = "Dotfile manager and templater written in rust 🦀";
+  meta = {
+    description = "Dotfile manager and templater written in Rust";
     homepage = "https://github.com/SuperCuber/dotter";
-    license = licenses.unlicense;
-    maintainers = with maintainers; [ linsui ];
+    license = lib.licenses.unlicense;
+    maintainers = with lib.maintainers; [ linsui ];
     mainProgram = "dotter";
   };
-}
+})

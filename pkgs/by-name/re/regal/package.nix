@@ -1,24 +1,38 @@
-{ lib, buildGoModule, fetchFromGitHub }:
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+}:
 
-buildGoModule rec {
-  name = "regal";
-  version = "0.25.0";
+buildGoModule (finalAttrs: {
+  pname = "regal";
+  version = "0.42.0";
 
   src = fetchFromGitHub {
-    owner = "StyraInc";
+    owner = "open-policy-agent";
     repo = "regal";
-    rev = "v${version}";
-    hash = "sha256-yhlkvvNkZtpVx2uZVvXjr3eqBFXHDJ5qyO6k5EPNfww=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-52kYnkOEhNk491vaoCSgR47frmN/mFCKyHqWnIBcEE8=";
   };
 
-  vendorHash = "sha256-gZYQEJAlm8qslHGfUsA8np43zdiPDYyhKm8HZIBR3ys=";
+  vendorHash = "sha256-Vl6u/dwtG8RBpSQUrS5rAQ0Hag2R5X6rVQe9PHb/4U8=";
 
-  meta = with lib; {
+  # Only build the main binary, exclude build/lsp/main.go
+  subPackages = [ "." ];
+
+  ldflags = [
+    "-s"
+    "-w"
+    "-X github.com/open-policy-agent/regal/pkg/version.Version=${finalAttrs.version}"
+    "-X github.com/open-policy-agent/regal/pkg/version.Commit=${finalAttrs.version}"
+  ];
+
+  meta = {
     description = "Linter and language server for Rego";
     mainProgram = "regal";
-    homepage = "https://github.com/StyraInc/regal";
-    changelog = "https://github.com/StyraInc/regal/releases/tag/${src.rev}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ rinx ];
+    homepage = "https://github.com/open-policy-agent/regal";
+    changelog = "https://github.com/open-policy-agent/regal/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ rinx ];
   };
-}
+})

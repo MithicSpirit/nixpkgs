@@ -45,7 +45,7 @@ buildPythonPackage rec {
     export LOCAL_PATH="$PWD/.storage"
   '';
 
-  disabledTestPaths = lib.optionals stdenv.isDarwin [
+  disabledTestPaths = lib.optionals stdenv.hostPlatform.isDarwin [
     # very flaky, sandbox issues?
     # libcloud.storage.types.ContainerDoesNotExistError
     # sqlite3.OperationalError: attempt to write a readonly database
@@ -68,11 +68,11 @@ buildPythonPackage rec {
     "sqlalchemy_file.helpers"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "SQLAlchemy extension for attaching files to SQLAlchemy model and uploading them to various storage with Apache Libcloud";
     homepage = "https://github.com/jowilf/sqlalchemy-file";
     changelog = "https://github.com/jowilf/sqlalchemy-file/blob/${src.rev}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ pbsds ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ pbsds ];
   };
 }
