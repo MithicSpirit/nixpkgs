@@ -32,25 +32,24 @@ appimageTools.wrapType2 {
         -t $out/share/applications
     substituteInPlace \
         $out/share/applications/Chrysalis.desktop \
-        --replace-fail 'Exec=Chrysalis' 'Exec=${pname}'
+        --replace-fail 'Exec=Chrysalis' 'Exec=chrysalis'
 
-    install -Dm444 ${appimageContents}/usr/share/icons/hicolor/256x256/chrysalis.png -t $out/share/pixmaps
+    cp -r ${appimageContents}/usr/share $out/share
   '';
 
   passthru.updateScript = ./update.sh;
 
-  meta = with lib; {
+  meta = {
     description = "Graphical configurator for Kaleidoscope-powered keyboards";
     homepage = "https://github.com/keyboardio/Chrysalis";
     license = lib.licenses.gpl3Only;
     maintainers = with lib.maintainers; [
       aw
-      eclairevoyant
       nshalman
     ];
     platforms = [ "x86_64-linux" ];
-    # buildFHSEnv will create a symlink in $out/bin/${pname}
-    mainProgram = pname;
+    # buildFHSEnv will create a symlink in $out/bin/chrysalis
+    mainProgram = "chrysalis";
     sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
   };
 }

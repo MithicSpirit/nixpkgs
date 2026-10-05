@@ -2,7 +2,7 @@
   lib,
   buildPythonPackage,
   debtcollector,
-  fetchFromGitea,
+  fetchFromGitHub,
   jsonschema,
   keystoneauth1,
   openstackdocstheme,
@@ -11,7 +11,6 @@
   oslo-utils,
   oslotest,
   pbr,
-  pythonOlder,
   requests-mock,
   requests,
   setuptools,
@@ -22,30 +21,30 @@
 
 buildPythonPackage rec {
   pname = "python-designateclient";
-  version = "6.0.1";
+  version = "6.4.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchFromGitea {
-    domain = "opendev.org";
+  src = fetchFromGitHub {
     owner = "openstack";
     repo = "python-designateclient";
-    rev = version;
-    hash = "sha256-vuaouOA69REx+ZrzXjLGVz5Az1/d6x4WRT1h78xeebk=";
+    tag = version;
+    hash = "sha256-OBvPdulj2lg2FCyMDOp1iw12MxLre0/jkMdc7syJatc=";
   };
 
   env.PBR_VERSION = version;
 
-  build-system = [
+  nativeBuildInputs = [
     openstackdocstheme
-    pbr
-    setuptools
     sphinxHook
     sphinxcontrib-apidoc
   ];
 
   sphinxBuilders = [ "man" ];
+
+  build-system = [
+    pbr
+    setuptools
+  ];
 
   dependencies = [
     debtcollector
@@ -56,8 +55,6 @@ buildPythonPackage rec {
     oslo-utils
     requests
   ];
-
-  doCheck = true;
 
   nativeCheckInputs = [
     oslotest
@@ -77,6 +74,6 @@ buildPythonPackage rec {
     homepage = "https://opendev.org/openstack/python-designateclient";
     description = "Client library for OpenStack Designate API";
     license = lib.licenses.asl20;
-    maintainers = lib.teams.openstack.members;
+    teams = [ lib.teams.openstack ];
   };
 }

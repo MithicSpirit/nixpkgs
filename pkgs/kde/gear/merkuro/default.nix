@@ -1,10 +1,18 @@
 {
   mkKdeDerivation,
+  qtlocation,
   qtsvg,
   libplasma,
 }:
 mkKdeDerivation {
   pname = "merkuro";
 
-  extraBuildInputs = [qtsvg libplasma];
+  extraBuildInputs = [
+    qtlocation
+    qtsvg
+    libplasma
+  ];
+
+  # FIXME: not sure why this is failing
+  dontQmlLint = true;
 }

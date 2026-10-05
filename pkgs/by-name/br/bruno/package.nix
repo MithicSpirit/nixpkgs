@@ -1,11 +1,12 @@
 {
   lib,
   stdenv,
+  clang_20,
   fetchFromGitHub,
   buildNpmPackage,
   nix-update-script,
+  nodejs_22,
   electron,
-  writeShellScriptBin,
   makeWrapper,
   copyDesktopItems,
   makeDesktopItem,
@@ -14,53 +15,44 @@
   cairo,
   pango,
   npm-lockfile-fix,
-  overrideSDK,
-  darwin,
+  jq,
+  moreutils,
 }:
 
-let
-  # fix for: https://github.com/NixOS/nixpkgs/issues/272156
-  buildNpmPackage' = buildNpmPackage.override {
-    stdenv = if stdenv.isDarwin then overrideSDK stdenv "11.0" else stdenv;
-  };
-in
-buildNpmPackage' rec {
+buildNpmPackage rec {
   pname = "bruno";
-  version = "1.25.0";
+  version = "4.0.0";
 
   src = fetchFromGitHub {
     owner = "usebruno";
     repo = "bruno";
-    rev = "v${version}";
-    hash = "sha256-TXEe0ICrkljxfnvW1wv/e1BB7J6p/KW3JklCvYyjqSs=";
+    tag = "v${version}";
+    hash = "sha256-M4oNx3nSe8hSAtZMVyXIW0qQIQkaOeQgpPsfjmmJ30E=";
 
     postFetch = ''
       ${lib.getExe npm-lockfile-fix} $out/package-lock.json
     '';
   };
 
-  npmDepsHash = "sha256-/1/QPKjSgJJDtmUipgbiVR+Buea9cXO+HvICfKVX/2g=";
+  nodejs = nodejs_22;
+
+  npmDepsHash = "sha256-Jrlpztg1JxuPaLD4O9elOaU1eFH3dmr6oWwi4Ch9Zv8=";
   npmFlags = [ "--legacy-peer-deps" ];
 
-  nativeBuildInputs =
-    [
-      (writeShellScriptBin "phantomjs" "echo 2.1.1")
-      pkg-config
-    ]
-    ++ lib.optionals (!stdenv.isDarwin) [
-      makeWrapper
-      copyDesktopItems
-    ];
+  nativeBuildInputs = [
+    pkg-config
+  ]
+  ++ lib.optional stdenv.hostPlatform.isDarwin clang_20 # clang_21 breaks gyp builds
+  ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [
+    makeWrapper
+    copyDesktopItems
+  ];
 
-  buildInputs =
-    [
-      pixman
-      cairo
-      pango
-    ]
-    ++ lib.optionals stdenv.isDarwin [
-      darwin.apple_sdk_11_0.frameworks.CoreText
-    ];
+  buildInputs = [
+    pixman
+    cairo
+    pango
+  ];
 
   desktopItems = [
     (makeDesktopItem {
@@ -77,31 +69,58 @@ buildNpmPackage' rec {
   postPatch = ''
     substituteInPlace scripts/build-electron.sh \
       --replace-fail 'if [ "$1" == "snap" ]; then' 'exit 0; if [ "$1" == "snap" ]; then'
+
+    # disable telemetry
+    substituteInPlace packages/bruno-app/src/providers/App/index.js \
+      --replace-fail "useTelemetry({ version });" ""
+
+    # fix version reported in sidebar and about page
+    ${jq}/bin/jq '.version |= "${version}"' packages/bruno-electron/package.json | ${moreutils}/bin/sponge packages/bruno-electron/package.json
+    ${jq}/bin/jq '.version |= "${version}"' packages/bruno-app/package.json | ${moreutils}/bin/sponge packages/bruno-app/package.json
+
+    # disable remote image download to prevent network calls to comply with build sandboxing
+    substituteInPlace packages/bruno-app/plugins/remote-images/loader.cjs \
+      --replace-fail 'const urls = findRemoteImageUrls(source, domains);' 'const urls = [];'
   '';
 
-  ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
+  postConfigure = ''
+    # sh: line 1: /build/source/packages/bruno-common/node_modules/.bin/rollup: cannot execute: required file not found
+    patchShebangs packages/*/node_modules
+  '';
+
+  env.ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
 
   # remove giflib dependency
   npmRebuildFlags = [ "--ignore-scripts" ];
   preBuild = ''
-    substituteInPlace node_modules/canvas/binding.gyp \
-      --replace-fail "'with_gif%': '<!(node ./util/has_lib.js gif)'" "'with_gif%': 'false'"
-    npm rebuild
+    # upstream keeps removing and adding back canvas, only patch it when it is present
+    if [[ -e node_modules/canvas/binding.gyp ]]; then
+      substituteInPlace node_modules/canvas/binding.gyp \
+        --replace-fail "'with_gif%': '<!(node ./util/has_lib.js gif)'" "'with_gif%': 'false'"
+      npm rebuild
+    fi
   '';
 
-  dontNpmBuild = true;
-  postBuild = ''
+  buildPhase = ''
+    runHook preBuild
+
     npm run build --workspace=packages/bruno-common
     npm run build --workspace=packages/bruno-graphql-docs
+    npm run build --workspace=packages/bruno-schema-types
+    npm run build --workspace=packages/bruno-converters
     npm run build --workspace=packages/bruno-app
     npm run build --workspace=packages/bruno-query
+    npm run build --workspace=packages/bruno-filestore
+    npm run build --workspace=packages/bruno-requests
+
+    npm run sandbox:bundle-libraries --workspace=packages/bruno-js
 
     bash scripts/build-electron.sh
 
     pushd packages/bruno-electron
 
     ${
-      if stdenv.isDarwin then
+      if stdenv.hostPlatform.isDarwin then
         ''
           cp -r ${electron.dist}/Electron.app ./
           find ./Electron.app -name 'Info.plist' | xargs -d '\n' chmod +rw
@@ -128,6 +147,8 @@ buildNpmPackage' rec {
     }
 
     popd
+
+    runHook postBuild
   '';
 
   npmPackFlags = [ "--ignore-scripts" ];
@@ -135,9 +156,8 @@ buildNpmPackage' rec {
   installPhase = ''
     runHook preInstall
 
-
     ${
-      if stdenv.isDarwin then
+      if stdenv.hostPlatform.isDarwin then
         ''
           mkdir -p $out/Applications
 
@@ -151,7 +171,12 @@ buildNpmPackage' rec {
 
           makeWrapper ${lib.getExe electron} $out/bin/bruno \
             --add-flags $out/opt/bruno/resources/app.asar \
-            --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
+            --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}" \
+            --prefix LD_LIBRARY_PATH : ${
+              lib.makeLibraryPath [
+                stdenv.cc.cc.lib
+              ]
+            } \
             --set-default ELECTRON_IS_DEV 0 \
             --inherit-argv0
 
@@ -167,19 +192,18 @@ buildNpmPackage' rec {
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     description = "Open-source IDE For exploring and testing APIs";
     homepage = "https://www.usebruno.com";
-    platforms = platforms.linux ++ platforms.darwin;
-    license = licenses.mit;
-    maintainers = with maintainers; [
+    license = lib.licenses.mit;
+    mainProgram = "bruno";
+    maintainers = with lib.maintainers; [
       gepbird
       kashw2
-      lucasew
       mattpolzin
       water-sucks
-      redyf
+      starsep
     ];
-    mainProgram = "bruno";
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
 }

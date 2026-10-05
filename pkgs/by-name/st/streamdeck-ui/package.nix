@@ -1,7 +1,6 @@
 {
   copyDesktopItems,
   fetchFromGitHub,
-  fetchPypi,
   lib,
   makeDesktopItem,
   python3Packages,
@@ -9,40 +8,35 @@
   wrapGAppsHook3,
   writeText,
   xvfb-run,
+  udevCheckHook,
 }:
 
-let
-  # There are breaking changes between 6 and 7
-  importlib-metadata_6 = python3Packages.importlib-metadata.overrideAttrs (_: rec {
-    version = "6.9.0";
-    src = fetchPypi {
-      pname = "importlib_metadata";
-      inherit version;
-      hash = "sha256-6Ky1I8M1qRgiZ04Um0bAOZ7E0yjE0fbknCc9pf8CAbk=";
-    };
-  });
-in
-
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "streamdeck-ui";
-  version = "4.1.2";
+  version = "4.1.4";
+  pyproject = true;
 
   src = fetchFromGitHub {
     repo = "streamdeck-linux-gui";
     owner = "streamdeck-linux-gui";
-    rev = "v${version}";
-    hash = "sha256-CSsFPGnKVQUCND6YOA9kfO41KS85C57YL9LcrWlQRKo=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-XRtIkDyLick9Pq55Br7lQb6FoygMs4DZEJoAD2/o+pQ=";
   };
 
-  format = "pyproject";
+  pythonRelaxDeps = [
+    "importlib-metadata"
+    "pillow"
+  ];
 
-  pythonRelaxDeps = [ "pillow" ];
+  build-system = [
+    python3Packages.poetry-core
+  ];
 
   nativeBuildInputs = [
-    python3Packages.poetry-core
     copyDesktopItems
     qt6.wrapQtAppsHook
     wrapGAppsHook3
+    udevCheckHook
   ];
 
   propagatedBuildInputs =
@@ -55,19 +49,20 @@ python3Packages.buildPythonApplication rec {
       pynput
       pyside6
       streamdeck
-      xlib
-      importlib-metadata_6
+      python-xlib
+      importlib-metadata
       evdev
     ]
-    ++ lib.optionals stdenv.isLinux [ qt6.qtwayland ];
+    ++ lib.optionals stdenv.hostPlatform.isLinux [ qt6.qtwayland ];
 
-  nativeCheckInputs =
-    [ xvfb-run ]
-    ++ (with python3Packages; [
-      pytest
-      pytest-qt
-      pytest-mock
-    ]);
+  nativeCheckInputs = [
+    xvfb-run
+  ]
+  ++ (with python3Packages; [
+    pytest
+    pytest-qt
+    pytest-mock
+  ]);
 
   checkPhase = ''
     runHook preCheck
@@ -76,7 +71,7 @@ python3Packages.buildPythonApplication rec {
     export STREAMDECK_UI_LOG_FILE=$(pwd)/.streamdeck_ui.log
     xvfb-run pytest tests
 
-    runHook preCheck
+    runHook postCheck
   '';
 
   postInstall =
@@ -108,7 +103,7 @@ python3Packages.buildPythonApplication rec {
         categories = [ "Utility" ];
       };
     in
-    builtins.map makeDesktopItem [
+    map makeDesktopItem [
       common
       (
         common
@@ -128,6 +123,7 @@ python3Packages.buildPythonApplication rec {
   ];
 
   meta = {
+    changelog = "https://github.com/streamdeck-linux-gui/streamdeck-linux-gui/releases/tag/v${finalAttrs.version}";
     description = "Linux compatible UI for the Elgato Stream Deck";
     downloadPage = "https://github.com/streamdeck-linux-gui/streamdeck-linux-gui/";
     homepage = "https://streamdeck-linux-gui.github.io/streamdeck-linux-gui/";
@@ -135,4 +131,4 @@ python3Packages.buildPythonApplication rec {
     mainProgram = "streamdeck";
     maintainers = with lib.maintainers; [ majiir ];
   };
-}
+})

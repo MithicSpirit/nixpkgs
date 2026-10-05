@@ -1,44 +1,56 @@
-{ lib
-, buildNpmPackage
-, fetchurl
-, testers
-, mongosh
+{
+  lib,
+  buildNpmPackage,
+  fetchFromGitHub,
 }:
 
-let
-  source = lib.importJSON ./source.json;
-in
-buildNpmPackage {
+buildNpmPackage (finalAttrs: {
   pname = "mongosh";
-  inherit (source) version;
+  version = "2.12.0";
 
-  src = fetchurl {
-    url = "https://registry.npmjs.org/mongosh/-/${source.filename}";
-    hash = source.integrity;
+  src = fetchFromGitHub {
+    owner = "mongodb-js";
+    repo = "mongosh";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-P6gT2+cFuPYc3oN2O0h/83Tz7J65tQfD92GDLBybY3M=";
   };
 
+  npmDepsHash = "sha256-UhSze1kTMzJ2OuEEn6D0oTtuV5titsaFrWS/Gm1HJtU=";
+
   postPatch = ''
-    ln -s ${./package-lock.json} package-lock.json
+    # Disable telemetry by default; users can still opt in via enableTelemetry().
+    substituteInPlace packages/cli-repl/src/cli-repl.ts \
+      --replace-fail "enableTelemetry: true" "enableTelemetry: false"
   '';
 
-  npmDepsHash = source.deps;
+  npmFlags = [
+    "--omit=optional"
+    "--ignore-scripts"
+  ];
+  npmBuildScript = "compile";
+  dontNpmInstall = true;
+  installPhase = ''
+    runHook preInstall
 
-  makeCacheWritable = true;
-  dontNpmBuild = true;
-  npmFlags = [ "--omit=optional" ];
+    npmWorkspace=packages/mongosh npmInstallHook
+    cp -r packages configs $out/lib/node_modules/mongosh/
+    rm $out/lib/node_modules/mongosh/node_modules/@mongosh/docker-build-scripts # dangling symlink
+
+    runHook postInstall
+  '';
 
   passthru = {
-    tests.version = testers.testVersion {
-      package = mongosh;
-    };
+    # Version testing is skipped because upstream often forgets to update the version.
+
     updateScript = ./update.sh;
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://www.mongodb.com/try/download/shell";
+    changelog = "https://github.com/mongodb-js/mongosh/releases/tag/v${finalAttrs.version}";
     description = "MongoDB Shell";
-    maintainers = with maintainers; [ aaronjheng ];
-    license = licenses.asl20;
+    maintainers = with lib.maintainers; [ aaronjheng ];
+    license = lib.licenses.asl20;
     mainProgram = "mongosh";
   };
-}
+})

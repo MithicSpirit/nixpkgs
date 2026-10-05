@@ -6,11 +6,11 @@
   google-api-core,
   hatchling,
   imagesize,
-  mypy,
+  lbox-clients,
   nbconvert,
   nbformat,
   numpy,
-  opencv4,
+  opencv-python-headless,
   pillow,
   pydantic,
   pyproj,
@@ -20,7 +20,7 @@
   pytest-xdist,
   pytestCheckHook,
   python-dateutil,
-  pythonOlder,
+  pyyaml,
   requests,
   shapely,
   strenum,
@@ -29,37 +29,37 @@
   typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "labelbox";
-  version = "3.77.1";
+  version = "7.12.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "Labelbox";
     repo = "labelbox-python";
-    rev = "refs/tags/v.${version}";
-    hash = "sha256-sp0lgUnFRmQLix530xoR/qibYFjGwG7i7+mvEQX0x4k=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-a3G9Jl1IfbLyI7RZY32zZTbPg8EpSZUrNy12A01Y+Qc=";
   };
 
-  sourceRoot = "${src.name}/libs/labelbox";
+  sourceRoot = "${finalAttrs.src.name}/libs/labelbox";
 
-  pythonRelaxDeps = [ "python-dateutil" ];
-
-  pythonRemoveDeps = [ "opencv-python-headless" ];
+  pythonRelaxDeps = [
+    "lbox-clients"
+    "python-dateutil"
+  ];
 
   build-system = [ hatchling ];
 
   dependencies = [
     google-api-core
+    lbox-clients
     pydantic
     python-dateutil
     requests
     strenum
     tqdm
     geojson
-    mypy
+    pyyaml
   ];
 
   optional-dependencies = {
@@ -67,7 +67,7 @@ buildPythonPackage rec {
       shapely
       numpy
       pillow
-      opencv4
+      opencv-python-headless
       typeguard
       imagesize
       pyproj
@@ -84,7 +84,8 @@ buildPythonPackage rec {
     pytest-rerunfailures
     pytest-xdist
     pytestCheckHook
-  ] ++ optional-dependencies.data;
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
   disabledTestPaths = [
     # Requires network access
@@ -94,13 +95,15 @@ buildPythonPackage rec {
     "tests/unit/test_label_data_type.py"
   ];
 
+  __darwinAllowLocalNetworking = true;
+
   pythonImportsCheck = [ "labelbox" ];
 
-  meta = with lib; {
+  meta = {
     description = "Platform API for LabelBox";
     homepage = "https://github.com/Labelbox/labelbox-python";
-    changelog = "https://github.com/Labelbox/labelbox-python/blob/v.${version}/CHANGELOG.md";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ rakesh4g ];
+    changelog = "https://github.com/Labelbox/labelbox-python/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ rakesh4g ];
   };
-}
+})

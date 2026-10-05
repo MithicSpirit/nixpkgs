@@ -2,19 +2,19 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  substituteAll,
+  replaceVars,
   meson,
   ninja,
   pkg-config,
-  gnome,
   adwaita-icon-theme,
   glib,
   gtk3,
   gsettings-desktop-schemas,
   gnome-desktop,
+  gnome-settings-daemon,
   dbus,
   json-glib,
-  libICE,
+  libice,
   xmlto,
   docbook_xsl,
   docbook_xml_dtd_412,
@@ -24,20 +24,20 @@
   makeWrapper,
   nix-update-script,
   systemd,
-  xorg,
+  xtrans,
   libepoxy,
   bash,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "budgie-session";
-  version = "0.9.1";
+  version = "1.0.1";
 
   src = fetchFromGitHub {
     owner = "BuddiesOfBudgie";
     repo = "budgie-session";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-mz+Yh3NK2Tag+MWVofFFXYYXspxhmYBD6YCiuATpZSI=";
+    hash = "sha256-MqFZ/0Xe2EXVzbhviNSO3gbZK8R+wLGQOoVkJDA6/Eg=";
   };
 
   outputs = [
@@ -46,8 +46,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   patches = [
-    (substituteAll {
-      src = ./fix-paths.patch;
+    (replaceVars ./fix-paths.patch {
       gsettings = lib.getExe' glib "gsettings";
       dbusLaunch = lib.getExe' dbus "dbus-launch";
       bash = lib.getExe bash;
@@ -71,12 +70,12 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     glib
     gtk3
-    libICE
+    libice
     gnome-desktop
     json-glib
-    xorg.xtrans
+    xtrans
     adwaita-icon-theme
-    gnome.gnome-settings-daemon
+    gnome-settings-daemon
     gsettings-desktop-schemas
     systemd
     libepoxy
@@ -94,7 +93,7 @@ stdenv.mkDerivation (finalAttrs: {
     wrapProgram "$out/libexec/budgie-session-binary" \
       --prefix GI_TYPELIB_PATH : "$GI_TYPELIB_PATH" \
       --suffix XDG_DATA_DIRS : "$out/share:$GSETTINGS_SCHEMAS_PATH" \
-      --suffix XDG_CONFIG_DIRS : "${gnome.gnome-settings-daemon}/etc/xdg"
+      --suffix XDG_CONFIG_DIRS : "${gnome-settings-daemon}/etc/xdg"
   '';
 
   separateDebugInfo = true;
@@ -108,7 +107,7 @@ stdenv.mkDerivation (finalAttrs: {
     homepage = "https://github.com/BuddiesOfBudgie/budgie-session";
     changelog = "https://github.com/BuddiesOfBudgie/budgie-session/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.gpl2Plus;
-    maintainers = lib.teams.budgie.members;
+    teams = [ lib.teams.budgie ];
     platforms = lib.platforms.linux;
   };
 })

@@ -7,29 +7,32 @@
   proto-plus,
   pytestCheckHook,
   pytest-asyncio,
-  pythonOlder,
   setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "google-cloud-os-config";
-  version = "1.17.4";
+  version = "1.25.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-ocZ41cEZVjSfFMVoNiPOxwaymn9eylWmw6qlp/R/yMQ=";
+    pname = "google_cloud_os_config";
+    inherit version;
+    hash = "sha256-LgJxfWoNq+j26/e5s36yi19w4zWL18rwzdvPhDswPaE=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  pythonRelaxDeps = [
+    "protobuf"
+  ];
+
+  dependencies = [
     google-api-core
     proto-plus
     protobuf
-  ] ++ google-api-core.optional-dependencies.grpc;
+  ]
+  ++ google-api-core.optional-dependencies.grpc;
 
   nativeCheckInputs = [
     pytest-asyncio
@@ -45,11 +48,11 @@ buildPythonPackage rec {
     "test_list_patch_jobs"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Google Cloud OS Config API client library";
     homepage = "https://github.com/googleapis/google-cloud-python/tree/main/packages/google-cloud-os-config";
     changelog = "https://github.com/googleapis/google-cloud-python/blob/google-cloud-os-config-v${version}/packages/google-cloud-os-config/CHANGELOG.md";
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
     maintainers = [ ];
   };
 }

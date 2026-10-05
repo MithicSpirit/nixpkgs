@@ -8,14 +8,14 @@
 
 python3Packages.buildPythonApplication rec {
   pname = "villain";
-  version = "2.1.0";
+  version = "2.2.1";
   pyproject = false;
 
   src = fetchFromGitHub {
     owner = "t3l3machus";
     repo = "Villain";
-    rev = "v${version}";
-    hash = "sha256-8MOpbyw4HEJMcv84bNkNLBSZfEmIm3RDSUi0s62t9ko=";
+    tag = "V${version}";
+    hash = "sha256-eIPxidBBVmjt/E1F8G3zPwteB1qsk3a5LD69CiNVApY=";
   };
 
   nativeBuildInputs = [ makeWrapper ];
@@ -44,7 +44,7 @@ python3Packages.buildPythonApplication rec {
     homepage = "https://github.com/t3l3machus/Villain";
     license = lib.licenses.cc-by-nc-nd-40;
     mainProgram = "villain";
-    maintainers = with lib.maintainers; [ d3vil0p3r ];
+    maintainers = [ ];
     platforms = lib.platforms.unix;
   };
 }

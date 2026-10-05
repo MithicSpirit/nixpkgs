@@ -1,48 +1,48 @@
-{ stdenv
-, cacert
-, curl
-, runCommandLocal
-, lib
-, autoPatchelfHook
-, libcxx
-, libGL
-, gcc7
+{
+  autoPatchelfHook,
+  cacert,
+  common-updater-scripts,
+  curl,
+  gcc,
+  jq,
+  lib,
+  libGL,
+  libcxx,
+  runCommandLocal,
+  stdenv,
+  writeShellApplication,
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "blackmagic-desktop-video";
-  version = "14.1a1";
+  version = "16.3";
 
   buildInputs = [
     autoPatchelfHook
     libcxx
     libGL
-    gcc7.cc.lib
+    gcc.cc.lib
   ];
 
   # yes, the below download function is an absolute mess.
   # blame blackmagicdesign.
   src =
-    let
-      # from the URL the download page where you click the "only download" button is at
-      REFERID = "93b33ad64a244cd5b95ec9d373e8d2e1";
-      # from the URL that the POST happens to, see browser console
-      DOWNLOADID = "0f544a89ce204df6818079a2f18c76a7";
-    in
     runCommandLocal "${finalAttrs.pname}-${lib.versions.majorMinor finalAttrs.version}-src.tar.gz"
       {
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        outputHash = "sha256-1Cv7VQHhHcM53DKa15lJJVJmdiGUHNTYPTbX+VghQOc=";
+        outputHash = "sha256-GKIDNLJq5SOwfTT/wjmW2h42bzk6f0eB4AgqSnpmH74=";
 
         impureEnvVars = lib.fetchers.proxyImpureEnvVars;
 
-        nativeBuildInputs = [ curl ];
+        nativeBuildInputs = [
+          curl
+          jq
+        ];
 
         # ENV VARS
         SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
 
-        inherit REFERID;
-        SITEURL = "https://www.blackmagicdesign.com/api/register/us/download/${DOWNLOADID}";
+        DOWNLOADSURL = "https://www.blackmagicdesign.com/api/support/us/downloads.json";
 
         USERAGENT = builtins.concatStringsSep " " [
           "User-Agent: Mozilla/5.0 (X11; Linux ${stdenv.hostPlatform.linuxArch})"
@@ -58,29 +58,62 @@ stdenv.mkDerivation (finalAttrs: {
           "policy" = true;
         };
 
-      } ''
-      RESOLVEURL=$(curl \
-        -s \
-        -H "$USERAGENT" \
-        -H 'Content-Type: application/json;charset=UTF-8' \
-        -H "Referer: https://www.blackmagicdesign.com/support/download/$REFERID/Linux" \
-        --data-ascii "$REQJSON" \
-        --compressed \
-        "$SITEURL")
-      curl \
-        --retry 3 --retry-delay 3 \
-        --compressed \
-        "$RESOLVEURL" \
-        > $out
+        PRODUCT = "Desktop Video";
+        VERSION = finalAttrs.version;
+      }
+      ''
+        DOWNLOADID=$(
+          curl --silent --compressed "$DOWNLOADSURL" \
+            | jq --raw-output '.downloads[] | .urls.Linux?[]? | select(.downloadTitle | test("^'"$PRODUCT $VERSION"'( Update)?$")) | .downloadId'
+        )
+        REFERID=$(
+          curl --silent --compressed "$DOWNLOADSURL" \
+            | jq --raw-output '.downloads[] | .urls.Linux?[]? | select(.downloadTitle | test("^'"$PRODUCT $VERSION"'( Update)?$")) | .releaseId'
+        )
+        echo "Download ID is $DOWNLOADID"
+        echo "Refer ID is $REFERID"
+        test -n "$REFERID"
+        test -n "$DOWNLOADID"
+        SITEURL="https://www.blackmagicdesign.com/api/register/us/download/$DOWNLOADID";
+        RESOLVEURL=$(curl \
+          -s \
+          -H "$USERAGENT" \
+          -H 'Content-Type: application/json;charset=UTF-8' \
+          -H "Referer: https://www.blackmagicdesign.com/support/download/$REFERID/Linux" \
+          --data-ascii "$REQJSON" \
+          --compressed \
+          "$SITEURL")
+        curl \
+          --retry 3 --retry-delay 3 \
+          --compressed \
+          "$RESOLVEURL" \
+          > $out
+      '';
+
+  passthru.updateScript = lib.getExe (writeShellApplication {
+    # mostly stolen from pkgs/by-name/da/davinci-resolve/package.nix :)
+    name = "update-blackmagic-desktop-video";
+    runtimeInputs = [
+      common-updater-scripts
+      curl
+      jq
+    ];
+    text = ''
+      set -o errexit
+      downloadsJSON="$(curl --fail --silent https://www.blackmagicdesign.com/api/support/us/downloads.json)"
+      latestLinuxVersion="$(echo "$downloadsJSON" | jq '[.downloads[] | select(.urls.Linux) | .urls.Linux[] | select(.downloadTitle | test("Desktop Video")) | .downloadTitle]' | grep -oP 'Desktop Video \K\d\d\.\d+(\.\d+)?' | sort | tail -n 1)"
+
+      update-source-version blackmagic-desktop-video "$latestLinuxVersion"
     '';
+  });
 
   postUnpack =
     let
       arch = stdenv.hostPlatform.uname.processor;
     in
     ''
-      tar xf Blackmagic_Desktop_Video_Linux_${lib.head (lib.splitString "a" finalAttrs.version)}/other/${arch}/desktopvideo-${finalAttrs.version}-${arch}.tar.gz
-      unpacked=$NIX_BUILD_TOP/desktopvideo-${finalAttrs.version}-${stdenv.hostPlatform.uname.processor}
+      tar xf Blackmagic_Desktop_Video_Linux_${finalAttrs.version}/other/${arch}/desktopvideo-${finalAttrs.version}*-${arch}.tar.gz
+      unpacked=$NIX_BUILD_TOP/desktopvideo-${finalAttrs.version}*-${stdenv.hostPlatform.uname.processor}
     '';
 
   installPhase = ''
@@ -98,11 +131,11 @@ stdenv.mkDerivation (finalAttrs: {
   # need to tell the DesktopVideoHelper where to find its own library
   appendRunpaths = [ "${placeholder "out"}/lib" ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://www.blackmagicdesign.com/support/family/capture-and-playback";
-    maintainers = [ maintainers.naxdy ];
-    license = licenses.unfree;
+    maintainers = [ lib.maintainers.naxdy ];
+    license = lib.licenses.unfree;
     description = "Supporting applications for Blackmagic Decklink. Doesn't include the desktop applications, only the helper required to make the driver work";
-    platforms = platforms.linux;
+    platforms = lib.platforms.linux;
   };
 })

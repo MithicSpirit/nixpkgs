@@ -3,32 +3,32 @@
   buildPythonPackage,
   fetchFromGitHub,
   setuptools,
-  asn1crypto,
+  pyasn1,
+  pyasn1-modules,
   cbor2,
   cryptography,
-  pythonOlder,
   pyopenssl,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "webauthn";
-  version = "2.2.0";
+  version = "3.0.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "duo-labs";
     repo = "py_webauthn";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-NBCR5GwmXA6COP9NOYnoD3l1vuOpym/kyNawd8FstLc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-rT/B95ILb2cI/HH01IC5b4319zdKnrf4ZLUIpAeC3fM=";
   };
 
   build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
-    asn1crypto
+  dependencies = [
+    pyasn1
+    pyasn1-modules
     cbor2
     cryptography
     pyopenssl
@@ -38,16 +38,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "webauthn" ];
 
-  disabledTests = [
-    # TypeError: X509StoreContextError.__init__() missing 1 required...
-    #"test_throws_on_bad_root_cert"
-  ];
-
-  meta = with lib; {
+  meta = {
     description = "Implementation of the WebAuthn API";
     homepage = "https://github.com/duo-labs/py_webauthn";
-    changelog = "https://github.com/duo-labs/py_webauthn/blob/v${version}/CHANGELOG.md";
-    license = licenses.bsd3;
+    changelog = "https://github.com/duo-labs/py_webauthn/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.bsd3;
     maintainers = [ ];
   };
-}
+})

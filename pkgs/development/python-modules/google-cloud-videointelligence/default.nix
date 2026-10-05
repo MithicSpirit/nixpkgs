@@ -9,29 +9,32 @@
   protobuf,
   pytest-asyncio,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "google-cloud-videointelligence";
-  version = "2.13.4";
+  version = "2.20.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-bwKYqNnttZCXte51PeXdcfN6kmbJpMXq4/tNDSQLEMA=";
+    pname = "google_cloud_videointelligence";
+    inherit (finalAttrs) version;
+    hash = "sha256-5EktMzhD8EAZG0cw/1igpK6hAINQBTh5vEBY3fYtqKA=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  pythonRelaxDeps = [
+    "protobuf"
+  ];
+
+  dependencies = [
     google-api-core
     proto-plus
     protobuf
-  ] ++ google-api-core.optional-dependencies.grpc;
+  ]
+  ++ google-api-core.optional-dependencies.grpc;
 
   nativeCheckInputs = [
     google-cloud-testutils
@@ -54,11 +57,11 @@ buildPythonPackage rec {
     "google.cloud.videointelligence_v1p3beta1"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Google Cloud Video Intelligence API client library";
     homepage = "https://github.com/googleapis/google-cloud-python/tree/main/packages/google-cloud-videointelligence";
-    changelog = "https://github.com/googleapis/google-cloud-python/blob/google-cloud-videointelligence-v${version}/packages/google-cloud-videointelligence/CHANGELOG.md";
-    license = licenses.asl20;
+    changelog = "https://github.com/googleapis/google-cloud-python/blob/google-cloud-videointelligence-v${finalAttrs.version}/packages/google-cloud-videointelligence/CHANGELOG.md";
+    license = lib.licenses.asl20;
     maintainers = [ ];
   };
-}
+})

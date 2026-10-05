@@ -3,38 +3,35 @@
   aiohttp,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aioairzone";
-  version = "0.8.2";
+  version = "1.0.5";
   pyproject = true;
-
-  disabled = pythonOlder "3.11";
 
   src = fetchFromGitHub {
     owner = "Noltari";
     repo = "aioairzone";
-    rev = "refs/tags/${version}";
-    hash = "sha256-v/fLWsaVxgKa70X6Lac4ieVU3l3jhIWphWDtLPUZwlA=";
+    tag = finalAttrs.version;
+    hash = "sha256-mYCArILj+B4eXdmK8hPAQP2/QYwDoZcYGGhy3p+VABQ=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [ aiohttp ];
+  dependencies = [ aiohttp ];
 
   # Module has no tests
   doCheck = false;
 
   pythonImportsCheck = [ "aioairzone" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module to control AirZone devices";
     homepage = "https://github.com/Noltari/aioairzone";
-    changelog = "https://github.com/Noltari/aioairzone/releases/tag/${version}";
-    license = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/Noltari/aioairzone/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

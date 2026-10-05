@@ -12,14 +12,13 @@
   nix,
   # tests
   testers,
-  yandex-cloud,
 }:
 let
   pname = "yandex-cloud";
   sources = lib.importJSON ./sources.json;
   inherit (sources) version binaries;
 in
-stdenv.mkDerivation {
+stdenv.mkDerivation (finalAttrs: {
   inherit pname version;
 
   src = fetchurl binaries.${stdenv.hostPlatform.system};
@@ -37,26 +36,25 @@ stdenv.mkDerivation {
     withShellCompletions && !stdenv.buildPlatform.canExecute stdenv.hostPlatform
   ) (stdenv.hostPlatform.emulator buildPackages);
 
-  installPhase =
-    ''
-      runHook preInstall
-      mkdir -p -- "$out/bin"
-      cp -- "$src" "$out/bin/yc"
-      chmod +x -- "$out/bin/yc"
-    ''
-    + lib.optionalString withShellCompletions ''
-      for shell in bash zsh; do
-        ''${emulator:+"$emulator"} "$out/bin/yc" completion $shell >yc.$shell
-        installShellCompletion yc.$shell
-      done
-    ''
-    + ''
-      makeWrapper "$out/bin/yc" "$out/bin/docker-credential-yc" \
-        --add-flags --no-user-output \
-        --add-flags container \
-        --add-flags docker-credential
-      runHook postInstall
-    '';
+  installPhase = ''
+    runHook preInstall
+    mkdir -p -- "$out/bin"
+    cp -- "$src" "$out/bin/yc"
+    chmod +x -- "$out/bin/yc"
+  ''
+  + lib.optionalString withShellCompletions ''
+    for shell in bash zsh; do
+      ''${emulator:+"$emulator"} "$out/bin/yc" completion $shell >yc.$shell
+      installShellCompletion yc.$shell
+    done
+  ''
+  + ''
+    makeWrapper "$out/bin/yc" "$out/bin/docker-credential-yc" \
+      --add-flags --no-user-output \
+      --add-flags container \
+      --add-flags docker-credential
+    runHook postInstall
+  '';
 
   passthru = {
     updateScript = writers.writePython3 "${pname}-updater" {
@@ -68,7 +66,7 @@ stdenv.mkDerivation {
         (lib.makeBinPath [ nix ])
       ];
     } ./update.py;
-    tests.version = testers.testVersion { package = yandex-cloud; };
+    tests.version = testers.testVersion { package = finalAttrs.finalPackage; };
   };
 
   meta = {
@@ -80,7 +78,6 @@ stdenv.mkDerivation {
     maintainers = [ lib.maintainers.tie ];
     platforms = [
       "aarch64-darwin"
-      "x86_64-darwin"
       "aarch64-linux"
       "x86_64-linux"
       # Built with GO386=sse2.
@@ -96,4 +93,4 @@ stdenv.mkDerivation {
     ];
     mainProgram = "yc";
   };
-}
+})

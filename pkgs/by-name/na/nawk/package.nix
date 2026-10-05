@@ -5,22 +5,26 @@
   bison,
   buildPackages,
   installShellFiles,
+  nix-update-script,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "nawk";
-  version = "20240728";
+  version = "20260426";
 
   src = fetchFromGitHub {
     owner = "onetrueawk";
     repo = "awk";
     rev = finalAttrs.version;
-    hash = "sha256-LA7fdbMP3aKJ1QljoKWizqVg3ys3hd8tGaRsQnIO+Hc=";
+    hash = "sha256-ndhSOl4xEwbDQ51g7yuwe3MOfmQrzePuanmyXYhWp+I=";
   };
 
   depsBuildBuild = [ buildPackages.stdenv.cc ];
 
-  nativeBuildInputs = [ bison installShellFiles ];
+  nativeBuildInputs = [
+    bison
+    installShellFiles
+  ];
 
   outputs = [
     "out"
@@ -34,14 +38,17 @@ stdenv.mkDerivation (finalAttrs: {
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 a.out "$out/bin/nawk"
+    mv a.out nawk
+    installBin nawk
     mv awk.1 nawk.1
     installManPage nawk.1
     runHook postInstall
   '';
 
+  passthru.updateScript = nix-update-script { };
+
   meta = {
-    homepage = "https://awk.dev";
+    homepage = "https://github.com/onetrueawk/awk";
     description = "One, true implementation of AWK";
     longDescription = ''
       This is the version of awk described in "The AWK Programming Language",
@@ -52,7 +59,6 @@ stdenv.mkDerivation (finalAttrs: {
     license = lib.licenses.mit;
     mainProgram = "nawk";
     maintainers = with lib.maintainers; [
-      AndersonTorres
       konimex
     ];
     platforms = lib.platforms.all;

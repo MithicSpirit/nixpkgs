@@ -4,35 +4,28 @@
   fetchFromGitHub,
   cryptography,
   charset-normalizer,
-  pythonOlder,
   pytestCheckHook,
   setuptools,
-  substituteAll,
+  setuptools-scm,
   ocrmypdf,
 }:
 
 buildPythonPackage rec {
   pname = "pdfminer-six";
-  version = "20240706";
+  version = "20260107";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "pdfminer";
     repo = "pdfminer.six";
-    rev = "refs/tags/${version}";
-    hash = "sha256-aY7GQADRxeiclr6/G3RRgrPcl8rGiC85JYEIjIa+vG0=";
+    tag = version;
+    hash = "sha256-spWDwPoBLdySysYblCWABIWtokOMoJdpYQ6qxX94wIE=";
   };
 
-  patches = [
-    (substituteAll {
-      src = ./disable-setuptools-git-versioning.patch;
-      inherit version;
-    })
+  build-system = [
+    setuptools
+    setuptools-scm
   ];
-
-  build-system = [ setuptools ];
 
   dependencies = [
     charset-normalizer
@@ -40,8 +33,8 @@ buildPythonPackage rec {
   ];
 
   postInstall = ''
-    for file in $out/bin/*.py; do
-      ln $file ''${file//.py/}
+    for file in "$out/bin/"*.py; do
+      mv "$file" "''${file%.py}"
     done
   '';
 
@@ -52,17 +45,23 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [ pytestCheckHook ];
 
+  disabledTests = [
+    # The binary file samples/contrib/issue-1004-indirect-mediabox.pdf is
+    # stripped from fix-dereference-MediaBox.patch.
+    "test_contrib_issue_1004_mediabox"
+  ];
+
   passthru = {
     tests = {
       inherit ocrmypdf;
     };
   };
 
-  meta = with lib; {
-    changelog = "https://github.com/pdfminer/pdfminer.six/blob/${src.rev}/CHANGELOG.md";
+  meta = {
+    changelog = "https://github.com/pdfminer/pdfminer.six/blob/${src.tag}/CHANGELOG.md";
     description = "PDF parser and analyzer";
     homepage = "https://github.com/pdfminer/pdfminer.six";
-    license = licenses.mit;
-    maintainers = with maintainers; [ psyanticy ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ psyanticy ];
   };
 }

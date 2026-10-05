@@ -1,26 +1,31 @@
 {
+  stdenv,
   buildNpmPackage,
   fetchFromGitHub,
   lib,
   nodejs,
 }:
 
-(buildNpmPackage.override { inherit nodejs; }) rec {
+buildNpmPackage rec {
   pname = "node-gyp";
-  version = "10.2.0";
+  version = "13.1.0";
 
   src = fetchFromGitHub {
     owner = "nodejs";
     repo = "node-gyp";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-AxyGE86nuU9VkbLLR/8GKM6bcTgayYodQ0mWiQhQtA0=";
+    tag = "v${version}";
+    hash = "sha256-+6mFr1K42E3rTpcKW51D3FTvhCmutfK1BSnEePQ902Y=";
   };
 
-  npmDepsHash = "sha256-LCm1gF7GfjT13k3fe1A+DNNwP48OtFVbYgwCCLH3eHA=";
+  npmDepsHash = "sha256-OqLtv5XnY16Ln9fDkJY1teRAs9NYnv9XoVZTYLLpFu8=";
 
   postPatch = ''
     ln -s ${./package-lock.json} package-lock.json
+    substituteInPlace gyp/pylib/gyp/**.py \
+      --replace-quiet sys.platform '"${stdenv.targetPlatform.parsed.kernel.name}"'
   '';
+
+  inherit nodejs;
 
   dontNpmBuild = true;
 

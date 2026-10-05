@@ -1,8 +1,7 @@
 {
   lib,
+  stdenv,
   buildPythonPackage,
-  pythonOlder,
-  pythonAtLeast,
   fetchFromGitHub,
 
   # build-system
@@ -12,25 +11,22 @@
   dask,
   distributed,
 
-  # checks
+  # tests
   cryptography,
   pytest-asyncio,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "dask-jobqueue";
-  version = "0.8.5";
+  version = "0.9.0";
   pyproject = true;
-
-  # Python 3.12 support should be added in 0.8.6
-  disabled = pythonOlder "3.8" || pythonAtLeast "3.12";
 
   src = fetchFromGitHub {
     owner = "dask";
     repo = "dask-jobqueue";
-    rev = "refs/tags/${version}";
-    hash = "sha256-NBFfPTNIXezwv7f1P3VRnkBYlOutD30+8rdiBBssHDE=";
+    tag = finalAttrs.version;
+    hash = "sha256-YujfhjOJzl4xsjjsyrQkEu/CBR04RwJ79c1iSTcMIgw=";
   };
 
   build-system = [ setuptools ];
@@ -47,6 +43,9 @@ buildPythonPackage rec {
   ];
 
   disabledTests = [
+    # AssertionError: assert 1783413599.053456 < (1783413589.024546 + 10)
+    "test_runner"
+
     # Require some unavailable pytest fixtures
     "test_adapt"
     "test_adaptive"
@@ -85,6 +84,13 @@ buildPythonPackage rec {
     "test_use_stdin"
     "test_worker_name_uses_cluster_name"
     "test_wrong_parameter_error"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # ValueError: invalid operation on non-started TCPListener
+    "test_header"
+    "test_lsf_unit_detection"
+    "test_lsf_unit_detection_without_file"
+    "test_runner"
   ];
 
   pythonImportsCheck = [ "dask_jobqueue" ];
@@ -97,4 +103,4 @@ buildPythonPackage rec {
     license = lib.licenses.bsd3;
     maintainers = with lib.maintainers; [ GaetanLepage ];
   };
-}
+})

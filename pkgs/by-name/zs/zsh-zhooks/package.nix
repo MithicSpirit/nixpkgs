@@ -11,7 +11,7 @@ stdenvNoCC.mkDerivation {
     owner = "agkozak";
     repo = "zhooks";
     rev = "e6616b4a2786b45a56a2f591b79439836e678d22";
-    sha256 = "sha256-zahXMPeJ8kb/UZd85RBcMbomB7HjfEKzQKjF2NnumhQ=";
+    hash = "sha256-zahXMPeJ8kb/UZd85RBcMbomB7HjfEKzQKjF2NnumhQ=";
   };
 
   dontBuild = true;
@@ -23,7 +23,7 @@ stdenvNoCC.mkDerivation {
   '';
 
   meta = {
-    description = "A tool for displaying the code for all Zsh hook functions";
+    description = "Tool for displaying the code for all Zsh hook functions";
     homepage = "https://github.com/agkozak/zhooks";
     license = lib.licenses.mit;
     longDescription = ''

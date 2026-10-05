@@ -1,56 +1,72 @@
-{ stdenv
-, lib
-, nix
-, perlPackages
-, buildEnv
-, makeWrapper
-, unzip
-, pkg-config
-, libpqxx
-, top-git
-, mercurial
-, darcs
-, subversion
-, breezy
-, openssl
-, bzip2
-, libxslt
-, perl
-, postgresql
-, prometheus-cpp
-, nukeReferences
-, git
-, nlohmann_json
-, docbook_xsl
-, openssh
-, openldap
-, gnused
-, coreutils
-, findutils
-, gzip
-, xz
-, gnutar
-, rpm
-, dpkg
-, cdrkit
-, pixz
-, boost
-, autoreconfHook
-, mdbook
-, foreman
-, python3
-, libressl
-, cacert
-, glibcLocales
-, fetchFromGitHub
-, nixosTests
+{
+  stdenv,
+  lib,
+  callPackage,
+  fetchFromGitHub,
+  nixVersions,
+  nix-eval-jobs,
+  nixosTests,
+  perlPackages,
+  buildEnv,
+  unstableGitUpdater,
+
+  makeWrapper,
+  mdbook,
+  meson,
+  ninja,
+  nukeReferences,
+  unzip,
+
+  bzip2,
+  perl,
+  pixz,
+
+  coreutils,
+  findutils,
+  gnused,
+  gnutar,
+  gzip,
+  openssh,
+  xz,
+
+  breezy,
+  darcs,
+  gitMinimal,
+  mercurial,
+  subversion,
+  top-git,
+
+  cdrkit,
+  dpkg,
+  rpm,
 }:
 
 let
+  # Keep in sync with the nix input of https://github.com/NixOS/hydra/blob/master/flake.nix
+  nixComponents = nixVersions.nixComponents_2_35;
+
+  version = "0-unstable-2026-09-09";
+
+  src = fetchFromGitHub {
+    owner = "NixOS";
+    repo = "hydra";
+    rev = "1d1d8b1c6fdc08444a514f383b291228f19d72d8";
+    hash = "sha256-wbPw1mlCrZODGxWFSXkOjCtKRWYeZYcs/W24yay3tKM=";
+  };
+
+  nix-perl = callPackage ./nix-perl.nix {
+    inherit src;
+    inherit (nixComponents) nix-store;
+  };
+
   perlDeps = buildEnv {
     name = "hydra-perl-deps";
-    paths = with perlPackages; lib.closePropagation
+    paths = lib.closePropagation (
       [
+        gitMinimal
+        nix-perl
+      ]
+      ++ (with perlPackages; [
         AuthenSASL
         CatalystActionREST
         CatalystAuthenticationStoreDBIxClass
@@ -63,23 +79,24 @@ let
         CatalystPluginSessionStateCookie
         CatalystPluginSessionStoreFastMmap
         CatalystPluginStackTrace
-        CatalystRuntime
         CatalystTraitForRequestProxyBase
         CatalystViewDownload
         CatalystViewJSON
         CatalystViewTT
-        CatalystXScriptServerStarman
         CatalystXRoleApplicator
+        CatalystXScriptServerStarman
         CryptPassphrase
         CryptPassphraseArgon2
         CryptRandPasswd
-        DBDPg
-        DBDSQLite
         DataDump
         DateTime
+        DBDPg
+        DBDSQLite
+        DBIxClassHelpers
         DigestSHA1
         EmailMIME
         EmailSender
+        FileCopyRecursive
         FileLibMagic
         FileSlurper
         FileWhich
@@ -96,13 +113,13 @@ let
         NetAmazonS3
         NetPrometheus
         NetStatsd
+        NumberBytesHuman
         PadWalker
         ParallelForkManager
-        PerlCriticCommunity
         PrometheusTinyShared
         ReadonlyX
-        SQLSplitStatement
         SetScalar
+        SQLSplitStatement
         Starman
         StringCompareConstantTime
         SysHostnameLong
@@ -110,134 +127,125 @@ let
         TermReadKey
         Test2Harness
         TestPostgreSQL
-        TestSimple13
         TextDiff
         TextTable
-        UUID4Tiny
+        URIdb
+        UUIDURandom
         XMLSimple
         YAML
-        nix.perl-bindings
-        git
-      ];
+      ])
+    );
   };
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "hydra";
-  version = "0-unstable-2024-08-27";
+  inherit version src;
+  # nixpkgs-update: no auto update
 
-  src = fetchFromGitHub {
-    owner = "NixOS";
-    repo = "hydra";
-    rev = "2d79b0a4da9e2a8ff97c1173aa56fe92e1f4629b";
-    hash = "sha256-ZU8/LzdZ0nbUxVxTsRZyMpTGEtps9oG0Yx2cpS9J8I4=";
-  };
+  sourceRoot = "${finalAttrs.src.name}/subprojects/hydra";
+
+  outputs = [
+    "out"
+    "doc"
+  ];
+
+  strictDeps = true;
+  __structuredAttrs = true;
+
+  nativeBuildInputs = [
+    makeWrapper
+    mdbook
+    meson
+    ninja
+    nukeReferences
+    perl
+    perlDeps
+    unzip
+  ];
 
   buildInputs = [
-    unzip
-    libpqxx
-    top-git
-    mercurial
-    darcs
-    subversion
-    breezy
-    openssl
-    bzip2
-    libxslt
-    nix
-    perlDeps
     perl
-    pixz
-    boost
-    postgresql
-    nlohmann_json
-    prometheus-cpp
+    perlDeps
   ];
 
   hydraPath = lib.makeBinPath (
     [
-      subversion
-      openssh
-      nix
-      coreutils
-      findutils
-      pixz
-      gzip
-      bzip2
-      xz
-      gnutar
-      unzip
-      git
-      top-git
-      mercurial
-      darcs
-      gnused
       breezy
-    ] ++ lib.optionals stdenv.isLinux [ rpm dpkg cdrkit ]
+      bzip2
+      coreutils
+      darcs
+      findutils
+      gitMinimal
+      gnused
+      gnutar
+      gzip
+      mercurial
+      nix-eval-jobs
+      nixComponents.nix-cli
+      openssh
+      pixz
+      subversion
+      top-git
+      unzip
+      xz
+    ]
+    ++ lib.optionals stdenv.hostPlatform.isLinux [
+      cdrkit
+      dpkg
+      rpm
+    ]
   );
 
-  nativeBuildInputs = [
-    autoreconfHook
-    makeWrapper
-    pkg-config
-    mdbook
-    nukeReferences
-  ];
+  mesonBuildType = "release";
 
-  nativeCheckInputs = [
-    cacert
-    foreman
-    glibcLocales
-    python3
-    libressl.nc
-    openldap
-  ];
-
-  configureFlags = [ "--with-docbook-xsl=${docbook_xsl}/xml/xsl/docbook" ];
-
-  env.NIX_CFLAGS_COMPILE = "-pthread";
-
-  OPENLDAP_ROOT = openldap;
-
-  shellHook = ''
-    PATH=$(pwd)/src/script:$(pwd)/src/hydra-eval-jobs:$(pwd)/src/hydra-queue-runner:$(pwd)/src/hydra-evaluator:$PATH
-    PERL5LIB=$(pwd)/src/lib:$PERL5LIB;
+  postPatch = ''
+    patchShebangs .
   '';
 
-  enableParallelBuilding = true;
+  # Tests live in subprojects/hydra-tests and need PostgreSQL plus the Rust
+  # daemons. Covered by nixosTests.hydra instead.
+  doCheck = false;
 
-  preCheck = ''
-    patchShebangs .
-    export LOGNAME=''${LOGNAME:-foo}
-    # set $HOME for bzr so it can create its trace file
-    export HOME=$(mktemp -d)
+  # subprojects/hydra-manual is a separate meson project upstream.
+  postBuild = ''
+    mdbook build ../../hydra-manual -d "$NIX_BUILD_TOP/manual"
   '';
 
   postInstall = ''
-    mkdir -p $out/nix-support
+    mkdir -p $doc/share/doc/hydra $out/nix-support
+    cp -r $NIX_BUILD_TOP/manual/. $doc/share/doc/hydra
+    echo "doc manual $doc/share/doc/hydra" >> $out/nix-support/hydra-build-products
+
     for i in $out/bin/*; do
         read -n 4 chars < $i
         if [[ $chars =~ ELF ]]; then continue; fi
         wrapProgram $i \
-            --prefix PERL5LIB ':' $out/libexec/hydra/lib:$PERL5LIB \
-            --prefix PATH ':' $out/bin:$hydraPath \
+            --prefix PERL5LIB ':' "$out/libexec/hydra/lib:${perlPackages.makePerlPath [ perlDeps ]}" \
+            --prefix PATH ':' "$out/bin:$hydraPath" \
             --set-default HYDRA_RELEASE ${finalAttrs.version} \
             --set HYDRA_HOME $out/libexec/hydra \
-            --set NIX_RELEASE ${nix.name or "unknown"}
+            --set NIX_RELEASE ${nixComponents.nix-cli.name or "unknown"} \
+            --set NIX_EVAL_JOBS_RELEASE ${nix-eval-jobs.name or "unknown"}
     done
   '';
 
-  doCheck = true;
-
   passthru = {
-    inherit nix perlDeps;
-    tests.basic = nixosTests.hydra.hydra;
+    inherit nix-perl perlDeps;
+    nix = nixComponents.nix-cli;
+    tests = { inherit (nixosTests) hydra; };
+    updateScript = unstableGitUpdater { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Nix-based continuous build system";
     homepage = "https://nixos.org/hydra";
-    license = licenses.gpl3;
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ mindavi ] ++ teams.helsinki-systems.members;
+    license = lib.licenses.gpl3Only;
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [
+      conni2461
+      das_j
+      helsinki-Jo
+      mindavi
+    ];
   };
 })

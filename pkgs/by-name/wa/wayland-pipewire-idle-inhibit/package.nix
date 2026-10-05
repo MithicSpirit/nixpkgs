@@ -1,23 +1,24 @@
-{ lib
-, fetchFromGitHub
-, pipewire
-, pkg-config
-, rustPlatform
-, wayland
-, wayland-protocols
+{
+  lib,
+  fetchFromGitHub,
+  pipewire,
+  pkg-config,
+  rustPlatform,
+  wayland,
+  wayland-protocols,
 }:
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "wayland-pipewire-idle-inhibit";
-  version = "0.5.1";
+  version = "0.7.1";
 
   src = fetchFromGitHub {
     owner = "rafaelrc7";
     repo = "wayland-pipewire-idle-inhibit";
-    rev = "v${version}";
-    sha256 = "sha256-2akYbnQnJ0wb51S3bwrm3/EiZydxbwkfuSfsiTvtNz8=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-AIj8Ib66ej35UNlbvGh0zW2lpGQfsh2aJbnxgBNaWAY=";
   };
 
-  cargoHash = "sha256-C4cispJN2OQRBQiW+H36B8ETNn1oukgdELRVk7V7BQU=";
+  cargoHash = "sha256-MFNtEyBmrkq2ZpKtGA5GEnJilHpZZvG3j2XcF6kNP9k=";
 
   nativeBuildInputs = [
     pkg-config
@@ -30,13 +31,12 @@ rustPlatform.buildRustPackage rec {
     wayland-protocols
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Suspends automatic idling of Wayland compositors when media is being played through Pipewire";
     homepage = "https://github.com/rafaelrc7/wayland-pipewire-idle-inhibit/";
-    license = licenses.gpl3Only;
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ rafameou ];
+    license = lib.licenses.gpl3Only;
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [ rafameou ];
     mainProgram = "wayland-pipewire-idle-inhibit";
   };
-}
-
+})

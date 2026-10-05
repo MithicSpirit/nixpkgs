@@ -1,12 +1,12 @@
-diff -u a/libgcc/config.host b/libgcc/config.host
---- a/libgcc/config.host	2023-11-05 11:01:55.778638446 -0500
-+++ b/libgcc/config.host	2023-11-05 11:07:29.405103979 -0500
-@@ -227,7 +227,7 @@
-   tmake_file="$tmake_file t-slibgcc-darwin"
-   # newer toolsets produce warnings when building for unsupported versions.
-   case ${host} in
--    *-*-darwin1[89]* | *-*-darwin2* )
-+    *-*-darwin1[89]* | *-*-darwin2* | *-*-darwin)
-       tmake_file="t-darwin-min-8 $tmake_file"
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -239,7 +239,7 @@ case ${host} in
+     x86_64-*-darwin2[0-2]*)
+       tmake_file="t-darwin-min-11 t-darwin-libgccs1 $tmake_file"
        ;;
-     *-*-darwin9* | *-*-darwin1[0-7]*)
+-    *-*-darwin2*)
+-      tmake_file="t-darwin-min-11 $tmake_file"
++    *-*-darwin2* | *-*-darwin)
++      tmake_file="t-darwin-min-11 t-darwin-libgccs1 $tmake_file"
+       ;;
+     *-*-darwin1[89]*)

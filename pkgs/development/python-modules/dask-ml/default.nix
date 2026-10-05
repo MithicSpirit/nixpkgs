@@ -1,13 +1,13 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
+
+  # build-system
   hatch-vcs,
   hatchling,
-  setuptools-scm,
-  dask,
-  dask-expr,
+
+  # dependencies
   dask-glm,
   distributed,
   multipledispatch,
@@ -17,32 +17,39 @@
   pandas,
   scikit-learn,
   scipy,
+  dask,
+
+  # tests
   pytest-mock,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "dask-ml";
-  version = "2024.4.4";
+  version = "2025.1.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "dask";
     repo = "dask-ml";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-ZiBpCk3b4Tk0Hwb4uapJLEx+Nb/qHFROCnkBTNGDzoU=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-DHxx0LFuJmGWYuG/WGHj+a5XHAEekBmlHUUb90rl2IY=";
   };
+
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail \
+        'addopts = "-rsx -v --durations=10 --color=yes"' \
+        'addopts = ["-rsx", "-v", "--durations=10", "--color=yes"]'
+  '';
 
   build-system = [
     hatch-vcs
     hatchling
-    setuptools-scm
   ];
 
   dependencies = [
-    dask-expr
     dask-glm
     distributed
     multipledispatch
@@ -52,7 +59,9 @@ buildPythonPackage rec {
     pandas
     scikit-learn
     scipy
-  ] ++ dask.optional-dependencies.array ++ dask.optional-dependencies.dataframe;
+  ]
+  ++ dask.optional-dependencies.array
+  ++ dask.optional-dependencies.dataframe;
 
   pythonImportsCheck = [
     "dask_ml"
@@ -66,15 +75,66 @@ buildPythonPackage rec {
     pytestCheckHook
   ];
 
+  pytestFlags = [
+    # Skipping check check_array_api_input for KMeans because it raised SkipTest:
+    # SCIPY_ARRAY_API is not set: not checking array_api input
+    "-Wignore::sklearn.exceptions.SkipTestWarning"
+
+    # pandas.errors.Pandas4Warning: For backward compatibility, 'str' dtypes are included by select_dtypes when 'object' dtype is specified.
+    # This behavior is deprecated and will be removed in a future version.
+    # Explicitly pass 'str' to `include` to select them, or to `exclude` to remove them and silence this warning.
+    # See https://pandas.pydata.org/docs/user_guide/migration-3-strings.html#string-migration-select-dtypes for details on how to write code that works with pandas 2 and 3.
+    "-Wignore::pandas.errors.Pandas4Warning"
+  ];
+
   disabledTestPaths = [
-    # AttributeError: 'csr_matrix' object has no attribute 'A'
-    # Fixed in https://github.com/dask/dask-ml/pull/996
-    "tests/test_svd.py"
+    # RuntimeError: Attempting to use an asynchronous Client in a synchronous context of `dask.compute`
+    # https://github.com/dask/dask-ml/issues/1016
+    "tests/model_selection/test_hyperband.py"
+    "tests/model_selection/test_incremental.py"
+    "tests/model_selection/test_incremental_warns.py"
+    "tests/model_selection/test_successive_halving.py"
+
+    # MockClassifier predates sklearn 1.6 __sklearn_tags__
+    "tests/model_selection/dask_searchcv/test_model_selection.py"
+    "tests/model_selection/dask_searchcv/test_model_selection_sklearn.py"
   ];
 
   disabledTests = [
-    # Flaky: `Arrays are not almost equal to 3 decimals` (although values do actually match)
+    # AssertionError: Regex pattern did not match.
+    "test_unknown_category_transform_array"
+
+    # ValueError: cannot broadcast shape (nan,) to shape (nan,)
+    # https://github.com/dask/dask-ml/issues/1012
+    "test_fit_array"
+    "test_fit_frame"
+    "test_fit_transform_frame"
+    "test_laziness"
+    "test_lr_score"
+    "test_ok"
+    "test_scoring_string"
+
+    # sklearn 1.7+: PCA / IncrementalPCA missing power_iteration_normalizer
+    "test_pca_randomized_solver"
+    "test_pca_check_projection"
+    "test_pca_inverse"
+    "test_pca_score"
+    "test_pca_score2"
+    "test_randomized_pca_check_projection"
+    "test_randomized_pca_inverse"
+    "test_pca_int_dtype_upcast_to_double"
+    "test_incremental_pca"
+    "test_incremental_pca_against_pca_iris"
+    "test_incremental_pca_against_pca_random_data"
+    "test_singular_values"
     "test_whitening"
+
+    # sklearn 1.8 API drift in LogisticRegression/ParallelPostFit
+    "test_predict"
+    "test_multiclass"
+
+    # XPASS becomes failure under xfail_strict (now honored on pytest 9)
+    "test_soft_voting_frame"
   ];
 
   __darwinAllowLocalNetworking = true;
@@ -85,4 +145,4 @@ buildPythonPackage rec {
     license = lib.licenses.bsd3;
     maintainers = with lib.maintainers; [ GaetanLepage ];
   };
-}
+})

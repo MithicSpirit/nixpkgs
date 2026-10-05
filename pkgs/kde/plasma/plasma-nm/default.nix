@@ -1,23 +1,25 @@
 {
+  lib,
   mkKdeDerivation,
-  substituteAll,
+  replaceVars,
   pkg-config,
   qtwebengine,
   mobile-broadband-provider-info,
   openconnect,
   openvpn,
+  strongswan,
 }:
 mkKdeDerivation {
   pname = "plasma-nm";
 
   patches = [
-    (substituteAll {
-      src = ./0002-openvpn-binary-path.patch;
-      inherit openvpn;
+    (replaceVars ./hardcode-paths.patch {
+      openvpn = lib.getExe openvpn;
+      ipsec = lib.getExe' strongswan "ipsec";
     })
   ];
 
-  extraNativeBuildInputs = [pkg-config];
+  extraNativeBuildInputs = [ pkg-config ];
   extraBuildInputs = [
     qtwebengine
     mobile-broadband-provider-info

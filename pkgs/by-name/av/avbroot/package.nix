@@ -6,34 +6,27 @@
   protobuf,
   bzip2,
   stdenv,
-  darwin,
 }:
 
 rustPlatform.buildRustPackage rec {
   pname = "avbroot";
-  version = "3.4.1";
+  version = "3.34.1";
 
   src = fetchFromGitHub {
     owner = "chenxiaolong";
     repo = "avbroot";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-gG8pR/D5oaPPqq0e815J6z+dDVxh4VSoHIm1Yl3x2p4=";
+    tag = "v${version}";
+    hash = "sha256-iw06eQOSbWQBIBqmmQ/07stGLIDv41odD3yf7ODoLBU=";
   };
 
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-    outputHashes = {
-      "bzip2-0.4.4" = "sha256-9YKPFvaGNdGPn2mLsfX8Dh90vR+X4l3YSrsz0u4d+uQ=";
-      "zip-0.6.6" = "sha256-oZQOW7xlSsb7Tw8lby4LjmySpWty9glcZfzpPuQSSz0=";
-    };
-  };
+  cargoHash = "sha256-63fmeZMazvSRjXqdO0l+go98DIWER60U3bDSp9jc+kQ=";
 
   nativeBuildInputs = [
     pkg-config
     protobuf
   ];
 
-  buildInputs = [ bzip2 ] ++ lib.optionals stdenv.isDarwin [ darwin.apple_sdk.frameworks.Security ];
+  buildInputs = [ bzip2 ];
 
   meta = {
     description = "Sign (and root) Android A/B OTAs with custom keys while preserving Android Verified Boot";

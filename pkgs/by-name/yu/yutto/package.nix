@@ -2,35 +2,53 @@
   lib,
   python3Packages,
   fetchFromGitHub,
+  rustPlatform,
   ffmpeg,
-  nix-update-script,
 }:
 
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "yutto";
-  version = "2.0.0-beta.40";
-  format = "pyproject";
+  version = "2.3.1";
+  pyproject = true;
 
-  disabled = python3Packages.pythonOlder "3.9";
+  pythonRelaxDeps = true;
 
   src = fetchFromGitHub {
     owner = "yutto-dev";
     repo = "yutto";
-    rev = "v${version}";
-    hash = "sha256-gopCQ8tEhwtDFs/w+jafD3ZW/4MIrYxPcMh8SbOCwww=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-TofIXOqeUbIL8iW3SnEspQlSsr21YbDl/dFPzgPFmKo=";
   };
 
-  nativeBuildInputs = with python3Packages; [ poetry-core ];
+  cargoRoot = "rust";
 
-  propagatedBuildInputs =
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs)
+      pname
+      version
+      src
+      cargoRoot
+      ;
+    hash = "sha256-qiLjCAUrRe8vm0uZuToA1AbfJjF/Yhs1V+lUC6hLNCM=";
+  };
+
+  build-system = with rustPlatform; [
+    cargoSetupHook
+    maturinBuildHook
+  ];
+
+  dependencies =
     with python3Packages;
     [
-      httpx
       aiofiles
       biliass
       dict2xml
-      colorama
+      httpx
       typing-extensions
+      pydantic
+      returns
+      segno
+      websockets
     ]
     ++ (with httpx.optional-dependencies; http2 ++ socks);
 
@@ -38,20 +56,17 @@ python3Packages.buildPythonApplication rec {
     makeWrapperArgs+=(--prefix PATH : ${lib.makeBinPath [ ffmpeg ]})
   '';
 
+  postPatch = ''
+    sed -ie 's/requires = \["uv_build[^"]*"]/requires = ["uv_build"]/' pyproject.toml
+  '';
+
   pythonImportsCheck = [ "yutto" ];
 
-  passthru.updateScript = nix-update-script {
-    extraArgs = [
-      "--version"
-      "unstable"
-    ];
-  };
-
-  meta = with lib; {
+  meta = {
     description = "Bilibili downloader";
     homepage = "https://github.com/yutto-dev/yutto";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ linsui ];
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ linsui ];
     mainProgram = "yutto";
   };
-}
+})

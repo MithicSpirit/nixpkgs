@@ -1,18 +1,21 @@
-{ lib
-, stdenv
-, fetchurl
-, callPackage
-, makeWrapper
-, makeDesktopItem
-, love
-, luajit
-, libcoldclear ? callPackage ./libcoldclear.nix { }
-, ccloader ? callPackage ./ccloader.nix { inherit libcoldclear luajit; }
+{
+  lib,
+  stdenv,
+  fetchurl,
+  callPackage,
+  makeWrapper,
+  makeDesktopItem,
+  love,
+  luajit,
+  writeShellScript,
+  nix-update,
+  libcoldclear ? callPackage ./libcoldclear.nix { inherit ccloader; },
+  ccloader ? callPackage ./ccloader.nix { inherit libcoldclear luajit; },
 }:
 
 let
   pname = "techmino";
-  description = "A modern Tetris clone with many features";
+  description = "Modern Tetris clone with many features";
 
   desktopItem = makeDesktopItem {
     name = pname;
@@ -31,15 +34,14 @@ in
 
 stdenv.mkDerivation rec {
   inherit pname;
-  version = "0.17.17";
+  version = "0.17.21";
 
   src = fetchurl {
     url = "https://github.com/26F-Studio/Techmino/releases/download/v${version}/Techmino_Bare.love";
-    hash = "sha256-ExVdS2QXSRVMlRhrjD/Plo7fhQ3uUBHlwv6y91/S3uA=";
+    hash = "sha256-8gMIyNP1FS52LnbpQ+G9XNtK3rQruzkMDRz7Gk9LZcQ=";
   };
 
   nativeBuildInputs = [ makeWrapper ];
-  buildInputs = [ love ccloader ];
 
   dontUnpack = true;
 
@@ -50,7 +52,7 @@ stdenv.mkDerivation rec {
     cp $src $out/share/games/lovegames/techmino.love
 
     mkdir -p $out/bin
-    makeWrapper ${love}/bin/love $out/bin/techmino \
+    makeWrapper ${lib.getExe love} $out/bin/techmino \
       --add-flags $out/share/games/lovegames/techmino.love \
       --suffix LUA_CPATH : ${ccloader}/lib/lua/${luajit.luaversion}/CCLoader.so
 
@@ -62,14 +64,20 @@ stdenv.mkDerivation rec {
 
   passthru = {
     inherit ccloader libcoldclear;
+    updateScript = writeShellScript "update-script.sh" ''
+      if ${lib.getExe nix-update} techmino | grep "Packages updated"; then
+        ${lib.getExe nix-update} techmino.ccloader
+      fi
+    '';
   };
 
-  meta = with lib; {
+  meta = {
     inherit description;
     downloadPage = "https://github.com/26F-Studio/Techmino/releases";
     homepage = "https://github.com/26F-Studio/Techmino/";
-    license = licenses.lgpl3;
+    license = lib.licenses.lgpl3;
+    platforms = love.meta.platforms;
     mainProgram = "techmino";
-    maintainers = with maintainers; [ chayleaf ];
+    maintainers = with lib.maintainers; [ chayleaf ];
   };
 }

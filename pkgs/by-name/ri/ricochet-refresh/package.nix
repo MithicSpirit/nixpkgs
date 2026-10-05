@@ -1,52 +1,61 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, qt5
-, openssl
-, protobuf
-, pkg-config
-, cmake
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  qt5,
+  openssl,
+  tor,
+  # https://github.com/blueprint-freespeech/ricochet-refresh/issues/178
+  protobuf_21,
+  pkg-config,
+  cmake,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "ricochet-refresh";
-  version = "3.0.25";
+  version = "3.0.45";
 
   src = fetchFromGitHub {
     owner = "blueprint-freespeech";
     repo = "ricochet-refresh";
-    rev = "v${finalAttrs.version}-release";
+    tag = "v${finalAttrs.version}-release";
     fetchSubmodules = true;
-    hash = "sha256-MXbsNrF3y2DimXUuf6XbqqCxcNsTGfNHSAMstdX1MoU=";
+    hash = "sha256-zfQF7DT+RSpD/uquknywaogq51i/lCXfmyDaKE9HjRk=";
   };
 
   sourceRoot = "${finalAttrs.src.name}/src";
 
   strictDeps = true;
 
-  buildInputs = (with qt5; [
-    qtbase
-    qttools
-    qtmultimedia
-    qtquickcontrols2
-    qtwayland
-  ]) ++ [
-    openssl
-    protobuf
-  ];
+  buildInputs =
+    (with qt5; [
+      qtbase
+      qttools
+      qtmultimedia
+      qtquickcontrols2
+      qtwayland
+    ])
+    ++ [
+      openssl
+      protobuf_21
+    ];
 
   nativeBuildInputs = [
     pkg-config
-    protobuf
+    protobuf_21
     cmake
     qt5.wrapQtAppsHook
   ];
 
+  # Ricochet Refresh expects the Tor executable to be available in PATH.
+  qtWrapperArgs = [ "--prefix PATH : ${lib.makeBinPath [ tor ]}" ];
+
   enableParallelBuilding = true;
+
+  cmakeBuildType = "MinSizeRel";
 
   # https://github.com/blueprint-freespeech/ricochet-refresh/blob/main/BUILDING.md
   cmakeFlags = [
-    (lib.cmakeFeature "CMAKE_BUILD_TYPE" "MinSizeRel")
     (lib.cmakeBool "RICOCHET_REFRESH_INSTALL_DESKTOP" true)
     (lib.cmakeBool "USE_SUBMODULE_FMT" true)
   ];

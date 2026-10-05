@@ -10,11 +10,11 @@
 
 stdenv.mkDerivation rec {
   pname = "nexus";
-  version = "3.69.0-02";
+  version = "3.70.1-02";
 
   src = fetchurl {
     url = "https://download.sonatype.com/nexus/3/nexus-${version}-unix.tar.gz";
-    hash = "sha256-7sgLPuM93mFEPlTd3qJY+FGVHErvgcTGJWwSBcqBgWI=";
+    hash = "sha256-oBappm8WRcgyD5HWqJKPbMHjlwCUo9y5+FtB2Kq1PCE=";
   };
 
   preferLocalBuild = true;
@@ -60,11 +60,15 @@ stdenv.mkDerivation rec {
     sourceProvenance = with lib.sourceTypes; [ binaryBytecode ];
     license = lib.licenses.epl10;
     platforms = lib.platforms.all;
-    maintainers = with lib.maintainers; [
-      aespinosa
-      ironpinguin
-      luftmensch-luftmensch
-      zaninime
+    knownVulnerabilities = [
+      "Nexus 3.77 + 3.78 fixed a bunch of security issues: https://help.sonatype.com/en/sonatype-nexus-repository-3-78-0-release-notes.html"
+      "CVE-2024-47554"
+      "CVE-2024-5764"
+      "Sonatype-2015-0286"
+      "Sonatype-2022-6438"
+      "CVE-2023-6378"
+      "CVE-2023-4218"
     ];
+    maintainers = [ ];
   };
 }

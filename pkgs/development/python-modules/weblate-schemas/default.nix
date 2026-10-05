@@ -1,40 +1,51 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  fqdn,
+  fetchFromGitHub,
+  setuptools,
   jsonschema,
-  rfc3987,
-  strict-rfc3339,
+  fedora-messaging,
   pytestCheckHook,
+  pytest-cov-stub,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "weblate-schemas";
-  version = "2024.1";
+  version = "2026.8";
 
-  src = fetchPypi {
-    pname = "weblate_schemas";
-    inherit version;
-    hash = "sha256-nYPLD3VDO1Z97HI79J6Yjj3bWp1xKB79FWPCW146iz4=";
+  pyproject = true;
+  __structuredAttrs = true;
+
+  # nixpkgs-update: no auto update
+  # Only weblate uses this and we want to follow its version constraints
+  src = fetchFromGitHub {
+    owner = "WeblateOrg";
+    repo = "weblate_schemas";
+    tag = finalAttrs.version;
+    hash = "sha256-0RiRD5CGzVSDE+83VYpZBQ4L6axmRrhnNQvQ1VChOLE=";
   };
 
+  build-system = [ setuptools ];
+
   dependencies = [
-    fqdn
     jsonschema
-    rfc3987
-    strict-rfc3339
   ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  nativeCheckInputs = [
+    pytestCheckHook
+    pytest-cov-stub
+    fedora-messaging
+  ]
+  ++ jsonschema.optional-dependencies.format;
 
   pythonImportsCheck = [ "weblate_schemas" ];
 
-  meta = with lib; {
+  meta = {
     description = "Schemas used by Weblate";
     homepage = "https://github.com/WeblateOrg/weblate_schemas";
-    license = licenses.mit;
-    maintainers = with maintainers; [ erictapen ];
+    changelog = "https://github.com/WeblateOrg/weblate_schemas/blob/${finalAttrs.version}/CHANGES.rst";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ erictapen ];
   };
 
-}
+})

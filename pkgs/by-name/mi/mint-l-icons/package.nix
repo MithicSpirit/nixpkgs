@@ -1,27 +1,26 @@
-{ stdenvNoCC
-, lib
-, fetchFromGitHub
-, adwaita-icon-theme
-, gnome-icon-theme
-, hicolor-icon-theme
-, gtk3
+{
+  stdenvNoCC,
+  lib,
+  fetchFromGitHub,
+  adwaita-icon-theme,
+  hicolor-icon-theme,
+  gtk3,
 }:
 
-stdenvNoCC.mkDerivation rec {
+stdenvNoCC.mkDerivation {
   pname = "mint-l-icons";
-  version = "1.7.2";
+  version = "1.8.4";
 
   src = fetchFromGitHub {
     owner = "linuxmint";
-    repo = pname;
-    # https://github.com/linuxmint/mint-l-icons/issues/11
-    rev = "ee03e6dad0b1f9e25847977eae42766e2ddd4877";
-    hash = "sha256-OKlkqDp9mZOeM4M9QN9H0WH4k+5eMEUshvadaV6qhBA=";
+    repo = "mint-l-icons";
+    # They don't really do tags, this is just a named commit.
+    rev = "0b22e7cc69f11e8472065cfc9309add51f403cfc";
+    hash = "sha256-AtCQMgSmeMV7rU6XaT42bD4DDfe5acVIxQ1JwKYQb8c=";
   };
 
   propagatedBuildInputs = [
     adwaita-icon-theme
-    gnome-icon-theme
     hicolor-icon-theme
   ];
 
@@ -29,6 +28,8 @@ stdenvNoCC.mkDerivation rec {
     gtk3
   ];
 
+  # FIXME: https://hydra.nixos.org/build/287344480/nixlog/5
+  dontCheckForBrokenSymlinks = true;
   dontDropIconThemeCache = true;
 
   installPhase = ''
@@ -44,11 +45,11 @@ stdenvNoCC.mkDerivation rec {
     runHook postInstall
   '';
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/linuxmint/mint-l-icons";
     description = "Mint-L icon theme";
-    license = licenses.gpl3Plus; # from debian/copyright
-    platforms = platforms.linux;
-    maintainers = teams.cinnamon.members;
+    license = lib.licenses.gpl3Plus; # from debian/copyright
+    platforms = lib.platforms.linux;
+    teams = [ lib.teams.cinnamon ];
   };
 }

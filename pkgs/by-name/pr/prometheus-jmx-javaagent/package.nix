@@ -13,7 +13,7 @@ stdenv.mkDerivation (
     version = "1.0.1";
     src = fetchurl {
       url = "mirror://maven/io/prometheus/jmx/jmx_prometheus_javaagent/${finalAttrs.version}/${jarName}";
-      sha256 = "sha256-fWH3N/1mFhDMwUrqeXZPqh6pSjQMvI8AKbPS7eo9gME=";
+      hash = "sha256-fWH3N/1mFhDMwUrqeXZPqh6pSjQMvI8AKbPS7eo9gME=";
     };
 
     dontUnpack = true;
@@ -26,7 +26,7 @@ stdenv.mkDerivation (
 
     meta = {
       homepage = "https://github.com/prometheus/jmx_exporter";
-      description = "A process for exposing JMX Beans via HTTP for Prometheus consumption";
+      description = "Process for exposing JMX Beans via HTTP for Prometheus consumption";
       sourceProvenance = [ lib.sourceTypes.binaryBytecode ];
       license = lib.licenses.asl20;
       maintainers = [ lib.maintainers.srhb ];

@@ -4,43 +4,37 @@
   fetchFromGitHub,
   poetry-core,
   pytest-asyncio,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
 }:
 
 buildPythonPackage rec {
   pname = "async-interrupt";
-  version = "1.1.2";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.8";
+  version = "1.2.2";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "bdraco";
     repo = "async_interrupt";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-CFCWlIx4iAG6gW2ORRYfZpFWRvjukqdcR2yg6NjVqps=";
+    tag = "v${version}";
+    hash = "sha256-M0ftyHstBP7+6M2b6yV33mSuO4B8QF3ixRvNJ/WeSEA=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace " --cov=async_interrupt --cov-report=term-missing:skip-covered" ""
-  '';
-
-  nativeBuildInputs = [ poetry-core ];
+  build-system = [ poetry-core ];
 
   nativeCheckInputs = [
     pytest-asyncio
+    pytest-cov-stub
     pytestCheckHook
   ];
 
   pythonImportsCheck = [ "async_interrupt" ];
 
-  meta = with lib; {
+  meta = {
     description = "Context manager to raise an exception when a future is done";
     homepage = "https://github.com/bdraco/async_interrupt";
-    changelog = "https://github.com/bdraco/async_interrupt/blob/${version}/CHANGELOG.md";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/bdraco/async_interrupt/blob/${src.tag}/CHANGELOG.md";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

@@ -9,27 +9,24 @@
   flask,
   mock,
   pytestCheckHook,
-  pythonOlder,
   tornado,
 }:
 
 buildPythonPackage rec {
   pname = "apispec-webframeworks";
-  version = "1.1.0";
+  version = "1.2.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "marshmallow-code";
     repo = "apispec-webframeworks";
-    rev = "refs/tags/${version}";
-    hash = "sha256-qepiaRW36quIgxBtEHMF3HN0wO6jp2uGAHgg5fJoMUY=";
+    tag = version;
+    hash = "sha256-V4tdqcHfYRh9VoXUTPXM3SIOogJDJB14SLj5dSd7LzU=";
   };
 
-  nativeBuildInputs = [ flit-core ];
+  build-system = [ flit-core ];
 
-  propagatedBuildInputs = [ apispec ] ++ apispec.optional-dependencies.yaml;
+  dependencies = [ apispec ] ++ apispec.optional-dependencies.yaml;
 
   nativeCheckInputs = [
     aiohttp
@@ -42,11 +39,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "apispec_webframeworks" ];
 
-  meta = with lib; {
+  meta = {
     description = "Web framework plugins for apispec";
     homepage = "https://github.com/marshmallow-code/apispec-webframeworks";
     changelog = "https://github.com/marshmallow-code/apispec-webframeworks/blob/${version}/CHANGELOG.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

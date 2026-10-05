@@ -1,45 +1,77 @@
-{ lib
-, fetchFromGitHub
-, buildGoModule
-, testers
-, pinact
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  buildGo127Module,
+  installShellFiles,
+  versionCheckHook,
+  nix-update-script,
 }:
 
 let
+  mainProgram = "pinact";
+in
+# go.mod for this package regularly requires a newer version than buildGoModule uses. See https://github.com/NixOS/nixpkgs/pull/472064 for details.
+buildGo127Module (finalAttrs: {
   pname = "pinact";
-  version = "0.2.1";
+  version = "5.0.0";
+  __structuredAttrs = true;
+
   src = fetchFromGitHub {
     owner = "suzuki-shunsuke";
     repo = "pinact";
-    rev = "v${version}";
-    hash = "sha256-HfeHfKXDBHPgxisWSVnrLOQf/4NXtnehkIjQqiCoFIc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-VmLQmZDFBweh8O6VHcDQsAc6Ojcriw0oQymO6SkAVpU=";
   };
-in
-buildGoModule {
-  inherit pname version src;
 
-  vendorHash = "sha256-L9EGygiJ40f7Yw46KdaAof5O/ren6inTK7XerB/uv1g=";
+  vendorHash = "sha256-mAlwYacDZruLw9hMr77z6MYNPME+iPntJROK6Yd84uI=";
+
+  env.CGO_ENABLED = 0;
 
   doCheck = true;
 
-  passthru.tests.version = testers.testVersion {
-    package = pinact;
-    command = "pinact --version";
-    version = src.rev;
+  nativeBuildInputs = [
+    installShellFiles
+  ];
+
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd '${mainProgram}' \
+      --bash <("$out/bin/${mainProgram}" completion bash) \
+      --zsh <("$out/bin/${mainProgram}" completion zsh) \
+      --fish <("$out/bin/${mainProgram}" completion fish)
+  '';
+
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+  doInstallCheck = true;
+  versionCheckProgram = "${placeholder "out"}/bin/${mainProgram}";
+  versionCheckProgramArg = "version";
+
+  passthru = {
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version-regex=^v([\\d\\.]+)$"
+      ];
+    };
   };
 
   ldflags = [
     "-s"
     "-w"
-    "-X main.version=${version} -X main.commit=${src.rev}"
+    "-X main.version=${finalAttrs.version} -X main.commit=v${finalAttrs.version}"
   ];
 
-  meta = with lib; {
+  subPackages = [
+    "cmd/pinact"
+  ];
+
+  meta = {
+    inherit mainProgram;
     description = "Pin GitHub Actions versions";
     homepage = "https://github.com/suzuki-shunsuke/pinact";
-    changelog = "https://github.com/suzuki-shunsuke/pinact/releases/tag/${src.rev}";
-    license = licenses.mit;
-    maintainers = [ maintainers.kachick ];
-    mainProgram = "pinact";
+    changelog = "https://github.com/suzuki-shunsuke/pinact/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ kachick ];
   };
-}
+})

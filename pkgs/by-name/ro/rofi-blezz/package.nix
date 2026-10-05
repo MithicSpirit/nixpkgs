@@ -1,10 +1,11 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, autoreconfHook
-, cairo
-, pkg-config
-, rofi-unwrapped
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  autoreconfHook,
+  cairo,
+  pkg-config,
+  rofi-unwrapped,
 }:
 
 stdenv.mkDerivation {
@@ -15,7 +16,7 @@ stdenv.mkDerivation {
     owner = "davatorium";
     repo = "rofi-blezz";
     rev = "3a00473471e7c56d2c349ad437937107b7d8e961";
-    sha256 = "sha256-hY5UA7nyL6QoOBIZTjEiR0zjZFhkUkRa50r5rVZDnbg=";
+    hash = "sha256-hY5UA7nyL6QoOBIZTjEiR0zjZFhkUkRa50r5rVZDnbg=";
   };
 
   patches = [
@@ -33,11 +34,11 @@ stdenv.mkDerivation {
     rofi-unwrapped
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Plugin for rofi that emulates blezz behaviour";
     homepage = "https://github.com/davatorium/rofi-blezz";
-    license = licenses.mit;
-    maintainers = with maintainers; [ johnjohnstone ];
-    platforms = platforms.linux;
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ johnjohnstone ];
+    platforms = lib.platforms.linux;
   };
 }

@@ -1,47 +1,34 @@
 {
   lib,
-  stdenv,
   buildGoModule,
+  callPackage,
   fetchFromGitHub,
   installShellFiles,
-  callPackage,
-  wl-clipboard,
-  xclip,
-  makeWrapper,
-  # Boolean flags
-  withXclip ? stdenv.isLinux,
-  withWlClipboard ?
-    if withWlclip != null then
-      lib.warn ''
-        withWlclip is deprecated and will be removed;
-        use withWlClipboard instead.
-      '' withWlclip
-    else
-      stdenv.isLinux,
+  stdenv,
+  versionCheckHook,
   # Deprecated options
-  # Remove them before or right after next version update from Nixpkgs or this
-  # package itself
+  # Remove them as soon as possible
+  withXclip ? null,
+  withWlClipboard ? null,
   withWlclip ? null,
 }:
 
 let
   self = buildGoModule {
     pname = "micro";
-    version = "2.0.14";
+    version = "2.0.15";
 
     src = fetchFromGitHub {
-      owner = "zyedidia";
+      owner = "micro-editor";
       repo = "micro";
       rev = "v${self.version}";
-      hash = "sha256-avLVl6mn0xKgIy0BNnPZ8ypQhn8Ivj7gTgWbebDSjt0=";
+      hash = "sha256-4C6TtMU6PIYX7lO+o4GRVnIsKnYJxjAqPdoOyAwi7Gc=";
     };
 
-    vendorHash = "sha256-ePhObvm3m/nT+7IyT0W6K+y+9UNkfd2kYjle2ffAd9Y=";
+    vendorHash = "sha256-bkPd6zB9e4q6N20wbKS8n8zGGITOoScajdPYv7Race0=";
+    proxyVendor = true;
 
-    nativeBuildInputs = [
-      installShellFiles
-      makeWrapper
-    ];
+    nativeBuildInputs = [ installShellFiles ];
 
     outputs = [
       "out"
@@ -53,6 +40,8 @@ let
     ldflags =
       let
         t = "github.com/zyedidia/micro/v2/internal";
+        # TODO: switch to this once the source code uses it, passthru.tests.version checks for this
+        # t = "github.com/micro-editor/micro/v2/internal";
       in
       [
         "-s"
@@ -73,27 +62,20 @@ let
       install -Dm644 assets/micro-logo-mark.svg $out/share/icons/hicolor/scalable/apps/micro.svg
     '';
 
-    postFixup =
-      let
-        clipboardPackages =
-          lib.optionals withXclip [ xclip ]
-          ++ lib.optionals withWlClipboard [ wl-clipboard ];
-      in
-      lib.optionalString (withXclip || withWlClipboard) ''
-        wrapProgram "$out/bin/micro" \
-                  --prefix PATH : "${lib.makeBinPath clipboardPackages}"
-      '';
-
     passthru = {
       tests = lib.packagesFromDirectoryRecursive {
         inherit callPackage;
         directory = ./tests;
       };
+      wrapper = callPackage ./wrapper.nix { micro = self; };
     };
+
+    nativeInstallCheckInputs = [ versionCheckHook ];
+    doInstallCheck = true;
 
     meta = {
       homepage = "https://micro-editor.github.io";
-      changelog = "https://github.com/zyedidia/micro/releases/";
+      changelog = "https://github.com/micro-editor/micro/releases/";
       description = "Modern and intuitive terminal-based text editor";
       longDescription = ''
         micro is a terminal-based text editor that aims to be easy to use and
@@ -108,10 +90,16 @@ let
       license = lib.licenses.mit;
       mainProgram = "micro";
       maintainers = with lib.maintainers; [
-        AndersonTorres
         pbsds
       ];
     };
   };
 in
-self
+lib.warnIf (withXclip != null || withWlClipboard != null || withWlclip != null) ''
+  The options `withXclip`, `withWlClipboard`, `withWlclip` were removed. If
+  you are seeking for clipboard support, please consider the following
+  packages:
+  - `micro-with-wl-clipboard`
+  - `micro-with-xclip`
+  - `micro-full`
+'' self

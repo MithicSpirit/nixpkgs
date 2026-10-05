@@ -1,20 +1,20 @@
 {
-  lib
-, buildPythonPackage
-, fetchPypi
-, setuptools
+  lib,
+  buildPythonPackage,
+  fetchPypi,
+  setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "pyinstaller-hooks-contrib";
-  version = "2024.8";
+  version = "2026.8";
 
   pyproject = true;
 
   src = fetchPypi {
     pname = "pyinstaller_hooks_contrib";
     inherit version;
-    hash = "sha256-KbaNh4q3OelnBVtWqT65tY5SnVsFT7q3ovK6z4DO8+I=";
+    hash = "sha256-TYJXhq16m328xS1hJ0ijRWL+JzRhvP2I9NVJxZS7+Pk=";
   };
 
   build-system = [ setuptools ];

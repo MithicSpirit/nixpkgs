@@ -1,35 +1,35 @@
-{ renode
-, fetchurl
-, writeScript
+{
+  dotnetCorePackages,
+  fetchFromGitHub,
+  lib,
+  renode,
+  writeShellScript,
 }:
 
-renode.overrideAttrs (finalAttrs: _: {
-  pname = "renode-unstable";
-  version = "1.15.2+20240829gitfedcdbdaf";
+let
+  nugetDeps = map dotnetCorePackages.fetchNupkg (lib.importJSON ./deps.json);
+in
+renode.overrideAttrs (
+  finalAttrs: old: {
+    pname = "renode-unstable";
+    version = "1.17.0-unstable-2026-10-02";
 
-  src = fetchurl {
-    url = "https://builds.renode.io/renode-${finalAttrs.version}.linux-dotnet.tar.gz";
-    hash = "sha256-pZ8+wxu7357jXGhFFgG9RQ0Jy8a3CfKpe3x31VbsgfQ=";
-  };
+    src = fetchFromGitHub {
+      owner = "renode";
+      repo = "renode";
+      rev = "b039ed10ea66198afd6f68f2ec5a041e76e5e1dc";
+      hash = "sha256-ico2g1YOPfM0wdKosUf1ul+u8JBA+N8qFHij57cmS34=";
+      fetchSubmodules = true;
+    };
 
-  passthru.updateScript =
-    let
-      versionRegex = "[0-9\.\+]+[^\+]*.";
-    in
-    writeScript "${finalAttrs.pname}-updater" ''
-      #!/usr/bin/env nix-shell
-      #!nix-shell -i bash -p common-updater-scripts curl gnugrep gnused pup
+    buildInputs = lib.subtractLists old.passthru.nugetDeps old.buildInputs ++ nugetDeps;
 
-      latestVersion=$(
-        curl -sS https://builds.renode.io \
-          | pup 'a text{}' \
-          | egrep 'renode-${versionRegex}\.linux-dotnet\.tar\.gz' \
-          | head -n1 \
-          | sed -e 's,renode-\(.*\)\.linux-dotnet\.tar\.gz,\1,g'
-      )
-
-      update-source-version ${finalAttrs.pname} "$latestVersion" \
-        --file=pkgs/by-name/re/${finalAttrs.pname}/package.nix \
-        --system=x86_64-linux
-    '';
-})
+    passthru = old.passthru // {
+      inherit nugetDeps;
+      fetch-deps = writeShellScript "${finalAttrs.finalPackage.name}-fetch-deps" ''
+        exec ${old.passthru.fetch-deps} "''${1:-${toString ./deps.json}}"
+      '';
+      updateScript = ./update.sh;
+    };
+  }
+)

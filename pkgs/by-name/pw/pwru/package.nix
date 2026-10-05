@@ -1,26 +1,33 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
-, clang
-, libpcap
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+  clang,
+  libpcap,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "pwru";
-  version = "1.0.7";
+  version = "1.0.12";
 
   src = fetchFromGitHub {
     owner = "cilium";
     repo = "pwru";
-    rev = "v${version}";
-    hash = "sha256-BjiFuM06YDlPyB578p2hweBay+4z0bOn7fUoxSvrDY8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-U7xDjurLVX46cLjjKiWBtx1rKZ3CarWXaSXvuJpnejg=";
   };
 
   vendorHash = null;
 
+  subPackages = [ "." ];
+
   nativeBuildInputs = [ clang ];
 
   buildInputs = [ libpcap ];
+
+  ldflags = [
+    "-X github.com/cilium/pwru/internal/pwru.Version=v${finalAttrs.version}"
+  ];
 
   postPatch = ''
     substituteInPlace internal/libpcap/compile.go \
@@ -34,12 +41,15 @@ buildGoModule rec {
     TARGET_GOARCH="$GOARCH" GOOS= GOARCH= go generate
   '';
 
-  meta = with lib; {
+  meta = {
     description = "eBPF-based Linux kernel networking debugger";
     homepage = "https://github.com/cilium/pwru";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ nickcao ];
-    platforms = platforms.linux;
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
+      nickcao
+      miniharinn
+    ];
+    platforms = lib.platforms.linux;
     mainProgram = "pwru";
   };
-}
+})

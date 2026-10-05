@@ -23,7 +23,7 @@ buildPythonPackage {
 
   nativeCheckInputs = [ pytestCheckHook ];
 
-  disabledTests = lib.optionals stdenv.isDarwin [
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
     # can't find hostname in our darwin build environment
     "test_fqdn"
   ];
@@ -32,11 +32,11 @@ buildPythonPackage {
 
   pythonImportsCheck = [ "ephemeral_port_reserve" ];
 
-  meta = with lib; {
+  meta = {
     description = "Find an unused port, reliably";
     mainProgram = "ephemeral-port-reserve";
     homepage = "https://github.com/Yelp/ephemeral-port-reserve/";
-    license = licenses.mit;
-    maintainers = with maintainers; [ hexa ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ hexa ];
   };
 }

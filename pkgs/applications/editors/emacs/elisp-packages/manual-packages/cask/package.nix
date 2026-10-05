@@ -1,77 +1,106 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, bash
-, emacs
-, python3
+{
+  lib,
+  ansi,
+  cl-generic,
+  cl-lib,
+  commander,
+  epl,
+  f,
+  fetchFromGitHub,
+  installShellFiles,
+  git,
+  melpaBuild,
+  package-build,
+  replaceVars,
+  s,
+  shut-up,
 }:
+let
+  formatLoadPath = x: ''"${x}/share/emacs/site-lisp/elpa/${x.ename}-${x.melpaVersion or x.version}"'';
+  formatNativeLoadPath = x: ''"${x}/share/emacs/native-lisp"'';
+  getAllDependenciesOfPkg =
+    pkg:
+    let
+      direct = builtins.filter (x: x != null) (pkg.packageRequires or [ ]);
+      indirect = builtins.concatLists (map getAllDependenciesOfPkg direct);
+    in
+    lib.unique (direct ++ indirect);
+in
+melpaBuild (
+  finalAttrs:
+  let
+    nixpkgDependencies = getAllDependenciesOfPkg finalAttrs.finalPackage;
+    loadPaths = builtins.concatStringsSep " " (map formatLoadPath nixpkgDependencies);
+    nativeLoadPaths = builtins.concatStringsSep " " (
+      map formatNativeLoadPath (nixpkgDependencies ++ [ (placeholder "out") ])
+    );
+    emacsBuiltinDeps = [
+      "cl-lib"
+      "eieio"
+    ];
+    depsMod = builtins.concatStringsSep " " ((map (x: x.ename) nixpkgDependencies) ++ emacsBuiltinDeps);
+  in
+  {
+    pname = "cask";
+    version = "0.9.1";
 
-stdenv.mkDerivation (finalAttrs: {
-  pname = "cask";
-  version = "0.8.8";
+    src = fetchFromGitHub {
+      name = "cask-source-${finalAttrs.version}";
+      owner = "cask";
+      repo = "cask";
+      rev = "v${finalAttrs.version}";
+      hash = "sha256-/vinpQ51AuaTbXW4L4MnVonyfzTMvHUF4HViSPBKZxs=";
+    };
 
-  src = fetchFromGitHub {
-    owner = "cask";
-    repo = "cask";
-    rev = "v${finalAttrs.version}";
-    hash = "sha256-TlReq5sLVJj+pXmJSnepKQkNEWVhnh30iq4egM1HJMU=";
-  };
+    nativeBuildInputs = [ installShellFiles ];
 
-  doCheck = true;
+    patches = [
+      # Uses LISPDIR substitution var
+      ./0000-cask-lispdir.diff
+      # Use Nix provided dependencies instead of letting Cask bootstrap itself
+      ./0001-cask-bootstrap.diff
+    ];
 
-  nativeBuildInputs = [ emacs ];
-  buildInputs = [
-    bash
-    python3
-  ]
-  ++ (with emacs.pkgs; [
-    ansi
-    dash
-    ecukes
-    el-mock
-    ert-async
-    ert-runner
-    f
-    git
-    noflet
-    package-build
-    s
-    servant
-    shell-split-string
-  ]);
+    packageRequires = [
+      ansi
+      cl-generic
+      cl-lib
+      commander
+      epl
+      f
+      git
+      package-build
+      s
+      shut-up
+    ];
 
-  strictDeps = true;
+    postPatch = ''
+      # use melpaVersion so that it works for unstable releases too
+      substituteInPlace bin/cask \
+        --replace-fail @lispdir@ $out/share/emacs/site-lisp/elpa/$ename-$melpaVersion
 
-  buildPhase = ''
-    runHook preBuild
-
-    emacs --batch -L . -f batch-byte-compile cask.el cask-cli.el
-
-    runHook postBuild
-  '';
-
-  installPhase = ''
-    runHook preInstall
-
-    mkdir -p $out/bin
-    install -Dm444 -t $out/share/emacs/site-lisp/cask *.el *.elc
-    install -Dm555 -t $out/share/emacs/site-lisp/cask/bin bin/cask
-    ln -s $out/share/emacs/site-lisp/cask/bin/cask $out/bin/cask
-
-    runHook postInstall
-  '';
-
-  meta = with lib; {
-    description = "Project management for Emacs";
-    mainProgram = "cask";
-    longDescription = ''
-      Cask is a project management tool for Emacs that helps automate the
-      package development cycle; development, dependencies, testing, building,
-      packaging and more.
+      # using `replaceVars` results in wrong result of `placeholder "out"`
+      substituteInPlace cask-bootstrap.el \
+        --replace-fail @depsMod@ '${depsMod}' \
+        --replace-fail @loadPaths@ '${loadPaths}' \
+        --replace-fail @nativeLoadPaths@ '${nativeLoadPaths}'
     '';
-    homepage = "https://cask.readthedocs.io/en/latest/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ AndersonTorres ];
-    inherit (emacs.meta) platforms;
-  };
-})
+
+    postInstall = ''
+      installBin bin/cask
+    '';
+
+    meta = {
+      homepage = "https://github.com/cask/cask";
+      description = "Project management for Emacs";
+      longDescription = ''
+        Cask is a project management tool for Emacs that helps automate the
+        package development cycle; development, dependencies, testing, building,
+        packaging and more.
+      '';
+      license = lib.licenses.gpl3Plus;
+      mainProgram = "cask";
+      maintainers = [ ];
+    };
+  }
+)

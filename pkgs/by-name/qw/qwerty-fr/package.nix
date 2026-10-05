@@ -11,8 +11,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "qwerty-fr";
     repo = "qwerty-fr";
-    rev = "refs/tags/v${finalAttrs.version}";
-    sha256 = "sha256-TD67wKdaPaXzJzjKFCfRZl3WflUfdnUSQl/fnjr9TF8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-TD67wKdaPaXzJzjKFCfRZl3WflUfdnUSQl/fnjr9TF8=";
   };
 
   installPhase = ''
@@ -20,11 +20,11 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     cp $src/linux/us_qwerty-fr $out/share/X11/xkb/symbols
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Qwerty keyboard layout with French accents";
     changelog = "https://github.com/qwerty-fr/qwerty-fr/blob/v${finalAttrs.version}/linux/debian/changelog";
     homepage = "https://github.com/qwerty-fr/qwerty-fr";
-    license = licenses.mit;
-    maintainers = with maintainers; [ potb ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ potb ];
   };
 })

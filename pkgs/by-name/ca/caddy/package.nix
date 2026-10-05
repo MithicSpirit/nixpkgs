@@ -1,79 +1,116 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
-, nixosTests
-, caddy
-, testers
-, installShellFiles
-, stdenv
+{
+  lib,
+  stdenv,
+  buildPackages,
+  callPackage,
+  buildGoModule,
+  fetchFromGitHub,
+  installShellFiles,
+  versionCheckHook,
+  writableTmpDirAsHomeHook,
+  testers,
+  nixosTests,
+  nix-update-script,
 }:
-let
-  version = "2.8.4";
-  dist = fetchFromGitHub {
-    owner = "caddyserver";
-    repo = "dist";
-    rev = "v${version}";
-    hash = "sha256-O4s7PhSUTXoNEIi+zYASx8AgClMC5rs7se863G6w+l0=";
-  };
-in
-buildGoModule {
+
+buildGoModule (finalAttrs: {
   pname = "caddy";
-  inherit version;
+  version = "2.11.7";
+
+  __structuredAttrs = true;
+
+  __darwinAllowLocalNetworking = true;
 
   src = fetchFromGitHub {
     owner = "caddyserver";
     repo = "caddy";
-    rev = "v${version}";
-    hash = "sha256-CBfyqtWp3gYsYwaIxbfXO3AYaBiM7LutLC7uZgYXfkQ=";
+    tag = "v${finalAttrs.version}";
+    # remember to update hashes for `dist` and `plugins` test!
+    hash = "sha256-6+USPwF6LzDWUjrNRL2ncxSz5KmqJM0L/6o03Lh8YD8=";
   };
 
-  vendorHash = "sha256-1Api8bBZJ1/oYk4ZGIiwWCSraLzK9L+hsKXkFtk6iVM=";
-
-  subPackages = [ "cmd/caddy" ];
+  vendorHash = "sha256-kJOl5h9gSfEK6ROT/MYOkBUr6MhiNBlbZVZPqwNpbBk=";
 
   ldflags = [
-    "-s" "-w"
-    "-X github.com/caddyserver/caddy/v2.CustomVersion=${version}"
+    "-s"
+    "-X github.com/caddyserver/caddy/v2.CustomVersion=v${finalAttrs.version}"
   ];
 
   # matches upstream since v2.8.0
-  tags = [ "nobadger" ];
+  tags = [
+    "nobadger"
+    "nomysql"
+    "nopgx"
+  ];
 
   nativeBuildInputs = [ installShellFiles ];
 
+  nativeCheckInputs = [ writableTmpDirAsHomeHook ];
+
+  checkFlags = [ "-skip=^TestReverseProxySNIPlaceHolder$" ];
+
   postInstall = ''
-    install -Dm644 ${dist}/init/caddy.service ${dist}/init/caddy-api.service -t $out/lib/systemd/system
+    install -Dm644 ${finalAttrs.passthru.dist}/init/caddy.service ${finalAttrs.passthru.dist}/init/caddy-api.service -t $out/lib/systemd/system
 
-    substituteInPlace $out/lib/systemd/system/caddy.service \
+    substituteInPlace $out/lib/systemd/system/caddy.service $out/lib/systemd/system/caddy-api.service \
       --replace-fail "/usr/bin/caddy" "$out/bin/caddy"
-    substituteInPlace $out/lib/systemd/system/caddy-api.service \
-      --replace-fail "/usr/bin/caddy" "$out/bin/caddy"
-  '' + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-    # Generating man pages and completions fail on cross-compilation
-    # https://github.com/NixOS/nixpkgs/issues/308283
+  ''
+  + lib.optionalString (stdenv.hostPlatform.emulatorAvailable buildPackages) (
+    let
+      emulator = stdenv.hostPlatform.emulator buildPackages;
+    in
+    ''
+      ${emulator} $out/bin/caddy manpage --directory manpages
+      installManPage manpages/*
 
-    $out/bin/caddy manpage --directory manpages
-    installManPage manpages/*
+      installShellCompletion --cmd caddy \
+        --bash <(${emulator} $out/bin/caddy completion bash) \
+        --fish <(${emulator} $out/bin/caddy completion fish) \
+        --zsh <(${emulator} $out/bin/caddy completion zsh)
+    ''
+  );
 
-    installShellCompletion --cmd caddy \
-      --bash <($out/bin/caddy completion bash) \
-      --fish <($out/bin/caddy completion fish) \
-      --zsh <($out/bin/caddy completion zsh)
-  '';
+  doInstallCheck = true;
+  versionCheckKeepEnvironment = [ "HOME" ];
+  nativeInstallCheckInputs = [
+    versionCheckHook
+    writableTmpDirAsHomeHook
+  ];
 
-  passthru.tests = {
-    inherit (nixosTests) caddy;
-    version = testers.testVersion {
-      command = "${caddy}/bin/caddy version";
-      package = caddy;
+  passthru = {
+    withPlugins = callPackage ./plugins.nix { caddy = finalAttrs.finalPackage; };
+
+    dist = fetchFromGitHub {
+      owner = "caddyserver";
+      repo = "dist";
+      tag = "v${finalAttrs.version}";
+      hash = "sha256-KvdaqiX06I1ft+p67J1ISgP512SoZ4syDzfe888ZqGI=";
+    };
+
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--custom-dep"
+        "dist"
+      ];
+    };
+
+    tests = {
+      inherit (nixosTests) caddy;
+      plugins = testers.runNixOSTest ./plugins.test.nix;
+      acme-integration = nixosTests.acme.caddy;
     };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://caddyserver.com";
     description = "Fast and extensible multi-platform HTTP/1-2-3 web server with automatic HTTPS";
-    license = licenses.asl20;
+    changelog = "https://github.com/caddyserver/caddy/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.asl20;
     mainProgram = "caddy";
-    maintainers = with maintainers; [ Br1ght0ne emilylange techknowlogick ];
+    maintainers = with lib.maintainers; [
+      stepbrobd
+      techknowlogick
+      ryan4yin
+    ];
   };
-}
+})

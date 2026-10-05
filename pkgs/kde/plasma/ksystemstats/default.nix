@@ -2,15 +2,23 @@
   mkKdeDerivation,
   pkg-config,
   libksysguard,
-  networkmanager-qt,
   lm_sensors,
   libnl,
 }:
 mkKdeDerivation {
   pname = "ksystemstats";
 
-  extraNativeBuildInputs = [pkg-config];
-  extraBuildInputs = [networkmanager-qt lm_sensors libnl];
+  patches = [
+    ./helper-path.patch
+  ];
 
-  cmakeFlags = ["-DSYSTEMSTATS_DBUS_INTERFACE=${libksysguard}/share/dbus-1/interfaces/org.kde.ksystemstats1.xml"];
+  extraNativeBuildInputs = [ pkg-config ];
+  extraBuildInputs = [
+    lm_sensors
+    libnl
+  ];
+
+  extraCmakeFlags = [
+    "-DSYSTEMSTATS_DBUS_INTERFACE=${libksysguard}/share/dbus-1/interfaces/org.kde.ksystemstats1.xml"
+  ];
 }

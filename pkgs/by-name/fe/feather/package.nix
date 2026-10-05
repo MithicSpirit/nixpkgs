@@ -1,34 +1,38 @@
-{ bc-ur
-, boost
-, cmake
-, fetchFromGitHub
-, hidapi
-, lib
-, libsodium
-, libusb1
-, openssl
-, pkg-config
-, protobuf
-, python3
-, qrencode
-, qt6
-, readline
-, stdenv
-, testers
-, tor
-, unbound
-, zxing-cpp
+{
+  abseil-cpp,
+  bc-ur,
+  boost,
+  cmake,
+  fetchFromGitHub,
+  hidapi,
+  lib,
+  libsodium,
+  libusb1,
+  openssl,
+  pkg-config,
+  protobuf,
+  python3,
+  qrencode,
+  qt6,
+  readline,
+  stdenv,
+  testers,
+  tor,
+  unbound,
+  zxing-cpp,
 }:
-
+let
+  protobuf' = protobuf.override { abseil-cpp = abseil-cpp.override { cxxStandard = "17"; }; };
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "feather";
-  version = "2.6.7";
+  version = "2.9.1";
 
   src = fetchFromGitHub {
     owner = "feather-wallet";
     repo = "feather";
-    rev = finalAttrs.version;
-    hash = "sha256-zXNpNhBOtDvuuxzZ8o2XDLqNSi/XK4I6eYAfWuiCgRI=";
+    tag = finalAttrs.version;
+    hash = "sha256-/rnQw+SNMpFROJln/Sv2RgJlRxa8PnZMs4HfIAxP9VY=";
     fetchSubmodules = true;
   };
 
@@ -46,11 +50,12 @@ stdenv.mkDerivation (finalAttrs: {
     libsodium
     libusb1
     openssl
-    protobuf
+    protobuf'
     qrencode
     unbound
     zxing-cpp
-  ] ++ (with qt6; [
+  ]
+  ++ (with qt6; [
     qtbase
     qtmultimedia
     qtsvg
@@ -60,8 +65,6 @@ stdenv.mkDerivation (finalAttrs: {
   ]);
 
   cmakeFlags = [
-    "-DProtobuf_INCLUDE_DIR=${lib.getDev protobuf}/include"
-    "-DProtobuf_PROTOC_EXECUTABLE=${lib.getExe protobuf}"
     "-DReadline_INCLUDE_DIR=${lib.getDev readline}/include/readline"
     "-DReadline_LIBRARY=${lib.getLib readline}/lib/libreadline.so"
     "-DReadline_ROOT_DIR=${lib.getDev readline}"
@@ -76,13 +79,13 @@ stdenv.mkDerivation (finalAttrs: {
     '';
   };
 
-  meta = with lib; {
+  meta = {
     description = "Free Monero desktop wallet";
     homepage = "https://featherwallet.org/";
     changelog = "https://featherwallet.org/changelog/#${finalAttrs.version}%20changelog";
-    platforms = platforms.linux;
-    license = licenses.bsd3;
+    platforms = lib.platforms.linux;
+    license = lib.licenses.bsd3;
     mainProgram = "feather";
-    maintainers = with maintainers; [ surfaceflinger ];
+    maintainers = with lib.maintainers; [ surfaceflinger ];
   };
 })

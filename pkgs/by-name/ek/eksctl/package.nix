@@ -1,50 +1,63 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
-, installShellFiles
+{
+  lib,
+  stdenv,
+  buildGoModule,
+  fetchFromGitHub,
+  installShellFiles,
+  versionCheckHook,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "eksctl";
-  version = "0.189.0";
+  version = "0.231.0";
 
   src = fetchFromGitHub {
-    owner = "weaveworks";
-    repo = pname;
-    rev = version;
-    hash = "sha256-YG1p7T2K1b3LO2MiTkCC88ZpgCpVTSCBUoCEcJK+V7I=";
+    owner = "eksctl-io";
+    repo = "eksctl";
+    rev = finalAttrs.version;
+    hash = "sha256-+YVLF4ORRzKK5c0kZDN6YFFg7ZebKGDB+LXckOzPjpU=";
   };
 
-  vendorHash = "sha256-W7tAdImEsPWSQkK8FnXgx5ADZ2JOdVc2xNBkNM11FOw=";
+  vendorHash = "sha256-cWggtB2pv3RM67O9K/wDLczkU5SZrwGc0LJQ5emDptc=";
 
   doCheck = false;
 
   subPackages = [ "cmd/eksctl" ];
 
-  tags = [ "netgo" "release" ];
+  tags = [
+    "netgo"
+    "release"
+  ];
 
   ldflags = [
     "-s"
-    "-w"
-    "-X github.com/weaveworks/eksctl/pkg/version.gitCommit=${src.rev}"
+    "-X github.com/weaveworks/eksctl/pkg/version.gitCommit=${finalAttrs.src.rev}"
     "-X github.com/weaveworks/eksctl/pkg/version.buildDate=19700101-00:00:00"
   ];
 
   nativeBuildInputs = [ installShellFiles ];
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd eksctl \
       --bash <($out/bin/eksctl completion bash) \
       --fish <($out/bin/eksctl completion fish) \
       --zsh  <($out/bin/eksctl completion zsh)
   '';
 
-  meta = with lib; {
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  versionCheckProgramArg = "version";
+  doInstallCheck = true;
+
+  meta = {
     description = "CLI for Amazon EKS";
-    homepage = "https://github.com/weaveworks/eksctl";
-    changelog = "https://github.com/eksctl-io/eksctl/releases/tag/v${version}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ xrelkd Chili-Man ];
+    homepage = "https://github.com/eksctl-io/eksctl";
+    changelog = "https://github.com/eksctl-io/eksctl/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
+      xrelkd
+      Chili-Man
+      ryan4yin
+    ];
     mainProgram = "eksctl";
   };
-}
+})

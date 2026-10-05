@@ -1,55 +1,52 @@
-{ lib
-, boost
-, fetchFromGitHub
-, libsodium
-, nixVersions
-, nlohmann_json
-, openssl
-, pkg-config
-, rustPlatform
-, nix-update-script
-, nixosTests
+{
+  lib,
+  fetchFromGitHub,
+  openssl,
+  pkg-config,
+  rustPlatform,
+  nix-update-script,
+  nixosTests,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "harmonia";
-  version = "1.0.1";
+  version = "3.3.0";
+
+  __structuredAttrs = true;
+  strictDeps = true;
 
   src = fetchFromGitHub {
     owner = "nix-community";
     repo = "harmonia";
-    rev = "refs/tags/harmonia-v${version}";
-    hash = "sha256-K4pll1YUqCkiqUxyWMgPKzNEJ2AMf3C/5YVBOn0SFtw=";
+    tag = "harmonia-v${finalAttrs.version}";
+    hash = "sha256-Q25ZdQ47e3SR/pUf/l9TrmEXvdW9eGSd9Vk3njnXbms=";
   };
 
-  cargoHash = "sha256-1ITnTlLVgSC0gsXtELHOPqM4jPZd0TeVgM5GYkqaNVA=";
+  cargoHash = "sha256-dfQDf+sJYZ0sgcGiQ9BxNQIKEFCNyvYqEmWRUq/SA10=";
 
   doCheck = false;
 
-  nativeBuildInputs = [
-    pkg-config nixVersions.nix_2_24
-  ];
-
+  nativeBuildInputs = [ pkg-config ];
   buildInputs = [
-    boost
-    libsodium
     openssl
-    nlohmann_json
-    nixVersions.nix_2_24
   ];
 
   passthru = {
     updateScript = nix-update-script {
-      extraArgs = [ "--version-regex" "harmonia-v(.*)" ];
+      extraArgs = [
+        "--version-regex"
+        "harmonia-v(.*)"
+      ];
     };
-    tests = { inherit (nixosTests) harmonia; };
+    tests = { inherit (nixosTests) harmonia harmonia-gc; };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Nix binary cache";
     homepage = "https://github.com/nix-community/harmonia";
-    license = licenses.mit;
-    maintainers = with maintainers; [ mic92 ];
-    mainProgram = "harmonia";
+    changelog = "https://github.com/nix-community/harmonia/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ mic92 ];
+    mainProgram = "harmonia-cache";
   };
-}
+})

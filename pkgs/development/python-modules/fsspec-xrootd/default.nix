@@ -1,37 +1,40 @@
 {
   lib,
+  stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
+
+  # build-system
   setuptools,
   setuptools-scm,
+
+  # dependencies
   fsspec,
   xrootd,
+
+  # tests
   pkgs,
   pytestCheckHook,
-  stdenv,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "fsspec-xrootd";
-  version = "0.3.0";
+  version = "0.5.4";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "CoffeaTeam";
     repo = "fsspec-xrootd";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-fhamfMWlsiiqfU9c9XDfLEEkRbMAqm74rc2bGF3fRaM=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-dlSh2TH7SQ95kFNPlSjMa697WdBURRlBxNtNf04uaBU=";
   };
 
-  nativeBuildInputs = [
+  build-system = [
     setuptools
     setuptools-scm
   ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     fsspec
     xrootd
   ];
@@ -42,8 +45,10 @@ buildPythonPackage rec {
     pkgs.xrootd
     pytestCheckHook
   ];
-
   disabledTests = [
+    # Hangs indefinitely
+    "test_broken_server"
+
     # Fails (on aarch64-linux) as it runs sleep, touch, stat and makes assumptions about the
     # scheduler and the filesystem.
     "test_touch_modified"
@@ -52,11 +57,11 @@ buildPythonPackage rec {
   # Timeout related tests hang indifinetely
   disabledTestPaths = lib.optionals stdenv.hostPlatform.isDarwin [ "tests/test_basicio.py" ];
 
-  meta = with lib; {
+  meta = {
     description = "XRootD implementation for fsspec";
     homepage = "https://github.com/CoffeaTeam/fsspec-xrootd";
-    changelog = "https://github.com/CoffeaTeam/fsspec-xrootd/releases/tag/v${version}";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ GaetanLepage ];
+    changelog = "https://github.com/CoffeaTeam/fsspec-xrootd/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ GaetanLepage ];
   };
-}
+})

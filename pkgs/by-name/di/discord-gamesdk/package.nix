@@ -11,7 +11,7 @@ stdenv.mkDerivation rec {
 
   src = fetchzip {
     url = "https://dl-game-sdk.discordapp.net/${version}/discord_game_sdk.zip";
-    sha256 = "sha256-83DgL9y3lHLLJ8vgL3EOVk2Tjcue64N+iuDj/UpSdLc=";
+    hash = "sha256-83DgL9y3lHLLJ8vgL3EOVk2Tjcue64N+iuDj/UpSdLc=";
     stripRoot = false;
   };
 
@@ -22,11 +22,11 @@ stdenv.mkDerivation rec {
 
   buildInputs = [ (stdenv.cc.cc.libgcc or null) ];
 
-  nativeBuildInputs = lib.optional stdenv.isLinux autoPatchelfHook;
+  nativeBuildInputs = lib.optional stdenv.hostPlatform.isLinux autoPatchelfHook;
 
   installPhase =
     let
-      processor = stdenv.hostPlatform.uname.processor;
+      processor = stdenv.hostPlatform.parsed.cpu.name;
       sharedLibrary = stdenv.hostPlatform.extensions.sharedLibrary;
     in
     ''
@@ -39,15 +39,14 @@ stdenv.mkDerivation rec {
       runHook postInstall
     '';
 
-  meta = with lib; {
+  meta = {
     homepage = "https://discord.com/developers/docs/game-sdk/sdk-starter-guide";
     description = "Library to allow other programs to interact with the Discord desktop application";
-    license = licenses.unfree;
-    maintainers = with maintainers; [ tomodachi94 ];
-    sourceProvenance = with sourceTypes; [ binaryNativeCode ];
+    license = lib.licenses.unfree;
+    maintainers = with lib.maintainers; [ tomodachi94 ];
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
     platforms = [
       "x86_64-linux"
-      "x86_64-darwin"
       "aarch64-darwin"
       "x86_64-windows"
     ];

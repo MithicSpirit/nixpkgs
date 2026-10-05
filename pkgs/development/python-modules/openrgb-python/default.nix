@@ -1,21 +1,20 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  pythonOlder,
+  fetchFromGitHub,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "openrgb-python";
-  version = "0.3.0";
+  version = "0.3.7";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-2eeb2XHYvBaHkHHs9KxZKDGXtcLaT28c/aLC9pxrRmM=";
+  src = fetchFromGitHub {
+    owner = "jath03";
+    repo = "openrgb-python";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-Xvx0gl0kPC1/yJrSO9STPEPxw5lRlV8sLNwCUsvIGvI=";
   };
 
   build-system = [ setuptools ];
@@ -25,11 +24,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "openrgb" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module for the OpenRGB SDK";
     homepage = "https://openrgb-python.readthedocs.io/";
-    changelog = "https://github.com/jath03/openrgb-python/releases/tag/v${version}";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/jath03/openrgb-python/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

@@ -1,53 +1,43 @@
 {
-  darwin,
   fetchFromGitHub,
   lib,
   perl,
   pkg-config,
   openssl,
   rustPlatform,
-  stdenv,
   nix-update-script,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "screenly-cli";
-  version = "0.2.8";
+  version = "1.2.1";
 
   src = fetchFromGitHub {
     owner = "screenly";
     repo = "cli";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-WAdQWOrrC85DBgkZ0bU91TJgYOTdxNukis5DJngHI1s=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-w8aEga+DoEUr9KV079RjQHKMx2253DS6cKDzyGWCdZI=";
   };
 
-  cargoHash = "sha256-fGUwMDSs5jJsAZmeHwYghXuOZFWHG6/NClhV0YcPQVg=";
+  cargoHash = "sha256-2T3/9DtW43OwjMTeqmR4Bg8miu245DhAS+pQbx85k24=";
 
   nativeBuildInputs = [
     pkg-config
     perl
   ];
 
-  buildInputs =
-    [ openssl ]
-    ++ lib.optionals stdenv.isDarwin [
-      darwin.apple_sdk.frameworks.CoreFoundation
-      darwin.apple_sdk.frameworks.CoreServices
-      darwin.apple_sdk.frameworks.Security
-      darwin.apple_sdk.frameworks.SystemConfiguration
-    ];
+  buildInputs = [ openssl ];
 
   passthru.updateScript = nix-update-script { };
 
   meta = {
     description = "Tools for managing digital signs and screens at scale";
     homepage = "https://github.com/Screenly/cli";
-    changelog = "https://github.com/Screenly/cli/releases/tag/v${version}";
+    changelog = "https://github.com/Screenly/cli/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.mit;
     mainProgram = "screenly";
     maintainers = with lib.maintainers; [
-      jnsgruk
       vpetersson
     ];
   };
-}
+})

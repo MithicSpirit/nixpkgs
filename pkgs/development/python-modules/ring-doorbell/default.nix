@@ -1,67 +1,83 @@
 {
   lib,
+  aiofiles,
+  aiohttp,
+  aioresponses,
   asyncclick,
   buildPythonPackage,
+  fetchpatch,
   fetchPypi,
   firebase-messaging,
+  freezegun,
+  hatchling,
   oauthlib,
-  poetry-core,
   pytest-asyncio,
+  pytest-freezer,
   pytest-mock,
   pytest-socket,
   pytestCheckHook,
-  pythonOlder,
   pytz,
-  requests,
-  requests-mock,
-  requests-oauthlib,
+  typing-extensions,
+  websockets,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "ring-doorbell";
-  version = "0.8.12";
+  version = "0.9.14";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchPypi {
     pname = "ring_doorbell";
-    inherit version;
-    hash = "sha256-CcnGfiJuv3hzez/G/Nu4OyruPL+bbSAtMAfGruqyPUU=";
+    inherit (finalAttrs) version;
+    hash = "sha256-M99nwMuo0OziuJpNzuZgK69HtE+/wbOgheij1UwBaRc=";
   };
+
+  patches = [
+    # https://github.com/python-ring-doorbell/python-ring-doorbell/pull/494
+    (fetchpatch {
+      name = "replace-async-timeout-with-asyncio.timeout.patch";
+      url = "https://github.com/python-ring-doorbell/python-ring-doorbell/commit/771243153921ec2cfb5f103b08ed08cccbe2e760.patch";
+      excludes = [
+        ".github/workflows/ci.yml"
+        "uv.lock"
+      ];
+      hash = "sha256-l6CUg3J6FZ0c0v0SSqvndjl4XeBhGFy/uWHPkExCM50=";
+    })
+  ];
 
   pythonRelaxDeps = [ "requests-oauthlib" ];
 
-  build-system = [ poetry-core ];
+  build-system = [ hatchling ];
 
   dependencies = [
+    aiofiles
+    aiohttp
     asyncclick
+    firebase-messaging
     oauthlib
     pytz
-    requests
-    requests-oauthlib
+    typing-extensions
+    websockets
   ];
 
-  passthru.optional-dependencies = {
-    listen = [ firebase-messaging ];
-  };
-
   nativeCheckInputs = [
+    aioresponses
+    freezegun
     pytest-asyncio
+    pytest-freezer
     pytest-mock
     pytest-socket
     pytestCheckHook
-    requests-mock
   ];
 
   pythonImportsCheck = [ "ring_doorbell" ];
 
-  meta = with lib; {
+  meta = {
     description = "Library to communicate with Ring Door Bell";
     homepage = "https://github.com/tchellomello/python-ring-doorbell";
-    changelog = "https://github.com/tchellomello/python-ring-doorbell/releases/tag/${version}";
-    license = licenses.lgpl3Plus;
-    maintainers = with maintainers; [ graham33 ];
+    changelog = "https://github.com/tchellomello/python-ring-doorbell/blob/${finalAttrs.version}/CHANGELOG.md";
+    license = lib.licenses.lgpl3Plus;
+    maintainers = with lib.maintainers; [ graham33 ];
     mainProgram = "ring-doorbell";
   };
-}
+})
