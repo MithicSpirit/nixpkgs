@@ -7,7 +7,7 @@
   stups-cli-support,
   stups-zign,
   pytest,
-  pytest-cov,
+  pytest-cov-stub,
   isPy3k,
 }:
 
@@ -15,13 +15,13 @@ buildPythonPackage rec {
   pname = "stups-fullstop";
   version = "1.1.31";
   format = "setuptools";
-  disabled = !isPy3k;
+  disabled = !isPy3k || pythonAtLeast "3.11"; # Uses regex patterns deprecated in 3.9, errors in 3.11+
 
   src = fetchFromGitHub {
     owner = "zalando-stups";
     repo = "fullstop-cli";
     rev = version;
-    sha256 = "1cpzz1b8g2mich7c1p74vfgw70vlxpgwi82a1ld82wv3srwqa0h3";
+    hash = "sha256-AwKFedZjc4EaDUqgyN/tdIPDn9vk3MAOZLGKh1b4/7I=";
   };
 
   propagatedBuildInputs = [
@@ -36,16 +36,13 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [
     pytest
-    pytest-cov
+    pytest-cov-stub
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Convenience command line tool for fullstop. audit reporting";
     homepage = "https://github.com/zalando-stups/stups-fullstop-cli";
-    license = licenses.asl20;
-    maintainers = [ maintainers.mschuwalow ];
-    # Uses regex patterns deprecated in 3.9:
-    #     re.error: global flags not at the start of the expression at ...
-    broken = pythonAtLeast "3.11";
+    license = lib.licenses.asl20;
+    maintainers = [ lib.maintainers.mschuwalow ];
   };
 }

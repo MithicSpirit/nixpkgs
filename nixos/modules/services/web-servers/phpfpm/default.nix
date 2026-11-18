@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -7,31 +12,71 @@ let
 
   runtimeDir = "/run/phpfpm";
 
-  toStr = value:
-    if true == value then "yes"
-    else if false == value then "no"
-    else toString value;
+  toStr =
+    value:
+    if true == value then
+      "yes"
+    else if false == value then
+      "no"
+    else if isString value then
+      # Escape according to https://www.php.net/manual/en/function.parse-ini-file.php
+      # Not escaping `$` since users might want to use that to interpolate environment variables.
+      # Additionally, php-fpm applies post-processing to env values that start with `$` and replaces
+      # them with the respective env variable, with no way to escape: https://github.com/php/php-src/blob/631c366f9f58c8ba4078a48d1f56187cfbf8e549/sapi/fpm/fpm/fpm_env.c#L171-L180
+      # In all platforms except for Windows, PHP_EOL is the line feed `\n` character,
+      # which we use here as an escape value since php-fpm parses the config line-by-line.
+      # See https://github.com/NixOS/nixpkgs/pull/516530#issuecomment-4878738511 for more information.
+      ''"${replaceString "\n" ''" PHP_EOL "'' (escape [ "\"" "\\" ] value)}"''
+    else
+      toString value;
 
-  fpmCfgFile = pool: poolOpts: pkgs.writeText "phpfpm-${pool}.conf" ''
-    [global]
-    ${concatStringsSep "\n" (mapAttrsToList (n: v: "${n} = ${toStr v}") cfg.settings)}
-    ${optionalString (cfg.extraConfig != null) cfg.extraConfig}
+  toKeyValue = generators.toKeyValue {
+    mkKeyValue = generators.mkKeyValueDefault { } " = ";
+  };
 
-    [${pool}]
-    ${concatStringsSep "\n" (mapAttrsToList (n: v: "${n} = ${toStr v}") poolOpts.settings)}
-    ${concatStringsSep "\n" (mapAttrsToList (n: v: "env[${n}] = ${toStr v}") poolOpts.phpEnv)}
-    ${optionalString (poolOpts.extraConfig != null) poolOpts.extraConfig}
-  '';
+  toPhpIni = v: if isString v then v else toKeyValue (filterAttrs (_: v: v != null) v);
 
-  phpIni = poolOpts: pkgs.runCommand "php.ini" {
-    inherit (poolOpts) phpPackage phpOptions;
-    preferLocalBuild = true;
-    passAsFile = [ "phpOptions" ];
-  } ''
-    cat ${poolOpts.phpPackage}/etc/php.ini $phpOptionsPath > $out
-  '';
+  # Combine global and pool-specific phpOptions, supporting both the
+  # deprecated string format and the new attribute set format, including
+  # mixed usage during the migration period.
+  poolPhpIni =
+    poolOpts:
+    if isAttrs cfg.phpOptions && isAttrs poolOpts.phpOptions then
+      toPhpIni (cfg.phpOptions // poolOpts.phpOptions)
+    else
+      (optionalString (toPhpIni cfg.phpOptions != "") (toPhpIni cfg.phpOptions + "\n"))
+      + toPhpIni poolOpts.phpOptions;
 
-  poolOpts = { name, ... }:
+  fpmCfgFile =
+    pool: poolOpts:
+    pkgs.writeText "phpfpm-${pool}.conf" ''
+      [global]
+      ${concatStringsSep "\n" (mapAttrsToList (n: v: "${n} = ${toStr v}") cfg.settings)}
+      ${optionalString (cfg.extraConfig != null) cfg.extraConfig}
+
+      [${pool}]
+      ${concatStringsSep "\n" (mapAttrsToList (n: v: "${n} = ${toStr v}") poolOpts.settings)}
+      ${concatStringsSep "\n" (mapAttrsToList (n: v: "env[${n}] = ${toStr v}") poolOpts.phpEnv)}
+      ${optionalString (poolOpts.extraConfig != null) poolOpts.extraConfig}
+    '';
+
+  phpIni =
+    poolOpts:
+    pkgs.runCommand "php.ini"
+      {
+        inherit (poolOpts) phpPackage;
+        phpOptions = poolPhpIni poolOpts;
+        preferLocalBuild = true;
+        __structuredAttrs = true;
+      }
+      ''
+        ( cat ${poolOpts.phpPackage}/etc/php.ini
+          printf "%s" "$phpOptions"
+        ) > $out
+      '';
+
+  poolOpts =
+    { name, ... }:
     let
       poolOpts = cfg.pools.${name};
     in
@@ -69,15 +114,46 @@ let
         };
 
         phpOptions = mkOption {
-          type = types.lines;
+          type =
+            with types;
+            either lines (
+              attrsOf (
+                nullOr (oneOf [
+                  bool
+                  int
+                  float
+                  str
+                ])
+              )
+            );
+          default = { };
+          example = literalExpression ''
+            {
+              "date.timezone" = "CET";
+            }
+          '';
           description = ''
-            "Options appended to the PHP configuration file {file}`php.ini` used for this PHP-FPM pool."
+            Structured options appended to the PHP configuration file
+            {file}`php.ini` used for this PHP-FPM pool.
+
+            For backwards compatibility, a string in
+            {file}`php.ini` format is also accepted, but deprecated.
+            It will be removed in a future release. Please migrate to
+            the attribute set format:
+
+            ```nix
+            {
+              services.phpfpm.pools.<name>.phpOptions = {
+                "date.timezone" = "CET";
+              };
+            }
+            ```
           '';
         };
 
         phpEnv = lib.mkOption {
           type = with types; attrsOf str;
-          default = {};
+          default = { };
           description = ''
             Environment variables used for this PHP-FPM pool.
           '';
@@ -102,8 +178,14 @@ let
         };
 
         settings = mkOption {
-          type = with types; attrsOf (oneOf [ str int bool ]);
-          default = {};
+          type =
+            with types;
+            attrsOf (oneOf [
+              str
+              int
+              bool
+            ]);
+          default = { };
           description = ''
             PHP-FPM pool directives. Refer to the "List of pool directives" section of
             <https://www.php.net/manual/en/install.fpm.configuration.php>
@@ -136,9 +218,8 @@ let
       config = {
         socket = if poolOpts.listen == "" then "${runtimeDir}/${name}.sock" else poolOpts.listen;
         group = mkDefault poolOpts.user;
-        phpOptions = mkBefore cfg.phpOptions;
 
-        settings = mapAttrs (name: mkDefault){
+        settings = mapAttrs (name: mkDefault) {
           listen = poolOpts.socket;
           user = poolOpts.user;
           group = poolOpts.group;
@@ -146,7 +227,8 @@ let
       };
     };
 
-in {
+in
+{
   imports = [
     (mkRemovedOptionModule [ "services" "phpfpm" "poolConfigs" ] "Use services.phpfpm.pools instead.")
     (mkRemovedOptionModule [ "services" "phpfpm" "phpIni" ] "")
@@ -155,8 +237,14 @@ in {
   options = {
     services.phpfpm = {
       settings = mkOption {
-        type = with types; attrsOf (oneOf [ str int bool ]);
-        default = {};
+        type =
+          with types;
+          attrsOf (oneOf [
+            str
+            int
+            bool
+          ]);
+        default = { };
         description = ''
           PHP-FPM global directives. Refer to the "List of global php-fpm.conf directives" section of
           <https://www.php.net/manual/en/install.fpm.configuration.php>
@@ -182,36 +270,62 @@ in {
       phpPackage = mkPackageOption pkgs "php" { };
 
       phpOptions = mkOption {
-        type = types.lines;
-        default = "";
-        example =
-          ''
-            date.timezone = "CET"
-          '';
+        type =
+          with types;
+          either lines (
+            attrsOf (
+              nullOr (oneOf [
+                bool
+                int
+                float
+                str
+              ])
+            )
+          );
+        default = { };
+        example = literalExpression ''
+          {
+            "date.timezone" = "CET";
+          }
+        '';
         description = ''
-          Options appended to the PHP configuration file {file}`php.ini`.
+          Structured options appended to the PHP configuration file
+          {file}`php.ini`.
+
+          For backwards compatibility, a string in
+          {file}`php.ini` format is also accepted, but deprecated.
+          It will be removed in a future release. Please migrate to
+          the attribute set format:
+
+          ```nix
+          {
+            services.phpfpm.phpOptions = {
+              "date.timezone" = "CET";
+            };
+          }
+          ```
         '';
       };
 
       pools = mkOption {
         type = types.attrsOf (types.submodule poolOpts);
-        default = {};
+        default = { };
         example = literalExpression ''
-         {
-           mypool = {
-             user = "php";
-             group = "php";
-             phpPackage = pkgs.php;
-             settings = {
-               "pm" = "dynamic";
-               "pm.max_children" = 75;
-               "pm.start_servers" = 10;
-               "pm.min_spare_servers" = 5;
-               "pm.max_spare_servers" = 20;
-               "pm.max_requests" = 500;
-             };
-           }
-         }'';
+          {
+            mypool = {
+              user = "php";
+              group = "php";
+              phpPackage = pkgs.php;
+              settings = {
+                "pm" = "dynamic";
+                "pm.max_children" = 75;
+                "pm.start_servers" = 10;
+                "pm.min_spare_servers" = 5;
+                "pm.max_spare_servers" = 20;
+                "pm.max_requests" = 500;
+              };
+            }
+          }'';
         description = ''
           PHP-FPM pools. If no pools are defined, the PHP-FPM
           service is disabled.
@@ -220,27 +334,32 @@ in {
     };
   };
 
-  config = mkIf (cfg.pools != {}) {
+  config = mkIf (cfg.pools != { }) {
 
     warnings =
       mapAttrsToList (pool: poolOpts: ''
         Using config.services.phpfpm.pools.${pool}.listen is deprecated and will become unsupported in a future release. Please reference the read-only option config.services.phpfpm.pools.${pool}.socket to access the path of your socket.
-      '') (filterAttrs (pool: poolOpts: poolOpts.listen != "") cfg.pools) ++
-      mapAttrsToList (pool: poolOpts: ''
+      '') (filterAttrs (pool: poolOpts: poolOpts.listen != "") cfg.pools)
+      ++ mapAttrsToList (pool: poolOpts: ''
         Using config.services.phpfpm.pools.${pool}.extraConfig is deprecated and will become unsupported in a future release. Please migrate your configuration to config.services.phpfpm.pools.${pool}.settings.
-      '') (filterAttrs (pool: poolOpts: poolOpts.extraConfig != null) cfg.pools) ++
-      optional (cfg.extraConfig != null) ''
+      '') (filterAttrs (pool: poolOpts: poolOpts.extraConfig != null) cfg.pools)
+      ++ optional (cfg.extraConfig != null) ''
         Using config.services.phpfpm.extraConfig is deprecated and will become unsupported in a future release. Please migrate your configuration to config.services.phpfpm.settings.
       ''
-    ;
+      ++ optional (isString cfg.phpOptions) ''
+        Using a string for `services.phpfpm.phpOptions` is deprecated and will become unsupported in a future release. Please migrate to the attribute set format, e.g. `services.phpfpm.phpOptions = { "date.timezone" = "CET"; };`.
+      ''
+      ++ mapAttrsToList (pool: poolOpts: ''
+        Using a string for `services.phpfpm.pools.${pool}.phpOptions` is deprecated and will become unsupported in a future release. Please migrate to the attribute set format, e.g. `services.phpfpm.pools.${pool}.phpOptions = { "date.timezone" = "CET"; };`.
+      '') (filterAttrs (pool: poolOpts: isString poolOpts.phpOptions) cfg.pools);
 
     services.phpfpm.settings = {
       error_log = "syslog";
       daemonize = false;
     };
 
-    systemd.slices.phpfpm = {
-      description = "PHP FastCGI Process manager pools slice";
+    systemd.slices.system-phpfpm = {
+      description = "PHP FastCGI Process Manager Slice";
     };
 
     systemd.targets.phpfpm = {
@@ -248,30 +367,35 @@ in {
       wantedBy = [ "multi-user.target" ];
     };
 
-    systemd.services = mapAttrs' (pool: poolOpts:
+    systemd.services = mapAttrs' (
+      pool: poolOpts:
       nameValuePair "phpfpm-${pool}" {
         description = "PHP FastCGI Process Manager service for pool ${pool}";
         after = [ "network.target" ];
         wantedBy = [ "phpfpm.target" ];
         partOf = [ "phpfpm.target" ];
-        serviceConfig = let
-          cfgFile = fpmCfgFile pool poolOpts;
-          iniFile = phpIni poolOpts;
-        in {
-          Slice = "phpfpm.slice";
-          PrivateDevices = true;
-          PrivateTmp = true;
-          ProtectSystem = "full";
-          ProtectHome = true;
-          # XXX: We need AF_NETLINK to make the sendmail SUID binary from postfix work
-          RestrictAddressFamilies = "AF_UNIX AF_INET AF_INET6 AF_NETLINK";
-          Type = "notify";
-          ExecStart = "${poolOpts.phpPackage}/bin/php-fpm -y ${cfgFile} -c ${iniFile}";
-          ExecReload = "${pkgs.coreutils}/bin/kill -USR2 $MAINPID";
-          RuntimeDirectory = "phpfpm";
-          RuntimeDirectoryPreserve = true; # Relevant when multiple processes are running
-          Restart = "always";
-        };
+        documentation = [ "man:php-fpm(8)" ];
+        serviceConfig =
+          let
+            cfgFile = fpmCfgFile pool poolOpts;
+            iniFile = phpIni poolOpts;
+          in
+          {
+            Slice = "system-phpfpm.slice";
+            PrivateDevices = true;
+            PrivateTmp = true;
+            ProtectSystem = "full";
+            ProtectHome = true;
+            # XXX: We need AF_NETLINK to make the sendmail SUID binary from postfix work
+            RestrictAddressFamilies = "AF_UNIX AF_INET AF_INET6 AF_NETLINK";
+            Type = "notify";
+            ExecStart = "${poolOpts.phpPackage}/bin/php-fpm -y ${cfgFile} -c ${iniFile}";
+            ExecReload = "${pkgs.coreutils}/bin/kill -USR2 $MAINPID";
+            RuntimeDirectory = "phpfpm";
+            RuntimeDirectoryPreserve = true; # Relevant when multiple processes are running
+            Restart = "always";
+            WatchdogSec = 15;
+          };
       }
     ) cfg.pools;
   };

@@ -142,7 +142,7 @@ echo "writing temporary file $csv ..."
 find . -type f -name '*.sha256' | while read sha256file; do
     src="${sha256file%.*}" # remove extension
     sha256=$(cat $sha256file | cut -d' ' -f1) # base16
-    sha256=$(nix-hash --type sha256 --to-base32 $sha256)
+    sha256=$(nix-hash --type sha256 --to-sri $sha256)
     # Sanitize file name
     filename=$(basename "$src" | tr '@' '_')
     nameVersion="${filename%.tar.*}"
@@ -156,7 +156,7 @@ files_before=$(grep -c 'src = ' "$SRCS")
 echo "writing output file $SRCS ..."
 cat >"$SRCS" <<EOF
 # DO NOT EDIT! This file is generated automatically.
-# Command: $0 $@
+# Command: ./maintainers/scripts/fetch-kde-qt.sh $@
 { fetchurl, mirror }:
 
 {
@@ -174,7 +174,7 @@ gawk -F , "{ print \$1 }" $csv | sort | uniq | while read name; do
     version = "$latestVersion";
     src = fetchurl {
       url = "\${mirror}/$url";
-      sha256 = "$sha256";
+      hash = "$sha256";
       name = "$filename";
     };
   };

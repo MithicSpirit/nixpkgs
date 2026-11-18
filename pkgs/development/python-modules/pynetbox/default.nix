@@ -2,33 +2,37 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+  setuptools,
   setuptools-scm,
   packaging,
   requests,
-  six,
   pytestCheckHook,
   pyyaml,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pynetbox";
-  version = "7.3.4";
-  format = "setuptools";
+  version = "7.9.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "netbox-community";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Ie309I19BhzASrmc3Ws1zV/BySc49AhFPNrNKQhTD0U=";
+    repo = "pynetbox";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-4wE6s43MqPxCApvHQ1dl/SH2WgResUOXzc+BlVGsB8A=";
   };
 
-  nativeBuildInputs = [ setuptools-scm ];
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     packaging
     requests
-    six
   ];
+
+  pythonImportsCheck = [ "pynetbox" ];
 
   nativeCheckInputs = [
     pytestCheckHook
@@ -40,11 +44,11 @@ buildPythonPackage rec {
     "tests/integration"
   ];
 
-  meta = with lib; {
-    changelog = "https://github.com/netbox-community/pynetbox/releases/tag/v${version}";
+  meta = {
+    changelog = "https://github.com/netbox-community/pynetbox/releases/tag/${finalAttrs.src.tag}";
     description = "API client library for Netbox";
     homepage = "https://github.com/netbox-community/pynetbox";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ hexa ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ hexa ];
   };
-}
+})

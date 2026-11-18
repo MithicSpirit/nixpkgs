@@ -1,36 +1,38 @@
 {
   lib,
+  beautifulsoup4,
   buildPythonPackage,
-  datetime,
   fetchPypi,
+  lxml,
   nvdlib,
+  openai,
+  poetry-core,
   pydantic,
-  pythonOlder,
-  setuptools,
   typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "avidtools";
-  version = "0.1.2";
+  version = "0.3.2";
   pyproject = true;
 
-  disabled = pythonOlder "3.9";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-2YtX+kUryTwaQ4QvExw5OJ4Rx8JoTzBeC8VSyNEL7OY=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-sx+g3yBJ478C8L2IhO1iYIzubsP6kTA2sCts3nwF23E=";
   };
 
-  postPatch = ''
-    sed -i "/'typing'/d" setup.py
-  '';
+  pythonRelaxDeps = [
+    "lxml"
+    "openai"
+  ];
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ poetry-core ];
 
-  propagatedBuildInputs = [
-    datetime
+  dependencies = [
+    beautifulsoup4
+    lxml
     nvdlib
+    openai
     pydantic
     typing-extensions
   ];
@@ -40,10 +42,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "avidtools" ];
 
-  meta = with lib; {
+  meta = {
     description = "Developer tools for AVID";
     homepage = "https://github.com/avidml/avidtools";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/avidml/avidtools/releases/tag/${finalAttrs.version}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

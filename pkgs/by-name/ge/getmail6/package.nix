@@ -1,26 +1,30 @@
-{ lib
-, python3
-, fetchFromGitHub
+{
+  lib,
+  python3,
+  fetchFromGitHub,
+  versionCheckHook,
+  coreutils,
 }:
 
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication (finalAttrs: {
   pname = "getmail6";
-  version = "6.19.04";
+  version = "6.21.01";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "getmail6";
     repo = "getmail6";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-mKYAk3rXWBMgyxXenVRTGXIUG6ruz5/CxLmh8rpinfI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-2OAhFVRC3FA6yMRYyxw3/jmjJQGcn/9UE/xNDoGtJmU=";
   };
 
   build-system = with python3.pkgs; [
     setuptools
   ];
 
-  # needs a Docker setup
-  doCheck = false;
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
 
   pythonImportsCheck = [ "getmailcore" ];
 
@@ -29,13 +33,31 @@ python3.pkgs.buildPythonApplication rec {
     # documentation installation; too bad it is counterproductive now
     sed -e '/datadir or prefix,/d' -i setup.py
     sed -e 's,/usr/bin/getmail,$(dirname $0)/getmail,' -i getmails
+
+    substituteInPlace test/test_mock_servers.py \
+      --replace-fail '/bin/true' '${lib.getExe' coreutils "true"}'
   '';
 
-  meta = with lib; {
+  nativeCheckInputs = with python3.pkgs; [
+    pytestCheckHook
+  ];
+
+  disabledTests = [
+    # incompatible with sandbox
+    "test_full_imap"
+    "test_idle_expunge_abort_imap"
+    "test_imap_ssl_parameters"
+  ];
+
+  meta = {
     description = "Program for retrieving mail";
     homepage = "https://getmail6.org";
-    changelog = "https://github.com/getmail6/getmail6/blob/${src.rev}/docs/CHANGELOG";
-    license = licenses.gpl2Plus;
-    maintainers = with maintainers; [ abbe dotlambda ];
+    changelog = "https://github.com/getmail6/getmail6/blob/${finalAttrs.src.tag}/docs/CHANGELOG";
+    license = lib.licenses.gpl2Plus;
+    mainProgram = "getmail";
+    maintainers = with lib.maintainers; [
+      abbe
+      dotlambda
+    ];
   };
-}
+})

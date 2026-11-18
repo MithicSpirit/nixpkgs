@@ -1,6 +1,12 @@
-{ config, lib, moduleType, hostPkgs, ... }:
+{
+  config,
+  lib,
+  moduleType,
+  hostPkgs,
+  ...
+}:
 let
-  inherit (lib) mkOption types;
+  inherit (lib) mkOption;
 in
 {
   options = {
@@ -40,6 +46,12 @@ in
   config = {
     interactive.qemu.package = hostPkgs.qemu;
     interactive.extraDriverArgs = [ "--interactive" ];
+    interactive.driverConfiguration.containers = lib.mapAttrs (_: machine: {
+      vnc = lib.mkIf machine.services.xserver.enable {
+        x11vnc = lib.getExe hostPkgs.x11vnc;
+        tigervnc = lib.getExe' hostPkgs.tigervnc "vncviewer";
+      };
+    }) config.containers;
     passthru.driverInteractive = config.interactive.driver;
   };
 }

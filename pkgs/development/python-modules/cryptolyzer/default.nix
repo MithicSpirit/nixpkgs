@@ -1,52 +1,51 @@
 {
   lib,
+  asn1crypto,
   attrs,
   beautifulsoup4,
   buildPythonPackage,
   certvalidator,
   colorama,
+  cryptodatahub,
   cryptoparser,
   dnspython,
-  fetchPypi,
-  pathlib2,
-  pyfakefs,
-  python-dateutil,
-  pythonOlder,
+  fetchFromGitLab,
+  oscrypto,
+  pycryptodomex,
   requests,
   setuptools,
+  setuptools-scm,
   urllib3,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "cryptolyzer";
-  version = "0.12.5";
+  version = "1.6.1";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-Qc1L4F2U/nk37s/mIa2YgJZqC2dkPsB/Si84SEl576Q=";
+  src = fetchFromGitLab {
+    owner = "coroner";
+    repo = "cryptolyzer";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-wGPxK6yL2g7EPb1hyfenm3Op3xJIpJsaWQJcTXx6O/o=";
   };
 
-  postPatch = ''
-    substituteInPlace requirements.txt  \
-      --replace-warn "attrs>=20.3.0,<22.0.1" "attrs>=20.3.0" \
-      --replace-warn "bs4" "beautifulsoup4"
-  '';
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
 
-  nativeBuildInputs = [ setuptools ];
-
-  propagatedBuildInputs = [
+  dependencies = [
+    asn1crypto
     attrs
     beautifulsoup4
     certvalidator
     colorama
+    cryptodatahub
     cryptoparser
     dnspython
-    pathlib2
-    pyfakefs
-    python-dateutil
+    oscrypto
+    pycryptodomex
     requests
     urllib3
   ];
@@ -54,13 +53,24 @@ buildPythonPackage rec {
   # Tests require networking
   doCheck = false;
 
+  postInstall = ''
+    find $out -name "__pycache__" -type d | xargs rm -rv
+
+    # Prevent creating more binary byte code later (e.g. during
+    # pythonImportsCheck)
+    export PYTHONDONTWRITEBYTECODE=1
+  '';
+
   pythonImportsCheck = [ "cryptolyzer" ];
 
-  meta = with lib; {
+  passthru.updateScript = ../cryptodatahub/update.sh;
+
+  meta = {
     description = "Cryptographic protocol analyzer";
     homepage = "https://gitlab.com/coroner/cryptolyzer";
-    changelog = "https://gitlab.com/coroner/cryptolyzer/-/blob/v${version}/CHANGELOG.md";
-    license = licenses.mpl20;
-    maintainers = with maintainers; [ kranzes ];
+    changelog = "https://gitlab.com/coroner/cryptolyzer/-/blob/${finalAttrs.src.tag}/CHANGELOG.rst";
+    license = lib.licenses.mpl20;
+    mainProgram = "cryptolyze";
+    teams = with lib.teams; [ ngi ];
   };
-}
+})

@@ -1,167 +1,183 @@
-{ lib
-, clangStdenv
-, llvmPackages
-, fetchFromGitHub
-, cmake
-, ninja
-, pkg-config
-, bison
-, boost
-, cairo
-, cgal_5
-, clipper2
-, double-conversion
-, eigen
-, flex
-, fontconfig
-, freetype
-, ghostscript
-, glib
-, glm
-, gmp
-, harfbuzz
-, hidapi
-, lib3mf
-, libGLU
-, libICE
-, libSM
-, libsForQt5
-, libspnav
-, libzip
-, mesa
-, mpfr
-, python3
-, tbb_2021_11
-, wayland
-, wayland-protocols
-, wrapGAppsHook3
-, xorg
+{
+  lib,
+  stdenv,
+  clangStdenv,
+  llvmPackages,
+  fetchFromGitHub,
+  cmake,
+  ninja,
+  pkg-config,
+  bison,
+  boost,
+  cairo,
+  catch2_3,
+  cgal,
+  clipper2,
+  double-conversion,
+  eigen,
+  flex,
+  fontconfig,
+  freetype,
+  ghostscript,
+  glib,
+  glm,
+  gmp,
+  harfbuzz,
+  hidapi,
+  lib3mf,
+  libGLU,
+  libice,
+  libsm,
+  libsForQt5,
+  libspnav,
+  libzip,
+  manifold,
+  mesa,
+  mpfr,
+  python3,
+  onetbb,
+  wayland,
+  wayland-protocols,
+  wrapGAppsHook3,
+  libxdmcp,
+  mimalloc,
+  opencsg,
+  ctestCheckHook,
 }:
-let
-  # get cccl from source to avoid license issues
-  nvidia-cccl = clangStdenv.mkDerivation {
-    pname = "nvidia-cccl";
-    # note, after v2.2.0, manifold dependency fails with some swap() ambiguities
-    version = "2.2.0";
-    src = fetchFromGitHub {
-      owner = "NVIDIA";
-      repo = "cccl";
-      fetchSubmodules = true;
-      rev = "v2.2.0";
-      hash = "sha256-azHDAuK0rAHrH+XkN3gHDrbwZOclP3zbEMe8VRpMjDQ=";
-    };
-    patches = [ ./thrust-cmake.patch ];
-    nativeBuildInputs = [ cmake pkg-config ];
-    buildInputs = [ tbb_2021_11 ];
-    cmakeFlags = [
-      # only enable what we need
-      "-DCCCL_ENABLE_CUB=OFF"
-      "-DCCCL_ENABLE_LIBCUDACXX=ON"
-      "-DCCCL_ENABLE_THRUST=ON"
-      "-DCCCL_ENABLE_TESTING=OFF"
-      "-DCCCL_ENABLE_EXAMPLES=OFF"
-
-      "-DTHRUST_DEVICE_SYSTEM=TBB"
-      "-DTHRUST_HOST_SYSTEM=CPP"
-      "-DTHRUST_ENABLE_HEADER_TESTING=OFF"
-      "-DTHRUST_ENABLE_TESTING=OFF"
-      "-DTHRUST_ENABLE_EXAMPLES=OFF"
-
-      "-DLIBCUDACXX_ENABLE_CUDA=OFF"
-      "-DLIBCUDACXX_ENABLE_STATIC_LIBRARY=OFF"
-      "-DLIBCUDACXX_ENABLE_LIBCUDACXX_TESTS=OFF"
-    ];
-    meta = with lib; {
-      description = "CUDA C++ Core Libraries";
-      homepage = "https://github.com/NVIDIA/cccl";
-      license = licenses.asl20;
-      platforms = platforms.unix;
-    };
-  };
-in
 # clang consume much less RAM than GCC
+let
+  python3withPackages = (
+    python3.withPackages (
+      ps: with ps; [
+        numpy
+        pillow
+      ]
+    )
+  );
+in
 clangStdenv.mkDerivation rec {
   pname = "openscad-unstable";
-  version = "2024-08-17";
+  unstable_date = "2026-07-20";
+  version = "2021.01-unstable-${unstable_date}";
   src = fetchFromGitHub {
     owner = "openscad";
     repo = "openscad";
-    rev = "a16ca2a670840cfecb76254967380385d4d573cb";
-    hash = "sha256-YadbrYaxxdVNejasFW0MbcYwjwTHHQbVjqen9PKEsYQ=";
-    fetchSubmodules = true;
+    rev = "e4fdec49730103274a4e21c2390b9a12882f01aa";
+    hash = "sha256-9bPz6iVbUHeFp2uQiVVFYze24IN4skesP45TBBbr8Vk=";
+    fetchSubmodules = true; # Only really need sanitizers-cmake and MCAD and manifold
   };
-  patches = [ ./test.diff ];
+
   nativeBuildInputs = [
-    (python3.withPackages (ps: with ps; [ numpy pillow ]))
+    python3withPackages
     bison
     cmake
     flex
-    libsForQt5.qt5.wrapQtAppsHook
+    libsForQt5.wrapQtAppsHook
     llvmPackages.bintools
     wrapGAppsHook3
     ninja
     pkg-config
   ];
-  buildInputs = with libsForQt5; with qt5; [
-    # manifold dependencies
+  buildInputs = [
+    catch2_3
     clipper2
     glm
-    tbb_2021_11
-    nvidia-cccl
-
+    onetbb
+    mimalloc
     boost
     cairo
-    cgal_5
+    cgal
     double-conversion
     eigen
     fontconfig
     freetype
-    ghostscript
     glib
     gmp
+    opencsg
     harfbuzz
     hidapi
     lib3mf
     libspnav
     libzip
+    manifold
     mpfr
-    qscintilla
-    qtbase
-    qtmultimedia
+    libsForQt5.qscintilla
+    libsForQt5.qtbase
+    libsForQt5.qtmultimedia
   ]
-  ++ lib.optionals clangStdenv.isLinux [
-    xorg.libXdmcp
-    libICE
-    libSM
+  ++ lib.optionals clangStdenv.hostPlatform.isLinux [
+    libxdmcp
+    libice
+    libsm
     wayland
     wayland-protocols
-    qtwayland
+    libsForQt5.qtwayland
     libGLU
   ]
-  ++ lib.optional clangStdenv.isDarwin qtmacextras
-  ;
+  ++ lib.optional clangStdenv.hostPlatform.isDarwin libsForQt5.qtmacextras;
   cmakeFlags = [
     "-DEXPERIMENTAL=ON" # enable experimental options
     "-DSNAPSHOT=ON" # nightly icons
-    "-DUSE_BUILTIN_OPENCSG=ON" # bundled latest opencsg
-    "-DOPENSCAD_VERSION=\"${builtins.replaceStrings ["-"] ["."] version}\""
-    "-DCMAKE_UNITY_BUILD=ON" # faster build
+    "-DUSE_BUILTIN_OPENCSG=OFF"
+    "-DUSE_BUILTIN_MANIFOLD=OFF"
+    "-DUSE_BUILTIN_CLIPPER2=OFF"
+    # Derive version from our unstable date
+    "-DOPENSCAD_VERSION='${builtins.replaceStrings [ "-" ] [ "." ] unstable_date}-unstable'"
+    "-DCMAKE_UNITY_BUILD=OFF" # broken compile with unity
     # IPO
-    "-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld"
     "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+
+    # The sources enable this for only apple. We turn it off globally anyway to stay
+    # consistent.
+    "-DUSE_QT6=OFF"
+
+    # For tests
+    "-DVENV_DIR=${python3withPackages}"
+    "-DVENV_BIN_PATH=${python3withPackages}/bin"
   ];
 
-  doCheck = true;
+  # tests rely on sysprof which is not available on darwin
+  doCheck = !stdenv.hostPlatform.isDarwin;
+
+  # remove unused submodules, to ensure correct dependency usage
+  postUnpack = ''
+    ( cd $sourceRoot
+      for m in submodules/OpenCSG submodules/mimalloc submodules/Clipper2
+      do rm -r $m
+      done )
+  '';
+
+  postPatch = ''
+    patchShebangs scripts/
+
+    # Take Python3 executable as passed
+    sed -e '/set(VENV_DIR /d' -i tests/cmake/ImageCompare.cmake
+    sed -e '/find_path(VENV_BIN_PATH /d' -i tests/cmake/ImageCompare.cmake
+  '';
+
+  postInstall = lib.optionalString stdenv.hostPlatform.isDarwin ''
+    mkdir $out/Applications
+    mv $out/bin/*.app $out/Applications
+    rm $out/bin/* || true
+    ln -s $out/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD $out/bin/openscad-unstable
+  '';
 
   nativeCheckInputs = [
     mesa.llvmpipeHook
+    ctestCheckHook
+    ghostscript
   ];
 
-  checkPhase = ''
-    # some fontconfig issues cause pdf output to have wrong font
-    ctest -j$NIX_BUILD_CORES -E pdfexporttest.\*
-  '';
-  meta = with lib; {
+  dontUseNinjaCheck = true;
+
+  # These tests consistently fail when building on aarch64-linux
+  disabledTests = [
+    "export-svg_spec-paths-arcs01"
+    "export-svg-fill-stroke_spec-paths-arcs01"
+    "export-svg-fill-only_spec-paths-arcs01"
+  ];
+
+  meta = {
     description = "3D parametric model compiler (unstable)";
     longDescription = ''
       OpenSCAD is a software for creating solid 3D CAD objects. It is free
@@ -178,7 +194,11 @@ clangStdenv.mkDerivation rec {
     # note that the *binary license* is gpl3 due to CGAL
     license = lib.licenses.gpl3;
     platforms = lib.platforms.unix;
-    maintainers = with lib.maintainers; [ pca006132 raskin ];
+    maintainers = with lib.maintainers; [
+      hzeller
+      pca006132
+      raskin
+    ];
     mainProgram = "openscad";
   };
 }

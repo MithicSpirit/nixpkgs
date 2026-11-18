@@ -11,7 +11,7 @@
   numpy,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "phe";
   version = "1.5.1";
   pyproject = true;
@@ -19,10 +19,16 @@ buildPythonPackage rec {
   # https://github.com/data61/python-paillier/issues/51
   disabled = isPyPy || !isPy3k;
 
+  # upstream did not update the version string in 1.5.1
+  postPatch = ''
+    substituteInPlace phe/__about__.py \
+      --replace-fail "1.5.0" "$version"
+  '';
+
   src = fetchFromGitHub {
     owner = "data61";
     repo = "python-paillier";
-    rev = "refs/tags/${version}";
+    tag = finalAttrs.version;
     hash = "sha256-P//4ZL4+2zcB5sWvujs2N0CHFz+EBLERWrPGLLHj6CY=";
   };
 
@@ -38,11 +44,11 @@ buildPythonPackage rec {
     numpy
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Library for Partially Homomorphic Encryption in Python";
     mainProgram = "pheutil";
     homepage = "https://github.com/data61/python-paillier";
-    license = licenses.gpl3;
-    maintainers = with maintainers; [ tomasajt ];
+    license = lib.licenses.gpl3;
+    maintainers = with lib.maintainers; [ tomasajt ];
   };
-}
+})

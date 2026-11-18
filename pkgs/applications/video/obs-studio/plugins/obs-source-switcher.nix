@@ -1,37 +1,37 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, cmake
-, obs-studio
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  cmake,
+  obs-studio,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "obs-source-switcher";
-  version = "0.4.1";
+  version = "0.4.4";
 
   src = fetchFromGitHub {
     owner = "exeldro";
     repo = "obs-source-switcher";
-    rev = "8babf207d140e52114b6db63d98749d7a0a2758b";
-    sha256 = "sha256-J/NdIGsSXCtSOGF72pJZqqN5Y73eJfrA72LgZcTlP5o=";
+    tag = finalAttrs.version;
+    hash = "sha256-XLeDFyb75gipHakYPMa3hRjlSF/20Tq+Dks3qw9c6iA=";
   };
 
   nativeBuildInputs = [ cmake ];
+
   buildInputs = [ obs-studio ];
 
-  cmakeFlags = [
-    "-DBUILD_OUT_OF_TREE=On"
-  ];
+  cmakeFlags = [ "-DBUILD_OUT_OF_TREE=On" ];
 
   postInstall = ''
     rm -rf $out/obs-plugins $out/data
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Plugin for OBS Studio to switch between a list of sources";
     homepage = "https://github.com/exeldro/obs-source-switcher";
-    maintainers = with maintainers; [ flexiondotorg ];
-    license = licenses.gpl2Plus;
-    platforms = [ "x86_64-linux" "i686-linux" ];
+    maintainers = with lib.maintainers; [ flexiondotorg ];
+    license = lib.licenses.gpl2Plus;
+    inherit (obs-studio.meta) platforms;
   };
-}
+})

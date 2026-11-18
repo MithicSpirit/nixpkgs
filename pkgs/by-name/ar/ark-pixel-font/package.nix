@@ -1,42 +1,39 @@
-{ lib
-, python312Packages
-, fetchFromGitHub
-, nix-update-script
+{
+  lib,
+  python3Packages,
+  fetchFromGitHub,
+  nix-update-script,
 }:
 
-python312Packages.buildPythonPackage rec {
+python3Packages.buildPythonApplication rec {
   pname = "ark-pixel-font";
-  version = "2024.05.12";
+  version = "2025.08.24";
+  pyproject = false;
 
   src = fetchFromGitHub {
     owner = "TakWolf";
     repo = "ark-pixel-font";
-    rev = "refs/tags/${version}";
-    hash = "sha256-PGhhKWHDpvOqa3vaI40wuIsAEdWGb62cN7QJeHQqiss=";
+    tag = version;
+    hash = "sha256-kxct994UmZhJBMlXZmayN24eiKqeG9T7GdyfsjBYpn0=";
   };
 
-  format = "other";
-
-  nativeBuildInputs = with python312Packages; [
+  dependencies = with python3Packages; [
     pixel-font-builder
+    pixel-font-knife
     unidata-blocks
     character-encoding-utils
-    pypng
+    pyyaml
     pillow
     beautifulsoup4
     jinja2
-    gitpython
+    loguru
+    cyclopts
   ];
-
-  # By default build.py builds a LOT of extraneous artifacts we don't need.
-  patches = [ ./limit-builds.patch ];
 
   buildPhase = ''
     runHook preBuild
 
-    # Too much debug output would break Hydra, so this jankness has to be here for it to build at all.
-    # I wish there's a builtin way to set the log level without modifying the script itself...
-    python3 build.py 2>&1 >/dev/null | grep -E '^(INFO|WARN|ERROR)'
+    python -m tools.cli --cleanup
 
     runHook postBuild
   '';
@@ -60,7 +57,12 @@ python312Packages.buildPythonPackage rec {
   meta = {
     description = "Open source pan-CJK pixel font";
     homepage = "https://ark-pixel-font.takwolf.com/";
-    license = lib.licenses.ofl;
+    license =
+      with lib.licenses;
+      AND [
+        ofl
+        mit
+      ];
     maintainers = with lib.maintainers; [ h7x4 ];
     platforms = lib.platforms.all;
   };

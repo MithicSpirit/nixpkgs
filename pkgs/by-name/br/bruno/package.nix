@@ -1,11 +1,11 @@
 {
   lib,
   stdenv,
+  clang_20,
   fetchFromGitHub,
   buildNpmPackage,
   nix-update-script,
   electron,
-  writeShellScriptBin,
   makeWrapper,
   copyDesktopItems,
   makeDesktopItem,
@@ -14,53 +14,43 @@
   cairo,
   pango,
   npm-lockfile-fix,
-  overrideSDK,
-  darwin,
+  jq,
+  moreutils,
 }:
 
-let
-  # fix for: https://github.com/NixOS/nixpkgs/issues/272156
-  buildNpmPackage' = buildNpmPackage.override {
-    stdenv = if stdenv.isDarwin then overrideSDK stdenv "11.0" else stdenv;
-  };
-in
-buildNpmPackage' rec {
+buildNpmPackage rec {
   pname = "bruno";
-  version = "1.25.0";
+  version = "4.3.0";
 
   src = fetchFromGitHub {
     owner = "usebruno";
     repo = "bruno";
-    rev = "v${version}";
-    hash = "sha256-TXEe0ICrkljxfnvW1wv/e1BB7J6p/KW3JklCvYyjqSs=";
+    tag = "v${version}";
+    hash = "sha256-VP7MrfmsH1A/p4Cik0T93+tENCAVYYCRPuPNxbNU/YA=";
 
     postFetch = ''
       ${lib.getExe npm-lockfile-fix} $out/package-lock.json
     '';
   };
 
-  npmDepsHash = "sha256-/1/QPKjSgJJDtmUipgbiVR+Buea9cXO+HvICfKVX/2g=";
+  npmDepsFetcherVersion = 2;
+  npmDepsHash = "sha256-knLLTC6xAw1ycqYLYfNtnZsfTjRHuV6vAXc8JQ6u8HM=";
   npmFlags = [ "--legacy-peer-deps" ];
 
-  nativeBuildInputs =
-    [
-      (writeShellScriptBin "phantomjs" "echo 2.1.1")
-      pkg-config
-    ]
-    ++ lib.optionals (!stdenv.isDarwin) [
-      makeWrapper
-      copyDesktopItems
-    ];
+  nativeBuildInputs = [
+    pkg-config
+  ]
+  ++ lib.optional stdenv.hostPlatform.isDarwin clang_20 # clang_21 breaks gyp builds
+  ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [
+    makeWrapper
+    copyDesktopItems
+  ];
 
-  buildInputs =
-    [
-      pixman
-      cairo
-      pango
-    ]
-    ++ lib.optionals stdenv.isDarwin [
-      darwin.apple_sdk_11_0.frameworks.CoreText
-    ];
+  buildInputs = [
+    pixman
+    cairo
+    pango
+  ];
 
   desktopItems = [
     (makeDesktopItem {
@@ -69,6 +59,7 @@ buildNpmPackage' rec {
       exec = "bruno %U";
       icon = "bruno";
       comment = "Opensource API Client for Exploring and Testing APIs";
+      mimeTypes = [ "x-scheme-handler/bruno" ];
       categories = [ "Development" ];
       startupWMClass = "Bruno";
     })
@@ -77,31 +68,53 @@ buildNpmPackage' rec {
   postPatch = ''
     substituteInPlace scripts/build-electron.sh \
       --replace-fail 'if [ "$1" == "snap" ]; then' 'exit 0; if [ "$1" == "snap" ]; then'
+
+    # disable telemetry
+    substituteInPlace packages/bruno-app/src/providers/App/index.js \
+      --replace-fail "useTelemetry({ version });" ""
+
+    # fix version reported in sidebar and about page
+    ${jq}/bin/jq '.version |= "${version}"' packages/bruno-electron/package.json | ${moreutils}/bin/sponge packages/bruno-electron/package.json
+    ${jq}/bin/jq '.version |= "${version}"' packages/bruno-app/package.json | ${moreutils}/bin/sponge packages/bruno-app/package.json
+
+    # disable remote image download to prevent network calls to comply with build sandboxing
+    substituteInPlace packages/bruno-app/plugins/remote-images/loader.cjs \
+      --replace-fail 'const urls = findRemoteImageUrls(source, domains);' 'const urls = [];'
+
+    # prevent 'prepare' from invoking tsx before patchShebangs fixes the interpreter
+    ${jq}/bin/jq 'del(.scripts.prepare)' packages/bruno-sqlite/package.json | ${moreutils}/bin/sponge packages/bruno-sqlite/package.json
   '';
 
-  ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
+  postConfigure = ''
+    # patch shebangs for node_modules binaries (rollup, tsx) to prevent bad interpreter errors
+    patchShebangs node_modules packages/*/node_modules
+  '';
 
-  # remove giflib dependency
+  env.ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
+
   npmRebuildFlags = [ "--ignore-scripts" ];
-  preBuild = ''
-    substituteInPlace node_modules/canvas/binding.gyp \
-      --replace-fail "'with_gif%': '<!(node ./util/has_lib.js gif)'" "'with_gif%': 'false'"
-    npm rebuild
-  '';
 
-  dontNpmBuild = true;
-  postBuild = ''
+  buildPhase = ''
+    runHook preBuild
+
     npm run build --workspace=packages/bruno-common
     npm run build --workspace=packages/bruno-graphql-docs
+    npm run build --workspace=packages/bruno-schema-types
+    npm run build --workspace=packages/bruno-converters
     npm run build --workspace=packages/bruno-app
     npm run build --workspace=packages/bruno-query
+    npm run build --workspace=packages/bruno-filestore
+    npm run build --workspace=packages/bruno-requests
+    npm run build --workspace=packages/bruno-sqlite
+
+    npm run sandbox:bundle-libraries --workspace=packages/bruno-js
 
     bash scripts/build-electron.sh
 
     pushd packages/bruno-electron
 
     ${
-      if stdenv.isDarwin then
+      if stdenv.hostPlatform.isDarwin then
         ''
           cp -r ${electron.dist}/Electron.app ./
           find ./Electron.app -name 'Info.plist' | xargs -d '\n' chmod +rw
@@ -128,6 +141,8 @@ buildNpmPackage' rec {
     }
 
     popd
+
+    runHook postBuild
   '';
 
   npmPackFlags = [ "--ignore-scripts" ];
@@ -135,9 +150,8 @@ buildNpmPackage' rec {
   installPhase = ''
     runHook preInstall
 
-
     ${
-      if stdenv.isDarwin then
+      if stdenv.hostPlatform.isDarwin then
         ''
           mkdir -p $out/Applications
 
@@ -151,7 +165,12 @@ buildNpmPackage' rec {
 
           makeWrapper ${lib.getExe electron} $out/bin/bruno \
             --add-flags $out/opt/bruno/resources/app.asar \
-            --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
+            --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}" \
+            --prefix LD_LIBRARY_PATH : ${
+              lib.makeLibraryPath [
+                stdenv.cc.cc.lib
+              ]
+            } \
             --set-default ELECTRON_IS_DEV 0 \
             --inherit-argv0
 
@@ -167,19 +186,19 @@ buildNpmPackage' rec {
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     description = "Open-source IDE For exploring and testing APIs";
     homepage = "https://www.usebruno.com";
-    platforms = platforms.linux ++ platforms.darwin;
-    license = licenses.mit;
-    maintainers = with maintainers; [
+    license = lib.licenses.mit;
+    mainProgram = "bruno";
+    maintainers = with lib.maintainers; [
       gepbird
       kashw2
-      lucasew
       mattpolzin
       water-sucks
-      redyf
+      starsep
+      samirbgno
     ];
-    mainProgram = "bruno";
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
 }

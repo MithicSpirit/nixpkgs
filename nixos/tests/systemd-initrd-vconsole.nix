@@ -1,19 +1,24 @@
-import ./make-test-python.nix ({ lib, pkgs, ... }: {
+{ lib, ... }:
+{
   name = "systemd-initrd-vconsole";
 
-  nodes.machine = { pkgs, ... }: {
-    boot.kernelParams = lib.mkAfter [ "rd.systemd.unit=rescue.target" "loglevel=3" "udev.log_level=3" "systemd.log_level=warning" ];
+  nodes.machine =
+    { pkgs, ... }:
+    {
+      boot.kernelParams = lib.mkAfter [
+        "rd.systemd.unit=rescue.target"
+        "loglevel=3"
+        "udev.log_level=3"
+        "systemd.log_level=warning"
+      ];
 
-    boot.initrd.systemd = {
-      enable = true;
-      emergencyAccess = true;
-    };
+      boot.initrd.systemd.emergencyAccess = true;
 
-    console = {
-      earlySetup = true;
-      keyMap = "colemak";
+      console = {
+        earlySetup = true;
+        keyMap = "colemak";
+      };
     };
-  };
 
   testScript = ''
     # Boot into rescue shell in initrd
@@ -39,4 +44,4 @@ import ./make-test-python.nix ({ lib, pkgs, ... }: {
       machine.send_key(key)
     machine.wait_for_console_text("arstneio")
   '';
-})
+}

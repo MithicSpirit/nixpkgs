@@ -11,6 +11,7 @@
   beautifulsoup4,
   soupsieve,
   wsgiproxy2,
+  legacy-cgi,
   mock,
   zope-testing,
   zope-testrunner,
@@ -19,17 +20,20 @@
 
 buildPythonPackage rec {
   pname = "zope-testbrowser";
-  version = "7.0";
+  version = "8.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "zopefoundation";
     repo = "zope.testbrowser";
-    rev = "refs/tags/${version}";
-    hash = "sha256-vGx2ObHgt4hSQe/JKZkD2/GhdtbJEAfggkM209maen4=";
+    tag = version;
+    hash = "sha256-Hh4U3706ewuSywizxmZoZO+0EW7lGU7GXU6VZFqPwFY=";
   };
 
   postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "setuptools >= 78.1.1,< 82" setuptools
+
     # remove test that requires network access
     substituteInPlace src/zope/testbrowser/tests/test_doctests.py \
       --replace-fail "suite.addTests(wire)" ""
@@ -47,6 +51,7 @@ buildPythonPackage rec {
     beautifulsoup4
     soupsieve
     wsgiproxy2
+    legacy-cgi
   ];
 
   nativeCheckInputs = [

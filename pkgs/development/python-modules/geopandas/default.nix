@@ -1,37 +1,57 @@
 {
   lib,
-  stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  pytestCheckHook,
-  pythonOlder,
-  setuptools,
 
+  # build-system
+  hatch-vcs,
+  hatchling,
+
+  # dependencies
+  numpy,
   packaging,
   pandas,
   pyogrio,
   pyproj,
-  rtree,
   shapely,
+
+  # optional-dependencies
+  folium,
+  geoalchemy2,
+  geopy,
+  mapclassify,
+  matplotlib,
+  psycopg,
+  pyarrow,
+  scipy,
+  sqlalchemy,
+  xyzservices,
+
+  # tests
+  pytestCheckHook,
+  rtree,
+  writableTmpDirAsHomeHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "geopandas";
-  version = "1.0.1";
+  version = "1.2.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "geopandas";
     repo = "geopandas";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-SZizjwkx8dsnaobDYpeQm9jeXZ4PlzYyjIScnQrH63Q=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-KXFNAsbeDLUupQSFnUSrvnSXqr5b8WUeDYaFbBvj9Xo=";
   };
 
-  build-system = [ setuptools ];
+  build-system = [
+    hatch-vcs
+    hatchling
+  ];
 
-  propagatedBuildInputs = [
+  dependencies = [
+    numpy
     packaging
     pandas
     pyogrio
@@ -39,31 +59,62 @@ buildPythonPackage rec {
     shapely
   ];
 
+  optional-dependencies = {
+    all = [
+      # prevent infinite recursion
+      (folium.overridePythonAttrs (prevAttrs: {
+        doCheck = false;
+      }))
+      geoalchemy2
+      geopy
+      # prevent infinite recursion
+      (mapclassify.overridePythonAttrs (prevAttrs: {
+        doCheck = false;
+      }))
+      matplotlib
+      psycopg
+      pyarrow
+      scipy
+      sqlalchemy
+      xyzservices
+    ];
+  };
+
   nativeCheckInputs = [
     pytestCheckHook
     rtree
-  ];
-
-  doCheck = !stdenv.isDarwin;
-
-  preCheck = ''
-    export HOME=$(mktemp -d);
-  '';
+    writableTmpDirAsHomeHook
+  ]
+  ++ finalAttrs.passthru.optional-dependencies.all;
 
   disabledTests = [
     # Requires network access
     "test_read_file_url"
+
+    # Require geodatasets (circular dependency)
+    "TestAxisLabels"
+    "TestStyleMapping"
+
+    # shapely.__version__ is "0+unknown" in nixpkgs, so pyogrio rejects `mask`:
+    # ValueError: 'mask' parameter requires Shapely >= 2.0
+    "test_read_file_crs_warning_messages"
+    "test_read_file_mask"
+    "test_read_file_multi_layer_with_layer_arg_no_warning"
+
+    # GDAL shares pyarrow's libarrow and leaves a `geoarrow.wkb` extension type registered,
+    # breaking the subsequent test_geoarrow.py tests
+    "test_write_parquet_2_0_gdal_readable"
   ];
 
-  pytestFlagsArray = [ "geopandas" ];
+  enabledTestPaths = [ "geopandas" ];
 
   pythonImportsCheck = [ "geopandas" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python geospatial data analysis framework";
     homepage = "https://geopandas.org";
-    changelog = "https://github.com/geopandas/geopandas/blob/v${version}/CHANGELOG.md";
-    license = licenses.bsd3;
-    maintainers = teams.geospatial.members;
+    changelog = "https://github.com/geopandas/geopandas/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.bsd3;
+    teams = [ lib.teams.geospatial ];
   };
-}
+})

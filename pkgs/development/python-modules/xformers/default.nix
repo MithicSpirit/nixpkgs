@@ -2,123 +2,173 @@
   lib,
   stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
-  which,
-  # runtime dependencies
+
+  # build-system
+  setuptools,
+
+  # dependencies
+  mslk,
   numpy,
+  nvidia-ml-py,
   torch,
-  # check dependencies
+
+  # tests
   pytestCheckHook,
-  pytest-cov,
-  # , pytest-mpi
-  pytest-timeout,
-  # , pytorch-image-models
-  hydra-core,
-  fairscale,
   scipy,
-  cmake,
-  ninja,
   triton,
-  networkx,
-  #, apex
-  einops,
-  transformers,
-  timm,
-#, flash-attn
+  python,
+
+  # passthru
+  xformers,
+  writableTmpDirAsHomeHook,
 }:
 let
-  inherit (torch) cudaCapabilities cudaPackages cudaSupport;
-  version = "0.0.23.post1";
+  inherit (torch) cudaSupport;
 in
-buildPythonPackage {
+buildPythonPackage (finalAttrs: {
   pname = "xformers";
-  inherit version;
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  version = "0.0.36";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "facebookresearch";
     repo = "xformers";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-AJXow8MmX4GxtEE2jJJ/ZIBr+3i+uS4cA6vofb390rY=";
-    fetchSubmodules = true;
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-ZQquwtDluyFOWLUVayNWW4E1wdAqgYUdNsRiwCK4KN4=";
   };
 
-  patches = [ ./0001-fix-allow-building-without-git.patch ];
-
-  preBuild = ''
-    cat << EOF > ./xformers/version.py
-    # noqa: C801
-    __version__ = "${version}"
-    EOF
-
-    export MAX_JOBS=$NIX_BUILD_CORES
+  # ModuleNotFoundError: No module named 'xformers.components'
+  postPatch = ''
+    touch xformers/components/__init__.py
+    touch xformers/components/attention/__init__.py
   '';
 
-  env = lib.attrsets.optionalAttrs cudaSupport {
-    TORCH_CUDA_ARCH_LIST = "${lib.concatStringsSep ";" torch.cudaCapabilities}";
-  };
-
-  stdenv = if cudaSupport then cudaPackages.backendStdenv else stdenv;
-
-  buildInputs = lib.optionals cudaSupport (
-    with cudaPackages;
-    [
-      # flash-attn build
-      cuda_cudart # cuda_runtime_api.h
-      libcusparse # cusparse.h
-      cuda_cccl # nv/target
-      libcublas # cublas_v2.h
-      libcusolver # cusolverDn.h
-      libcurand # curand_kernel.h
-    ]
-  );
-
-  nativeBuildInputs = [
-    ninja
-    which
-  ] ++ lib.optionals cudaSupport (with cudaPackages; [ cuda_nvcc ]);
-
-  propagatedBuildInputs = [
-    numpy
+  build-system = [
+    setuptools
     torch
   ];
 
-  pythonImportsCheck = [ "xformers" ];
+  dependencies = [
+    mslk
+    numpy
+    torch
+  ]
+  ++ lib.optionals cudaSupport [
+    nvidia-ml-py
+  ];
 
-  # Has broken 0.03 version:
-  # https://github.com/NixOS/nixpkgs/pull/285495#issuecomment-1920730720
-  passthru.skipBulkUpdate = true;
-
-  dontUseCmakeConfigure = true;
-
-  # see commented out missing packages
-  doCheck = false;
+  pythonImportsCheck = [
+    "xformers"
+    "xformers.components"
+    "xformers.components.attention"
+  ];
 
   nativeCheckInputs = [
     pytestCheckHook
-    pytest-cov
-    pytest-timeout
-    hydra-core
-    fairscale
     scipy
-    cmake
-    networkx
+  ]
+  ++ lib.optionals cudaSupport [
     triton
-    # apex
-    einops
-    transformers
-    timm
-    # flash-attn
   ];
 
-  meta = with lib; {
-    description = "XFormers: A collection of composable Transformer building blocks";
+  preCheck =
+    # Make sure the tests run against the installed package
+    ''
+      rm -rf xformers
+    ''
+    # Display information about the installation
+    + ''
+      ${python.interpreter} -m xformers.info
+    '';
+
+  enabledTestPaths = [
+    "tests"
+  ];
+
+  disabledTests =
+    # The following tests fail without cudaSupport
+    lib.optionals (!cudaSupport) [
+      # AssertionError: Torch not compiled with CUDA enabled
+      "test_flash_gqa_wrong_strides"
+      "test_memeff_compile"
+      "test_paged_attention"
+      "test_paged_attention_flash"
+      "test_triton_splitk_decoder"
+      "test_triton_splitk_decoder_manyqueries"
+      "test_unsupported_dropout_combine_flash_cutlass"
+
+      # AssertionError: Should use Flash-Decoding with BMHK MQA
+      "test_dispatch_decoding_bmhk"
+
+      # AssertionError: Should use Flash-Decoding with MQA
+      "test_dispatch_decoding_bmghk"
+    ];
+
+  disabledTestPaths = lib.optionals (!lib.meta.availableOn stdenv.hostPlatform triton) [
+    # ModuleNotFoundError: No module named 'triton'
+    "tests/test_mslk_compat.py::test_reexports_exist_in_mslk[xformers.ops.fmha._triton.splitk_kernels]"
+  ];
+
+  __darwinAllowLocalNetworking = true;
+
+  passthru.gpuCheck = xformers.overridePythonAttrs (old: {
+    requiredSystemFeatures = [ "cuda" ];
+
+    disabledTests = (old.disabledTests or [ ]) ++ [
+      # `fa3F@0.0.0` is not supported because:
+      #   operator wasn't built - see `python -m xformers.info` for more info
+      "test_merge_training"
+
+      # Not enough GPU memory (on a 20G RTX 4000 SFF Ada)
+      # triton.runtime.errors.OutOfResources: out of resource:
+      # shared memory, Required: 147456, Hardware limit: 101376.
+      "test_consistency"
+      "test_forward"
+      "test_logsumexp"
+      "test_mqa_decoding"
+      "test_tree_attention"
+
+      # Tolerance issues:
+      # AssertionError: cutlassF-pt+cutlassB-pt:key: out=4.65625 and ref=3.1875
+      # (diff=0.251953125 > 0) at (np.int64(0), np.int64(0), np.int64(4))
+      # of shape (1, 4, 8) / atol=0.9, rtol=0.1/ total failing elements: 1 (3.12%)
+      "test_backward"
+
+      # AssertionError: Legacy CUDA profiling requires use_cpu=True
+      "test_profiler_dispatcher_stream_workaround"
+
+      # torch.AcceleratorError: CUDA error: out of memory (in cuStreamCreateWithPriority)
+      "test_cuda_streams"
+    ];
+
+    disabledTestPaths = (old.disabledTestPaths or [ ]) ++ [
+      # ValueError: `flydslF` is not supported because: FlyDSL unavailable on this device/arch
+      # (FlyDSL is a ROCm-only backend)
+      "tests/test_mem_eff_attention.py::test_unsupported_stride_alignment[flydslF]"
+      "tests/test_mem_eff_attention.py::test_unsupported_stride_lastdim[flydslF]"
+
+      # AssertionError: memory_efficient_attention: 0.0 flops, expected 3221225472
+      "tests/test_profiler.py::test_analyze_prof_memeff[-flash]"
+      "tests/test_profiler.py::test_analyze_prof_memeff[causal-flash]"
+
+      # RuntimeError: NCCL split failed: unhandled cuda error
+      "tests/test_sequence_parallel_fused_ops.py::test_sequence_parallel_fused[compile-fp32-ugly-shapes-all-gather-singleton]"
+    ];
+
+    nativeCheckInputs = old.nativeCheckInputs ++ [
+      writableTmpDirAsHomeHook
+    ];
+  });
+
+  meta = {
+    description = "Collection of composable Transformer building blocks";
     homepage = "https://github.com/facebookresearch/xformers";
-    changelog = "https://github.com/facebookresearch/xformers/blob/${version}/CHANGELOG.md";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ happysalada ];
+    changelog = "https://github.com/facebookresearch/xformers/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [
+      GaetanLepage
+      happysalada
+    ];
   };
-}
+})

@@ -1,57 +1,82 @@
-{ lib
-, pkg-config
-, fetchurl
-, meson
-, ninja
-, wrapGAppsHook3
-, gobject-introspection
-, gettext
-, yelp-tools
-, itstool
-, python3
-, gtk3
-, gnome
-, substituteAll
-, at-spi2-atk
-, at-spi2-core
-, dbus
-, xkbcomp
-, procps
-, lsof
-, coreutils
-, gsettings-desktop-schemas
-, speechd-minimal
-, brltty
-, liblouis
-, gst_all_1
+{
+  lib,
+  stdenv,
+  buildPackages,
+  pkg-config,
+  fetchurl,
+  meson,
+  ninja,
+  wrapGAppsHook3,
+  gobject-introspection,
+  gettext,
+  yelp-tools,
+  itstool,
+  python3,
+  gtk3,
+  gnome,
+  replaceVars,
+  at-spi2-atk,
+  at-spi2-core,
+  dbus,
+  xkbcomp,
+  procps,
+  cargo,
+  rustc,
+  rustPlatform,
+  gsettings-desktop-schemas,
+  speechd-minimal,
+  brltty,
+  liblouis,
+  gst_all_1,
+  common-updater-scripts,
+  _experimental-update-script-combinators,
 }:
 
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication (finalAttrs: {
   pname = "orca";
-  version = "46.2";
+  version = "51.1";
 
-  format = "other";
+  pyproject = false;
 
   src = fetchurl {
-    url = "mirror://gnome/sources/${pname}/${lib.versions.major version}/${pname}-${version}.tar.xz";
-    hash = "sha256-j2MpmxpPnDCFfCKfapzhbyxD6u6pD7+QkxTKi7c+/V4=";
+    url = "mirror://gnome/sources/orca/${lib.versions.major finalAttrs.version}/orca-${finalAttrs.version}.tar.xz";
+    hash = "sha256-IoKTlEdOn95/3UawOpjJqY61lRBrIftxr9vi+CQ2B3s=";
   };
 
   patches = [
-    (substituteAll {
-      src = ./fix-paths.patch;
-      cat = "${coreutils}/bin/cat";
-      lsof = "${lsof}/bin/lsof";
+    (replaceVars ./fix-paths.patch {
       pgrep = "${procps}/bin/pgrep";
       xkbcomp = "${xkbcomp}/bin/xkbcomp";
     })
   ];
 
+  cargoRoot = "subprojects/mathcat-py";
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs)
+      src
+      pname
+      version
+      cargoRoot
+      ;
+    hash = "sha256-XxdIfDqb/0eoB3dOHbBW104yxkiCX6oKnvOTqCALBvg=";
+  };
+
+  # needed for cross-compilation
+  depsBuildBuild = [ pkg-config ];
+
   nativeBuildInputs = [
+    # cross-compilation support requires the host environment's build time
+    # to make the following buildPackages available.
+    buildPackages.gtk3
+    buildPackages.python3
+    buildPackages.python3Packages.pygobject3
     meson
     ninja
     wrapGAppsHook3
     pkg-config
+    cargo
+    rustc
+    rustPlatform.cargoSetupHook
     gettext
     yelp-tools
     itstool
@@ -59,8 +84,8 @@ python3.pkgs.buildPythonApplication rec {
   ];
 
   pythonPath = with python3.pkgs; [
+    dasbus
     pygobject3
-    dbus-python
     pyxdg
     brltty
     liblouis
@@ -68,6 +93,7 @@ python3.pkgs.buildPythonApplication rec {
     speechd-minimal
     gst-python
     setproctitle
+    at-spi2-core
   ];
 
   strictDeps = false;
@@ -84,19 +110,70 @@ python3.pkgs.buildPythonApplication rec {
     gst_all_1.gst-plugins-good
   ];
 
+  nativeCheckInputs = with python3.pkgs; [
+    pytest
+  ];
+
+  checkInputs = with python3.pkgs; [
+    pytest-mock
+  ];
+
+  postPatch = ''
+    # Disable broken tests
+    substituteInPlace tests/meson.build \
+      --replace-fail "  'unit_tests/test_preferences_grid_base.py'," "" \
+      --replace-fail "  'unit_tests/test_braille_presenter.py'," "" \
+      --replace-fail "  'unit_tests/test_profile_manager.py'," ""
+  '';
+
+  # Help GI find typelibs during Meson's configure step in cross builds
+  preConfigure = lib.optionalString (stdenv.buildPlatform != stdenv.hostPlatform) ''
+    export GI_TYPELIB_PATH=${buildPackages.gtk3}/lib/girepository-1.0''${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}
+  '';
+
+  # `buildPythonPackage` uses `installCheckPhase` and leaves `checkPhase`
+  # empty. It renames `doCheck` from its arguments, but not `checkPhase`.
+  # See: https://github.com/NixOS/nixpkgs/issues/47390
+  installCheckPhase = "mesonCheckPhase";
+
   dontWrapGApps = true; # Prevent double wrapping
 
   preFixup = ''
     makeWrapperArgs+=("''${gappsWrapperArgs[@]}")
+    substituteInPlace $out/lib/systemd/user/orca.service --replace-fail ExecStart=orca ExecStart=$out/bin/orca
   '';
 
   passthru = {
-    updateScript = gnome.updateScript {
-      packageName = pname;
-    };
+    updateScript =
+      let
+        updateSource = gnome.updateScript {
+          packageName = "orca";
+        };
+
+        updateLockfile = {
+          command = [
+            "sh"
+            "-c"
+            ''
+              PATH=${
+                lib.makeBinPath [
+                  common-updater-scripts
+                ]
+              }
+              update-source-version orca --ignore-same-version --source-key=cargoDeps.vendorStaging > /dev/null
+            ''
+          ];
+          # Experimental feature: do not copy!
+          supportedFeatures = [ "silent" ];
+        };
+      in
+      _experimental-update-script-combinators.sequence [
+        updateSource
+        updateLockfile
+      ];
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://orca.gnome.org/";
     changelog = "https://gitlab.gnome.org/GNOME/orca/-/blob/main/NEWS";
     description = "Screen reader";
@@ -111,8 +188,8 @@ python3.pkgs.buildPythonApplication rec {
 
       Needs `services.gnome.at-spi2-core.enable = true;` in `configuration.nix`.
     '';
-    maintainers = with maintainers; [ berce ] ++ teams.gnome.members;
-    license = licenses.lgpl21;
-    platforms = platforms.linux;
+    teams = [ lib.teams.gnome ];
+    license = lib.licenses.lgpl21;
+    platforms = lib.platforms.linux;
   };
-}
+})

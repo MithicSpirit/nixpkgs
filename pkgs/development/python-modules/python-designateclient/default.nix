@@ -2,7 +2,7 @@
   lib,
   buildPythonPackage,
   debtcollector,
-  fetchFromGitea,
+  fetchFromGitHub,
   jsonschema,
   keystoneauth1,
   openstackdocstheme,
@@ -11,41 +11,41 @@
   oslo-utils,
   oslotest,
   pbr,
-  pythonOlder,
   requests-mock,
   requests,
   setuptools,
   sphinxHook,
   sphinxcontrib-apidoc,
-  stestr,
+  stestrCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-designateclient";
-  version = "6.0.1";
+  version = "7.0.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchFromGitea {
-    domain = "opendev.org";
+  src = fetchFromGitHub {
     owner = "openstack";
     repo = "python-designateclient";
-    rev = version;
-    hash = "sha256-vuaouOA69REx+ZrzXjLGVz5Az1/d6x4WRT1h78xeebk=";
+    tag = finalAttrs.version;
+    hash = "sha256-cqMtXbmDuAUvBoBAMsHTSgb1G1a/cUYAnt7g4umAXZM=";
   };
 
-  env.PBR_VERSION = version;
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
 
-  build-system = [
+  nativeBuildInputs = [
     openstackdocstheme
-    pbr
-    setuptools
     sphinxHook
     sphinxcontrib-apidoc
   ];
 
   sphinxBuilders = [ "man" ];
+
+  build-system = [
+    pbr
+    setuptools
+  ];
 
   dependencies = [
     debtcollector
@@ -57,19 +57,11 @@ buildPythonPackage rec {
     requests
   ];
 
-  doCheck = true;
-
   nativeCheckInputs = [
     oslotest
     requests-mock
-    stestr
+    stestrCheckHook
   ];
-
-  checkPhase = ''
-    runHook preCheck
-    stestr run
-    runHook postCheck
-  '';
 
   pythonImportsCheck = [ "designateclient" ];
 
@@ -77,6 +69,6 @@ buildPythonPackage rec {
     homepage = "https://opendev.org/openstack/python-designateclient";
     description = "Client library for OpenStack Designate API";
     license = lib.licenses.asl20;
-    maintainers = lib.teams.openstack.members;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

@@ -1,6 +1,7 @@
-{ buildOctavePackage
-, lib
-, fetchurl
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
 }:
 
 buildOctavePackage rec {
@@ -9,13 +10,13 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "1d9z82241a1zmr8m1vgw10pyk81vn0q4dcyx7d05pigfn5gykrgc";
+    hash = "sha256-7OXpX7HuxVtAO92zRjCwO6DpLwj87VBRrj+oQIRAP7U=";
   };
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/optics/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/optics/";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Functions covering various aspects of optics";
   };
 }

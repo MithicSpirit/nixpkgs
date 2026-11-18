@@ -1,20 +1,19 @@
 {
   lib,
   fetchFromGitHub,
-  hyprland,
   mkHyprlandPlugin,
-  unstableGitUpdater,
+  nix-update-script,
 }:
 
-mkHyprlandPlugin hyprland {
+mkHyprlandPlugin {
   pluginName = "hyprspace";
-  version = "0-unstable-2024-08-21";
+  version = "0-unstable-2026-10-30";
 
   src = fetchFromGitHub {
     owner = "KZDKM";
     repo = "hyprspace";
-    rev = "743ec37d02bb2b7261f28de16bf404cebfd96105";
-    hash = "sha256-w0j/3OeSrpx+S8if1M2ONBsZvJQ1hBQkdTQEiMCHy7o=";
+    rev = "258b7b8bcea177e99da74946cf5cddd1dfe0e1ab";
+    hash = "sha256-ElVikNNXsbGHTn1ZuhIBwleF2YIXqV6kKrAKz3WGlIY=";
   };
 
   dontUseCmakeConfigure = true;
@@ -28,7 +27,7 @@ mkHyprlandPlugin hyprland {
     runHook postInstall
   '';
 
-  passthru.updateScript = unstableGitUpdater { };
+  passthru.updateScript = nix-update-script { extraArgs = [ "--version=branch" ]; };
 
   meta = {
     homepage = "https://github.com/KZDKM/Hyprspace";

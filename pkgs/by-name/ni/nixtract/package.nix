@@ -3,36 +3,35 @@
   rustPlatform,
   fetchFromGitHub,
   pkg-config,
-  openssl,
+  aws-lc,
   stdenv,
   libiconv,
-  darwin,
   nix,
   testers,
   nixtract,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "nixtract";
-  version = "0.3.0";
+  version = "0.4.1";
 
   src = fetchFromGitHub {
     owner = "tweag";
     repo = "nixtract";
-    rev = "v${version}";
-    hash = "sha256-36ciPNSlB1LU+UXP8MLakrBRRqbyiVFN8Jp/JbCe1OY=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-VrM8x85tF3NJOX8bgoDVmtfAa8qkLgdgbri46sPQ2jE=";
   };
 
-  cargoHash = "sha256-fawBRIVcOhtDxxRYCf+HWYadoSB/ENKguTbS0M4odVU=";
+  cargoHash = "sha256-ZZWdjMrRaWotIkHf3OB/f1UxtNtNeMvgGs97glXZjy8=";
 
   nativeBuildInputs = [ pkg-config ];
 
-  buildInputs =
-    [ openssl ]
-    ++ lib.optionals stdenv.isDarwin [
-      libiconv
-      darwin.apple_sdk.frameworks.SystemConfiguration
-    ];
+  buildInputs = [
+    aws-lc
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    libiconv
+  ];
 
   nativeCheckInputs = [ nix ];
 
@@ -50,11 +49,13 @@ rustPlatform.buildRustPackage rec {
   meta = {
     description = "CLI tool to extract the graph of derivations from a Nix flake";
     homepage = "https://github.com/tweag/nixtract";
-    license = with lib.licenses; [
-      mit # or
-      asl20
-    ];
+    license =
+      with lib.licenses;
+      OR [
+        mit
+        asl20
+      ];
     mainProgram = "nixtract";
     maintainers = with lib.maintainers; [ aleksana ];
   };
-}
+})

@@ -1,21 +1,31 @@
 {
   lib,
+  cacert,
   fetchFromGitHub,
   php,
+  versionCheckHook,
 }:
 
 php.buildComposerProject2 (finalAttrs: {
   pname = "n98-magerun2";
-  version = "7.4.0";
+  version = "10.1.0";
 
   src = fetchFromGitHub {
     owner = "netz98";
     repo = "n98-magerun2";
-    rev = finalAttrs.version;
-    hash = "sha256-OPvyZ0r7Zt4PC+rmRtBm9EkbaE4PeovnUHrhzXUqT8E=";
+    tag = finalAttrs.version;
+    hash = "sha256-EbUcHK6CGOoaLRyqo2SYUW2aqb/5C/itfh3/VpVe/Qo=";
   };
 
-  vendorHash = "sha256-E2V5ARNCmGOmGGctfcjpW49cxFBcWyJEodBNjHhKQ+w=";
+  vendorHash = "sha256-QxsfjbneO7AwqkHx+qqbJvhV344r8TZreWhUeKxBTOE=";
+
+  postInstall = ''
+    rm $out/share/php/n98-magerun2/vendor/rmccue/requests/certificates/cacert.pem
+    ln -s ${cacert}/etc/ssl/certs/ca-bundle.crt $out/share/php/n98-magerun2/vendor/rmccue/requests/certificates/cacert.pem
+  '';
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
 
   meta = {
     changelog = "https://magerun.net/category/magerun/";
@@ -23,6 +33,6 @@ php.buildComposerProject2 (finalAttrs: {
     homepage = "https://magerun.net/";
     license = lib.licenses.mit;
     mainProgram = "n98-magerun2";
-    maintainers = lib.teams.php.members;
+    teams = [ lib.teams.php ];
   };
 })

@@ -23,43 +23,58 @@ import ../make-test-python.nix (
     };
 
     nodes = {
-      rootful = { pkgs, ... }: {
-        virtualisation.podman.enable = true;
+      rootful =
+        { pkgs, ... }:
+        {
+          virtualisation.podman.enable = true;
 
-        # hack to ensure that podman built with and without zfs in extraPackages is cached
-        boot.supportedFilesystems = [ "zfs" ];
-        networking.hostId = "00000000";
-      };
-      rootless = { pkgs, ... }: {
-        virtualisation.podman.enable = true;
-
-        users.users.alice = {
-          isNormalUser = true;
+          # hack to ensure that podman built with and without zfs in extraPackages is cached
+          boot.supportedFilesystems = [ "zfs" ];
+          networking.hostId = "00000000";
         };
-      };
-      dns = { pkgs, ... }: {
-        virtualisation.podman.enable = true;
-
-        virtualisation.podman.defaultNetwork.settings.dns_enabled = true;
-      };
-      docker = { pkgs, ... }: {
-        virtualisation.podman.enable = true;
-
-        virtualisation.podman.dockerSocket.enable = true;
-
-        environment.systemPackages = [
-          pkgs.docker-client
-        ];
-
-        users.users.alice = {
-          isNormalUser = true;
-          extraGroups = [ "podman" ];
+      rootful_norunc =
+        { pkgs, ... }:
+        {
+          virtualisation.podman.enable = true;
+          virtualisation.podman.extraRuntimes = [ ];
         };
+      rootless =
+        { pkgs, ... }:
+        {
+          virtualisation.podman.enable = true;
 
-        users.users.mallory = {
-          isNormalUser = true;
+          users.users.alice = {
+            isNormalUser = true;
+          };
         };
-      };
+      docker =
+        { pkgs, ... }:
+        {
+          virtualisation.podman.enable = true;
+
+          virtualisation.podman.dockerSocket.enable = true;
+
+          environment.systemPackages = [
+            pkgs.docker-client
+          ];
+
+          users.users.alice = {
+            isNormalUser = true;
+            extraGroups = [ "podman" ];
+          };
+
+          users.users.mallory = {
+            isNormalUser = true;
+          };
+        };
+      docker_compat =
+        { pkgs, ... }:
+        {
+          virtualisation.podman = {
+            enable = true;
+            dockerCompat = true;
+          };
+        };
     };
 
     testScript = ''
@@ -72,9 +87,10 @@ import ../make-test-python.nix (
 
 
       rootful.wait_for_unit("sockets.target")
+      rootful_norunc.wait_for_unit("sockets.target")
       rootless.wait_for_unit("sockets.target")
-      dns.wait_for_unit("sockets.target")
       docker.wait_for_unit("sockets.target")
+      docker_compat.wait_for_unit("sockets.target")
       start_all()
 
       with subtest("Run container as root with runc"):
@@ -103,6 +119,31 @@ import ../make-test-python.nix (
           rootful.succeed("podman ps | grep sleeping")
           rootful.succeed("podman stop sleeping")
           rootful.succeed("podman rm sleeping")
+
+      # now without installed runc
+      with subtest("Run runc-less container as root with runc"):
+          rootful_norunc.succeed("tar cv --files-from /dev/null | podman import - scratchimg")
+          rootful_norunc.fail(
+              "podman run --runtime=runc -d --name=sleeping -v /nix/store:/nix/store -v /run/current-system/sw/bin:/bin scratchimg /bin/sleep 10"
+          )
+
+      with subtest("Run runc-less container as root with crun"):
+          rootful_norunc.succeed("tar cv --files-from /dev/null | podman import - scratchimg")
+          rootful_norunc.succeed(
+              "podman run --runtime=crun -d --name=sleeping -v /nix/store:/nix/store -v /run/current-system/sw/bin:/bin scratchimg /bin/sleep 10"
+          )
+          rootful_norunc.succeed("podman ps | grep sleeping")
+          rootful_norunc.succeed("podman stop sleeping")
+          rootful_norunc.succeed("podman rm sleeping")
+
+      with subtest("Run runc-less container as root with the default backend"):
+          rootful_norunc.succeed("tar cv --files-from /dev/null | podman import - scratchimg")
+          rootful_norunc.succeed(
+              "podman run -d --name=sleeping -v /nix/store:/nix/store -v /run/current-system/sw/bin:/bin scratchimg /bin/sleep 10"
+          )
+          rootful_norunc.succeed("podman ps | grep sleeping")
+          rootful_norunc.succeed("podman stop sleeping")
+          rootful_norunc.succeed("podman rm sleeping")
 
       # start systemd session for rootless
       rootless.succeed("loginctl enable-linger alice")
@@ -163,17 +204,14 @@ import ../make-test-python.nix (
           pid = rootful.succeed("podman run --rm --init busybox readlink /proc/self").strip()
           assert pid == "2"
 
-      with subtest("aardvark-dns"):
-          dns.succeed("tar cv --files-from /dev/null | podman import - scratchimg")
-          dns.succeed(
-              "podman run -d --name=webserver -v /nix/store:/nix/store -v /run/current-system/sw/bin:/bin -w ${pkgs.writeTextDir "index.html" "<h1>Testing</h1>"} scratchimg ${pkgs.python3}/bin/python -m http.server 8000"
+      with subtest("podman logs can read compressed journal files"):
+          rootful.succeed(
+              "podman run --name=journald --log-driver=journald busybox echo podman-journald-test"
           )
-          dns.succeed("podman ps | grep webserver")
-          dns.wait_until_succeeds(
-              "podman run --rm --name=client -v /nix/store:/nix/store -v /run/current-system/sw/bin:/bin scratchimg ${pkgs.curl}/bin/curl http://webserver:8000 | grep Testing"
+          rootful.wait_until_succeeds(
+              "podman logs journald | grep podman-journald-test", timeout=30
           )
-          dns.succeed("podman stop webserver")
-          dns.succeed("podman rm webserver")
+          rootful.succeed("podman rm journald")
 
       with subtest("A podman member can use the docker cli"):
           docker.succeed(su_cmd("docker version"))
@@ -197,10 +235,20 @@ import ../make-test-python.nix (
           rootless.succeed(su_cmd(f"mkdir -p {dir}"))
           rootless.succeed(su_cmd(f"cp -f ${quadletContainerFile} {dir}/quadlet.container"))
           rootless.systemctl("daemon-reload", "alice")
+          rootless.systemctl("start network-online.target")
           rootless.systemctl("start quadlet", "alice")
           rootless.wait_until_succeeds(su_cmd("podman ps | grep quadlet"), timeout=20)
           rootless.systemctl("stop quadlet", "alice")
 
+      with subtest("Docker compat works"):
+          docker_compat.succeed("tar cv --files-from /dev/null | docker import - scratchimg")
+          docker_compat.succeed(
+            "docker run -d --name=sleeping -v /nix/store:/nix/store -v /run/current-system/sw/bin:/bin localhost/scratchimg /bin/sleep 10"
+          )
+          docker_compat.succeed("docker ps | grep sleeping")
+          docker_compat.succeed("podman ps | grep sleeping")
+          docker_compat.succeed("docker stop sleeping")
+          docker_compat.succeed("docker rm sleeping")
       # TODO: add docker-compose test
 
     '';

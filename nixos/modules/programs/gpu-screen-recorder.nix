@@ -1,40 +1,87 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.programs.gpu-screen-recorder;
   package = cfg.package.override {
     inherit (config.security) wrapperDir;
   };
-in {
+
+  notifPackage = cfg.ui.notifPackage;
+  uiPackage = cfg.ui.package.override {
+    gpu-screen-recorder = package;
+    gpu-screen-recorder-notification = notifPackage;
+    inherit (config.security) wrapperDir;
+  };
+
+  gtkPackage = cfg.gtk.package.override {
+    gpu-screen-recorder = package;
+    inherit (config.security) wrapperDir;
+  };
+in
+{
   options = {
     programs.gpu-screen-recorder = {
-      package = lib.mkPackageOption pkgs "gpu-screen-recorder" {};
+      enable = lib.mkEnableOption "gpu-screen-recorder and setcap wrappers for promptless recording";
 
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = ''
-          Whether to install gpu-screen-recorder and generate setcap
-          wrappers for promptless recording.
-        '';
+      package = lib.mkPackageOption pkgs "gpu-screen-recorder" { };
+
+      ui = {
+        enable = lib.mkEnableOption "the GPU Screen Recorder overlay UI";
+        package = lib.mkPackageOption pkgs "gpu-screen-recorder-ui" { };
+        notifPackage = lib.mkPackageOption pkgs "gpu-screen-recorder-notification" { };
+      };
+
+      gtk = {
+        enable = lib.mkEnableOption "the GPU Screen Recorder GTK frontend";
+        package = lib.mkPackageOption pkgs "gpu-screen-recorder-gtk" { };
       };
     };
   };
 
-  config = lib.mkIf cfg.enable {
-    security.wrappers."gsr-kms-server" = {
-      owner = "root";
-      group = "root";
-      capabilities = "cap_sys_admin+ep";
-      source = "${package}/bin/gsr-kms-server";
-    };
-    security.wrappers."gpu-screen-recorder" = {
-      owner = "root";
-      group = "root";
-      capabilities = "cap_sys_nice+ep";
-      source = "${package}/bin/gpu-screen-recorder";
-    };
-  };
+  config = lib.mkMerge [
+    (lib.mkIf cfg.gtk.enable {
+      programs.gpu-screen-recorder.enable = true;
+      environment.systemPackages = [ gtkPackage ];
+    })
 
-  meta.maintainers = with lib.maintainers; [ timschumi ];
+    (lib.mkIf cfg.ui.enable {
+      programs.gpu-screen-recorder.enable = true;
+
+      environment.systemPackages = [
+        uiPackage
+        notifPackage
+      ];
+
+      security.wrappers."gsr-global-hotkeys" = {
+        owner = "root";
+        group = "root";
+        capabilities = "cap_setuid+ep";
+        source = lib.getExe' uiPackage "gsr-global-hotkeys";
+      };
+    })
+
+    (lib.mkIf cfg.enable {
+      environment.systemPackages = [ package ];
+
+      systemd.packages = [ package ];
+
+      security.wrappers."gsr-kms-server" = {
+        owner = "root";
+        group = "root";
+        capabilities = "cap_sys_admin+ep";
+        source = lib.getExe' package "gsr-kms-server";
+      };
+    })
+  ];
+
+  meta.maintainers = with lib.maintainers; [
+    timschumi
+    AhmedAmr
+    keenanweaver
+  ];
 }

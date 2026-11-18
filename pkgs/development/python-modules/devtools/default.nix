@@ -3,31 +3,30 @@
   asttokens,
   buildPythonPackage,
   executing,
-  hatchling,
   fetchFromGitHub,
   pygments,
   pytest-mock,
   pytestCheckHook,
-  pythonOlder,
+  uv-build,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "devtools";
-  version = "0.12.2";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.7";
+  version = "0.13.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "samuelcolvin";
-    repo = "python-${pname}";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-1HFbNswdKa/9cQX0Gf6lLW1V5Kt/N4X6/5kQDdzp1Wo=";
+    repo = "python-devtools";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-uy8DIP0szpo1gCm88GR32QOHZqtIQSpuxK63UNMFsn8=";
   };
 
-  nativeBuildInputs = [ hatchling ];
+  pythonRelaxDeps = [ "asttokens" ];
 
-  propagatedBuildInputs = [
+  build-system = [ uv-build ];
+
+  dependencies = [
     asttokens
     executing
     pygments
@@ -45,20 +44,16 @@ buildPythonPackage rec {
     "test_multiple_not_verbose"
     # Sensitive to interpreter output
     "test_simple"
-  ];
-
-  disabledTestPaths = [
-    # pytester_pretty is not available in Nixpkgs
-    "tests/test_insert_assert.py"
+    "test_expr_render"
   ];
 
   pythonImportsCheck = [ "devtools" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python's missing debug print command and other development tools";
     homepage = "https://python-devtools.helpmanual.io/";
-    changelog = "https://github.com/samuelcolvin/python-devtools/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ jdahm ];
+    changelog = "https://github.com/samuelcolvin/python-devtools/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ jdahm ];
   };
-}
+})

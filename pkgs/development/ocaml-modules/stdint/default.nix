@@ -1,4 +1,10 @@
-{ lib, fetchurl, buildDunePackage, ocaml, qcheck }:
+{
+  lib,
+  fetchurl,
+  buildDunePackage,
+  ocaml,
+  qcheck,
+}:
 
 buildDunePackage rec {
   pname = "stdint";
@@ -10,7 +16,7 @@ buildDunePackage rec {
 
   src = fetchurl {
     url = "https://github.com/andrenth/ocaml-stdint/releases/download/${version}/stdint-${version}.tbz";
-    sha256 = "sha256-FWAZjYvJx68+qVLEDavoJmZpQhDsw/35u/60MhHpd+Y=";
+    hash = "sha256-FWAZjYvJx68+qVLEDavoJmZpQhDsw/35u/60MhHpd+Y=";
   };
 
   # 1. disable remaining broken tests, see
@@ -32,6 +38,6 @@ buildDunePackage rec {
     description = "Various signed and unsigned integers for OCaml";
     homepage = "https://github.com/andrenth/ocaml-stdint";
     license = lib.licenses.mit;
-    maintainers = [ lib.maintainers.gebner ];
+    maintainers = [ ];
   };
 }

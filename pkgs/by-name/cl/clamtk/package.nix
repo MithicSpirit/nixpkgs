@@ -1,10 +1,11 @@
-{ lib
-, perlPackages
-, fetchFromGitHub
-, wrapGAppsHook3
-, gobject-introspection
-, perl
-, clamav
+{
+  lib,
+  perlPackages,
+  fetchFromGitHub,
+  wrapGAppsHook3,
+  gobject-introspection,
+  perl,
+  clamav,
 }:
 
 perlPackages.buildPerlPackage rec {
@@ -18,29 +19,48 @@ perlPackages.buildPerlPackage rec {
     hash = "sha256-ClBsBXbGj67zgrkA9EjgK7s3OmXOJA+xV5xLGOcMsbI=";
   };
 
-  nativeBuildInputs = [ wrapGAppsHook3 gobject-introspection ];
-  buildInputs = [ perl clamav ];
-  propagatedBuildInputs = with perlPackages; [ Glib LWP LWPProtocolHttps TextCSV JSON LocaleGettext Gtk3 ];
+  nativeBuildInputs = [
+    wrapGAppsHook3
+    gobject-introspection
+  ];
+  buildInputs = [
+    perl
+    clamav
+  ];
+  propagatedBuildInputs = with perlPackages; [
+    Glib
+    LWP
+    LWPProtocolHttps
+    TextCSV
+    JSON
+    LocaleGettext
+    Gtk3
+  ];
+
+  strictDeps = true;
 
   preConfigure = "touch Makefile.PL";
   # no tests implemented
   doCheck = false;
-  outputs = [ "out" "man" ];
+  outputs = [
+    "out"
+    "man"
+  ];
 
   postPatch = ''
     # Set correct nix paths in perl scripts
     substituteInPlace lib/App.pm \
-      --replace /usr/bin/freshclam ${lib.getBin clamav}/bin/freshclam \
-      --replace /usr/bin/sigtool ${lib.getBin clamav}/bin/sigtool \
-      --replace /usr/bin/clamscan ${lib.getBin clamav}/bin/clamscan \
-      --replace /usr/bin/clamdscan ${lib.getBin clamav}/bin/clamdscan \
-      --replace /usr/share/pixmaps $out/share/pixmaps
+      --replace-fail /usr/bin/freshclam ${lib.getBin clamav}/bin/freshclam \
+      --replace-fail /usr/bin/sigtool ${lib.getBin clamav}/bin/sigtool \
+      --replace-fail /usr/bin/clamscan ${lib.getBin clamav}/bin/clamscan \
+      --replace-fail /usr/bin/clamdscan ${lib.getBin clamav}/bin/clamdscan \
+      --replace-fail /usr/share/pixmaps $out/share/pixmaps
 
     # We want to catch the crontab wrapper on NixOS and the
     # System crontab on non-NixOS so we don't give a full path.
     substituteInPlace lib/Schedule.pm \
-      --replace "( -e '/usr/bin/crontab' )" "(1)" \
-      --replace /usr/bin/crontab crontab
+      --replace-fail "( -e '/usr/bin/crontab' )" "(1)" \
+      --replace-fail /usr/bin/crontab crontab
   '';
 
   installPhase = ''
@@ -63,15 +83,19 @@ perlPackages.buildPerlPackage rec {
     )
   '';
 
-  meta = with lib; {
+  __structuredAttrs = true;
+
+  meta = {
     description = ''
       Easy to use, lightweight front-end for ClamAV (Clam Antivirus).
     '';
     mainProgram = "clamtk";
-    license = licenses.gpl1Plus;
+    license = lib.licenses.gpl1Plus;
     homepage = "https://github.com/dave-theunsub/clamtk";
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ chewblacka ShamrockLee ];
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [
+      ShamrockLee
+    ];
   };
 
 }

@@ -8,7 +8,7 @@
   stups-zign,
   pytestCheckHook,
   hypothesis,
-  pythonOlder,
+  writableTmpDirAsHomeHook,
 }:
 
 buildPythonPackage rec {
@@ -16,14 +16,17 @@ buildPythonPackage rec {
   version = "1.1.51";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchFromGitHub {
     owner = "zalando-stups";
     repo = "pierone-cli";
     rev = version;
     hash = "sha256-OypGYHfiFUfcUndylM2N2WfPnfXXJ4gvWypUbltYAYE=";
   };
+
+  postPatch = ''
+    substituteInPlace pierone/__init__.py \
+      --replace-fail "__version__ = '0.22'" "__version__ = '${version}'"
+  '';
 
   build-system = [ setuptools ];
 
@@ -35,21 +38,18 @@ buildPythonPackage rec {
     stups-zign
   ];
 
-  preCheck = ''
-    export HOME=$TEMPDIR
-  '';
-
   nativeCheckInputs = [
     pytestCheckHook
     hypothesis
+    writableTmpDirAsHomeHook
   ];
 
   pythonImportsCheck = [ "pierone" ];
 
-  meta = with lib; {
+  meta = {
     description = "Convenient command line client for STUPS' Pier One Docker registry";
     homepage = "https://github.com/zalando-stups/pierone-cli";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ mschuwalow ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ mschuwalow ];
   };
 }

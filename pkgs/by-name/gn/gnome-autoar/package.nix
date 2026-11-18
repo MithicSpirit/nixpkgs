@@ -1,26 +1,29 @@
-{ stdenv
-, lib
-, fetchurl
-, meson
-, ninja
-, pkg-config
-, gnome
-, gtk3
-, glib
-, gobject-introspection
-, libarchive
-, vala
+{
+  stdenv,
+  lib,
+  fetchurl,
+  meson,
+  ninja,
+  pkg-config,
+  gnome,
+  glib,
+  gobject-introspection,
+  libarchive,
+  vala,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "gnome-autoar";
-  version = "0.4.4";
+  version = "0.5.2";
 
-  outputs = [ "out" "dev" ];
+  outputs = [
+    "out"
+    "dev"
+  ];
 
   src = fetchurl {
-    url = "mirror://gnome/sources/gnome-autoar/${lib.versions.majorMinor version}/gnome-autoar-${version}.tar.xz";
-    sha256 = "wK++MzvPPLFEGh9XTMjsexuBl3eRRdTt7uKJb9rPw8I=";
+    url = "mirror://gnome/sources/gnome-autoar/${lib.versions.majorMinor finalAttrs.version}/gnome-autoar-${finalAttrs.version}.tar.xz";
+    hash = "sha256-bCC9Fsh6uhWGnlZERCRIH2MqwwKYmiA+jOTcxz3qM6U=";
   };
 
   nativeBuildInputs = [
@@ -29,10 +32,6 @@ stdenv.mkDerivation rec {
     ninja
     pkg-config
     vala
-  ];
-
-  buildInputs = [
-    gtk3
   ];
 
   propagatedBuildInputs = [
@@ -50,10 +49,11 @@ stdenv.mkDerivation rec {
     };
   };
 
-  meta = with lib; {
-    platforms = platforms.linux;
-    maintainers = teams.gnome.members;
-    license = licenses.lgpl21Plus;
+  meta = {
+    platforms = lib.platforms.linux;
+    teams = [ lib.teams.gnome ];
+    license = lib.licenses.lgpl21Plus;
+    identifiers.cpeParts = lib.meta.cpeFullVersionWithVendor "gnome" finalAttrs.version;
     description = "Library to integrate compressed files management with GNOME";
   };
-}
+})

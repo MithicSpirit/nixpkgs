@@ -1,6 +1,5 @@
 {
   lib,
-  pythonOlder,
   fetchFromGitHub,
   buildPythonPackage,
   setuptools,
@@ -8,18 +7,18 @@
   slurm,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage {
   pname = "pyslurm";
-  version = "23.11.0";
+  version = "25.11.2-unstable-2026-11-02";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
 
   src = fetchFromGitHub {
     repo = "pyslurm";
     owner = "PySlurm";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Qi0XftneKj7hdDiLY2hoRONRrPv49mfQlvlNkudH54Y=";
+    #tag = "v${version}";
+    # https://github.com/PySlurm/pyslurm/pull/427
+    rev = "9d9a80365d158021d4dc87cbdc4ead7ecfbbec55";
+    hash = "sha256-zHPO/WqnqUA8iBc+J+uJxf+wzpDKzHf8AEd+9jiXS74=";
   };
 
   nativeBuildInputs = [ setuptools ];
@@ -37,11 +36,10 @@ buildPythonPackage rec {
   # Test cases need /etc/slurm/slurm.conf and require a working slurm installation
   doCheck = false;
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/PySlurm/pyslurm";
     description = "Python bindings to Slurm";
-    license = licenses.gpl2;
-    maintainers = with maintainers; [ bhipple ];
-    platforms = platforms.linux;
+    license = lib.licenses.gpl2Only;
+    platforms = lib.platforms.linux;
   };
 }

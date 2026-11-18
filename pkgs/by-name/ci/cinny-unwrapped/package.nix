@@ -2,44 +2,27 @@
   lib,
   buildNpmPackage,
   fetchFromGitHub,
-  python3,
-  pkg-config,
-  pixman,
-  cairo,
-  pango,
-  stdenv,
-  darwin,
-  olm,
 }:
 
-buildNpmPackage rec {
+buildNpmPackage (finalAttrs: {
   pname = "cinny-unwrapped";
-  version = "4.1.0";
+  # Remember to update cinny-desktop when bumping this version.
+  version = "4.12.8";
 
+  # nixpkgs-update: no auto update
   src = fetchFromGitHub {
     owner = "cinnyapp";
     repo = "cinny";
-    rev = "v${version}";
-    hash = "sha256-GC+TvTPfirov4GxkTp0N3tkDQEAEdmPB71NzOBZQiqs=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-lDb4j8u9OheobXNjA1Q/75r6JITn+wLgtgEX+aKl9nk=";
   };
 
-  npmDepsHash = "sha256-dP+m/ocGn8szZuakrz8slSReNeepOF4Jf7L0/gnXWGU=";
+  npmDepsHash = "sha256-QnsU22wjiayk6cBmlk9NChmSET7t4xkBLeGxgFIJArs=";
 
-  # Fix error: no member named 'aligned_alloc' in the global namespace
-  env.NIX_CFLAGS_COMPILE = lib.optionalString (
-    stdenv.isDarwin && lib.versionOlder stdenv.hostPlatform.darwinSdkVersion "11.0"
-  ) "-D_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION=1";
-
-  nativeBuildInputs = [
-    python3
-    pkg-config
+  # Skip rebuilding native modules since they're not needed for the web app
+  npmRebuildFlags = [
+    "--ignore-scripts"
   ];
-
-  buildInputs = [
-    pixman
-    cairo
-    pango
-  ] ++ lib.optionals stdenv.isDarwin [ darwin.apple_sdk.frameworks.CoreText ];
 
   installPhase = ''
     runHook preInstall
@@ -52,9 +35,12 @@ buildNpmPackage rec {
   meta = {
     description = "Yet another Matrix client for the web";
     homepage = "https://cinny.in/";
-    maintainers = with lib.maintainers; [ abbe ];
+    maintainers = with lib.maintainers; [
+      abbe
+      rebmit
+      ryand56
+    ];
     license = lib.licenses.agpl3Only;
     platforms = lib.platforms.all;
-    inherit (olm.meta) knownVulnerabilities;
   };
-}
+})

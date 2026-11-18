@@ -1,4 +1,10 @@
-{ lib, rel, buildKodiAddon, fetchzip, addonUpdateScript }:
+{
+  lib,
+  rel,
+  buildKodiAddon,
+  fetchzip,
+  addonUpdateScript,
+}:
 
 buildKodiAddon rec {
   pname = "kodi-six";
@@ -7,7 +13,7 @@ buildKodiAddon rec {
 
   src = fetchzip {
     url = "https://mirrors.kodi.tv/addons/${lib.toLower rel}/${namespace}/${namespace}-${version}.zip";
-    sha256 = "sha256-nWz5CPoE0uVsZvWjI4q6y4ZKUnraTjTXLSJ1mK4YopI=";
+    hash = "sha256-nWz5CPoE0uVsZvWjI4q6y4ZKUnraTjTXLSJ1mK4YopI=";
   };
 
   passthru = {
@@ -17,10 +23,10 @@ buildKodiAddon rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/romanvm/kodi.six";
     description = "Wrappers around Kodi Python API for seamless Python 2/3 compatibility";
-    license = licenses.gpl3Only;
-    maintainers = teams.kodi.members;
+    license = lib.licenses.gpl3Only;
+    teams = [ lib.teams.kodi ];
   };
 }

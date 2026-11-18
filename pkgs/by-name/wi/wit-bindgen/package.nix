@@ -1,20 +1,23 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "wit-bindgen";
-  version = "0.30.0";
+  version = "0.63.0";
+
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "bytecodealliance";
     repo = "wit-bindgen";
-    rev = "v${version}";
-    hash = "sha256-MeozLpwtOFnYxK2H+9bd7nG6BL6jSVqfBCVg1t3lErQ=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-v//t+HSO1E4cNW2r6GadupDk9UItwq9lTOsLLg+ZKEA=";
   };
 
-  cargoHash = "sha256-d6oMUAGyIFDWtjgXfIe0k3hx7QTFTfVuKnQ3XRux1HU=";
+  cargoHash = "sha256-1kAH6evj8mc6mPUfKqhe4pT+gTI9DBQPegvxJ1YNsWQ=";
 
   # Some tests fail because they need network access to install the `wasm32-unknown-unknown` target.
   # However, GitHub Actions ensures a proper build.
@@ -23,11 +26,11 @@ rustPlatform.buildRustPackage rec {
   #   https://github.com/bytecodealliance/wit-bindgen/blob/main/.github/workflows/main.yml
   doCheck = false;
 
-  meta = with lib; {
+  meta = {
     description = "Language binding generator for WebAssembly interface types";
     homepage = "https://github.com/bytecodealliance/wit-bindgen";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ xrelkd ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ xrelkd ];
     mainProgram = "wit-bindgen";
   };
-}
+})

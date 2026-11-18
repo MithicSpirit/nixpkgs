@@ -1,19 +1,28 @@
-{ stdenv
-, lib
-, gfortran
-, blas
-, lapack
-, python3
-, fetchFromGitHub
+{
+  stdenv,
+  lib,
+  gfortran,
+  blas,
+  cmake,
+  lapack,
+  python3,
+  enableMpi ? true,
+  mpi,
+  fetchFromGitHub,
+  fetchpatch,
 }:
 assert (!blas.isILP64);
 assert blas.isILP64 == lapack.isILP64;
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "wannier90";
-  version = "3.1.0";
+  version = "4.0.3";
 
-  nativeBuildInputs = [ gfortran ];
+  nativeBuildInputs = [
+    gfortran
+    mpi
+    cmake
+  ];
   buildInputs = [
     blas
     lapack
@@ -22,52 +31,54 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "wannier-developers";
     repo = "wannier90";
-    rev = "v${version}";
-    hash = "sha256-+Mq7lM6WuwAnK/2FlDz9gNRIg2sRazQRezb3BfD0veY=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-8Jf/ryiZRvS7vVIkJlWAdPdsXiiv8LZI8CA5uDtIyc8=";
   };
+
+  __structuredAttrs = true;
+  strictDeps = true;
+  passthru = { inherit mpi; };
+
+  propagatedBuildInputs = lib.optional enableMpi mpi;
+  propagatedUserEnvPkgs = lib.optional enableMpi mpi;
 
   # test cases are removed as error bounds of wannier90 are obviously to tight
   postPatch = ''
-    rm -r test-suite/tests/testpostw90_{fe_kpathcurv,fe_kslicecurv,si_geninterp,si_geninterp_wsdistance}
-    rm -r test-suite/tests/testw90_example26   # Fails without AVX optimizations
-    patchShebangs test-suite/run_tests test-suite/testcode/bin/testcode.py
+    rm -r test-suite/tests/testw90_graphene_dis_proj_auto
   '';
 
-  configurePhase = ''
-    cp config/make.inc.gfort make.inc
-  '';
+  patches = [
+    # upstream patch, fixes absolute paths in .pc config
+    (fetchpatch {
+      name = "account-for-absolute-paths-in-pc-file";
+      url = "https://github.com/wannier-developers/wannier90/commit/86e487dfb580a66389eed1f3100568411b38bfdb.patch";
+      hash = "sha256-eOSeOZiTtbBDPh9BudP7kyrA87cNr1KAFm25WHwpoco=";
+    })
+  ];
 
-  buildFlags = [ "all" "dynlib" ];
-
-  preInstall = ''
-    installFlagsArray+=(
-      PREFIX=$out
-    )
-  '';
-
-  postInstall = ''
-    cp libwannier.so $out/lib/libwannier.so
-
-    mkdir $out/include
-    find ./src/obj/ -name "*.mod" -exec cp {} $out/include/. \;
-  '';
+  cmakeFlags = [
+    (lib.strings.cmakeBool "WANNIER90_WITH_C" true)
+    (lib.strings.cmakeBool "WANNIER90_MPI" enableMpi)
+  ];
 
   doCheck = true;
-  checkInputs = [ python3 ];
-  checkTarget = [ "test-serial" ];
+  nativeCheckInputs = [
+    python3
+    python3.pkgs.pytest
+    python3.pkgs.pyaml
+  ];
   preCheck = ''
-    export OMP_NUM_THREADS=4
+    export OMP_NUM_THREADS=2
   '';
-
   enableParallelBuilding = true;
 
   hardeningDisable = [ "format" ];
 
-  meta = with lib; {
+  meta = {
     description = "Calculation of maximally localised Wannier functions";
     homepage = "https://github.com/wannier-developers/wannier90";
-    license = licenses.gpl2Plus;
+    license = lib.licenses.lgpl21Plus;
     platforms = [ "x86_64-linux" ];
-    maintainers = [ maintainers.sheepforce ];
+    maintainers = [ lib.maintainers.sheepforce ];
   };
-}
+})

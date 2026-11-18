@@ -1,51 +1,72 @@
+diff --git a/conda/base/context.py b/conda/base/context.py
+index ebbe9a763..0dab019ec 100644
 --- a/conda/base/context.py
 +++ b/conda/base/context.py
-@@ -754,7 +754,7 @@
-
+@@ -901,7 +901,7 @@ class Context(Configuration):
+ 
      @property
-     def conda_prefix(self):
+     def conda_prefix(self) -> PathType:
 -        return abspath(sys.prefix)
 +        return expand("~/.conda")
-
+ 
      @property
-     @deprecated(
-@@ -787,28 +787,17 @@
+     def av_data_dir(self) -> PathType:
+@@ -923,46 +923,21 @@ class Context(Configuration):
          The vars can refer to each other if necessary since the dict is ordered.
          None means unset it.
          """
--        if context.dev:
+-        if self._dev:
+-            deprecated.topic(
+-                "27.3",
+-                "27.9",
+-                topic="`conda.base.context.Context.dev`",
+-                addendum="Set `PYTHONPATH` to the conda source root instead.",
+-                deprecation_type=FutureWarning,
+-            )
+-            if pythonpath := os.environ.get("PYTHONPATH", ""):
+-                pythonpath = os.pathsep.join((CONDA_SOURCE_ROOT, pythonpath))
+-            else:
+-                pythonpath = CONDA_SOURCE_ROOT
 -            return {
 -                "CONDA_EXE": sys.executable,
+-                "_CONDA_EXE": sys.executable,
 -                # do not confuse with os.path.join, we are joining paths with ; or : delimiters
--                "PYTHONPATH": os.pathsep.join(
--                    (CONDA_SOURCE_ROOT, os.environ.get("PYTHONPATH", ""))
--                ),
+-                "PYTHONPATH": pythonpath,
 -                "_CE_M": "-m",
 -                "_CE_CONDA": "conda",
 -                "CONDA_PYTHON_EXE": sys.executable,
+-                "_CONDA_ROOT": self.conda_prefix,
 -            }
--        else:
--            bin_dir = "Scripts" if on_win else "bin"
--            exe = "conda.exe" if on_win else "conda"
--            # I was going to use None to indicate a variable to unset, but that gets tricky with
--            # error-on-undefined.
--            return {
--                "CONDA_EXE": os.path.join(sys.prefix, bin_dir, exe),
--                "_CE_M": "",
--                "_CE_CONDA": "",
--                "CONDA_PYTHON_EXE": sys.executable,
--            }
-+        import sys
-+        return {
+-
+-        exe = os.path.join(
+-            self.conda_prefix,
+-            BIN_DIRECTORY,
+-            "conda.exe" if on_win else "conda",
+-        )
+         return {
+-            "CONDA_EXE": exe,
+-            "_CONDA_EXE": exe,
+-            # Shell wrappers expand `"$CONDA_EXE" $_CE_M $_CE_CONDA` (`python -m conda`
+-            # when set). None unsets leftovers; keep the keys while wrappers expand them.
+-            # https://github.com/conda/conda/issues/14142
+-            "_CE_M": None,
+-            "_CE_CONDA": None,
+-            "CONDA_PYTHON_EXE": sys.executable,
+-            "_CONDA_ROOT": self.conda_prefix,
 +            "CONDA_EXE": sys.executable,
-+            # do not confuse with os.path.join, we are joining paths with ; or : delimiters
-+            "PYTHONPATH": os.pathsep.join(
-+                [CONDA_SOURCE_ROOT, os.environ.get("PYTHONPATH", "")] + [path for path in sys.path if "site-packages" in path]
-+            ),
-+            "_CE_M": "-m",
-+            "_CE_CONDA": "conda",
-+            "CONDA_PYTHON_EXE": sys.executable,
-+        }
-
++            "_CONDA_EXE": sys.executable,
++             # do not confuse with os.path.join, we are joining paths with ; or : delimiters
++             "PYTHONPATH": os.pathsep.join(
++                 [CONDA_SOURCE_ROOT, os.environ.get("PYTHONPATH", "")] + [path for path in sys.path if "site-packages" in path]
++             ),
++
++              "_CE_M": "-m",
++              "_CE_CONDA": "conda",
++              "CONDA_PYTHON_EXE": sys.executable,
++              "_CONDA_ROOT": self.conda_prefix,
+         }
+ 
++
      @memoizedproperty
-     def channel_alias(self):
+     def channel_alias(self) -> Channel:
+         from ..models.channel import Channel

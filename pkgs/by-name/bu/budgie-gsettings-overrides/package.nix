@@ -5,7 +5,7 @@
   budgie-desktop-view,
   glib,
   gsettings-desktop-schemas,
-  gnome,
+  mutter,
   nixos-artwork,
   nixos-background-light ? nixos-artwork.wallpapers.nineish,
   nixos-background-dark ? nixos-artwork.wallpapers.nineish-dark-gray,
@@ -35,15 +35,13 @@ let
     [org.gnome.desktop.wm.preferences:Budgie]
     titlebar-font="Noto Sans Bold 10"
 
-    [org.gnome.mutter:Budgie]
-    edge-tiling=true
-
     [com.solus-project.budgie-menu:Budgie]
     use-default-menu-icon=true
 
     [com.solus-project.budgie-panel:Budgie]
     dark-theme=false
-    builtin-theme=false
+    # See https://github.com/vinceliuice/Qogir-theme/issues/364.
+    builtin-theme=true
 
     [com.solus-project.icon-tasklist:Budgie]
     pinned-launchers=["nemo.desktop", "firefox.desktop", "vlc.desktop"]
@@ -59,8 +57,9 @@ let
     budgie-desktop
     budgie-desktop-view
     gsettings-desktop-schemas
-    gnome.mutter
-  ] ++ extraGSettingsOverridePackages;
+    mutter
+  ]
+  ++ extraGSettingsOverridePackages;
 
 in
 runCommand "budgie-gsettings-overrides" { preferLocalBuild = true; } ''

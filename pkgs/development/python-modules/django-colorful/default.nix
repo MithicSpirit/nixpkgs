@@ -3,27 +3,42 @@
   buildPythonPackage,
   fetchPypi,
   django,
+  setuptools,
+  setuptools-scm,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "django-colorful";
-  version = "1.3";
-  format = "setuptools";
+  version = "1.4.0";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    sha256 = "fd246f2fb297ed074dc4349966d33a1c82d0308b7fb0d6ef6e2e76b90cefffb7";
+    pname = "django_colorful";
+    inherit (finalAttrs) version;
+    hash = "sha256-9mg3SyD22BNaLeRTTKDW2L2z1GI124ZkqNhTLlrw9m4=";
   };
+
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "setuptools_scm>=8" "setuptools_scm"
+  '';
+
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
+
+  buildInputs = [ django ];
 
   # Tests aren't run
   doCheck = false;
 
-  # Requires Django >= 1.8
-  buildInputs = [ django ];
+  pythonImportsCheck = [ "colorful" ];
 
-  meta = with lib; {
+  meta = {
     description = "Django extension that provides database and form color fields";
     homepage = "https://github.com/charettes/django-colorful";
-    license = licenses.mit;
+    license = lib.licenses.mit;
+    maintainers = [ ];
   };
-}
+})

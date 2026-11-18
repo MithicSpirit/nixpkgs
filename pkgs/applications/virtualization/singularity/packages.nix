@@ -9,20 +9,19 @@ let
     callPackage
       (import ./generic.nix rec {
         pname = "apptainer";
-        version = "1.3.3";
+        version = "1.5.5";
         projectName = "apptainer";
 
         src = fetchFromGitHub {
           owner = "apptainer";
           repo = "apptainer";
-          rev = "refs/tags/v${version}";
-          hash = "sha256-xQZCQa9z1aJ2tVtxMlwcNhlm0EV/nn8OnbfaVZRm4JI=";
+          tag = "v${version}";
+          hash = "sha256-oV1LzCBYbMFbKGhli6eCbpMoyB1KeccnaEi+xHJ431g=";
         };
 
-        # Update by running
-        # nix-prefetch -E "{ sha256 }: ((import ./. { }).apptainer.override { vendorHash = sha256; }).goModules"
-        # at the root directory of the Nixpkgs repository
-        vendorHash = "sha256-W853++SSvkAYYUczbl8vnoBQZnimUdsAEXp4MCkLPBU=";
+        # Override vendorHash with overrideAttrs.
+        # See https://nixos.org/manual/nixpkgs/unstable/#buildGoModule-vendorHash
+        vendorHash = "sha256-k0HhLDImOs+nDn7B3VfxORnWRxTRlefi01YQiaNASeY=";
 
         extraDescription = " (previously known as Singularity)";
         extraMeta.homepage = "https://apptainer.org";
@@ -44,33 +43,46 @@ let
       };
 
   singularity =
-    callPackage
+    (callPackage
       (import ./generic.nix rec {
         pname = "singularity-ce";
-        version = "4.1.4";
+        version = "4.6.0";
         projectName = "singularity";
 
         src = fetchFromGitHub {
           owner = "sylabs";
           repo = "singularity";
-          rev = "refs/tags/v${version}";
-          hash = "sha256-+qwPzgwfF6A1c/rmSM/5T2N9/wVeWhMoAthj3eSQmh8=";
+          tag = "v${version}";
+          hash = "sha256-fh2MTS44V79AjI9T753TzezbXSnjphNy0CsZXoaJk9A=";
         };
 
-        # Update by running
-        # nix-prefetch -E "{ sha256 }: ((import ./. { }).singularity.override { vendorHash = sha256; }).goModules"
-        # at the root directory of the Nixpkgs repository
-        vendorHash = "sha256-dTqOSk8APLOsqwEiZ/IL8Zu1SR48MyEYPgRe6PC2nd8=";
+        # Override vendorHash with overrideAttrs.
+        # See https://nixos.org/manual/nixpkgs/unstable/#buildGoModule-vendorHash
+        vendorHash = "sha256-cx9lIbQKVE2IzeW4GJkhinDYE53e49IZoyu9Fv4WrK0=";
 
-        # Do not build conmon and squashfuse from the Git submodule sources,
-        # Use Nixpkgs provided version
         extraConfigureFlags = [
-          "--without-conmon"
+          # Do not build squashfuse from the Git submodule sources, use Nixpkgs provided version
           "--without-squashfuse"
+          # Disable subid as it requires (unavailable?) libsubid headers:
+          "--without-libsubid"
         ];
 
         extraDescription = " (Sylabs Inc's fork of Singularity, a.k.a. SingularityCE)";
-        extraMeta.homepage = "https://sylabs.io/";
+        extraMeta = {
+          homepage = "https://sylabs.io/";
+          problems = {
+            deprecated = {
+              message = ''
+                Sylabs Inc. has discontinued its development of its fork SingularityCE and the commercial versin SingularityPRO.
+                SingularityCE 4.6.0 was the last release, which incorporates code that was previously part of SingularityPRO only.
+                Use Apptainer (`apptainer`) instead.
+              '';
+              urls = [
+                "https://sylabs.io/"
+              ];
+            };
+          };
+        };
       })
       {
         # Sylabs SingularityCE builders defaults to set the SUID flag
@@ -84,8 +96,28 @@ let
           "internal/pkg/util/env/clean.go" = [
             "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
           ];
+          # Since 4.4.2, SingularityCE locates helper binaries (mount,
+          # mksquashfs, fusermount, ...) only via the "root search path" and
+          # "user search path" directives, no longer via env.DefaultPath.
+          # root search path (user search path is handled in postPatch below)
+          "pkg/util/singularityconf/config.go" = [
+            "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          ];
         };
-      };
+      }
+    ).overrideAttrs
+      (prevAttrs: {
+        postPatch =
+          prevAttrs.postPatch or ""
+          # Inject the Nixpkgs binary paths into the default user search path,
+          # after "$PATH" to keep the pre-4.4.2 lookup order.
+          + ''
+            substituteInPlace pkg/util/singularityconf/config.go \
+              --replace-fail \
+                '"$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' \
+                "\"\$PATH:$systemDefaultPath''${systemDefaultPath:+:}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin''${inputsDefaultPath:+:}$inputsDefaultPath\""
+          '';
+      });
 
   genOverridenNixos =
     package: packageName:
@@ -100,7 +132,7 @@ let
           description = "";
           longDescription = ''
             This package produces identical store derivations to `pkgs.${packageName}`
-            overriden and installed by the NixOS module `programs.singularity`
+            overridden and installed by the NixOS module `programs.singularity`
             with default configuration.
 
             This is for binary substitutes only. Use pkgs.${packageName} instead.

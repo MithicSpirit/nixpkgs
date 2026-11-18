@@ -1,12 +1,14 @@
-{ stdenv
-, fetchFromGitHub
-, python3Packages
-, makeWrapper
-, patch
+{
+  stdenv,
+  fetchFromGitHub,
+  python3Packages,
+  makeWrapper,
+  patch,
 }:
 
-{ rev
-, hash
+{
+  rev,
+  hash,
 }:
 
 stdenv.mkDerivation {
@@ -33,6 +35,9 @@ stdenv.mkDerivation {
 
   patchPhase = ''
     sed -i '/chromium-widevine/d' patches/series
+
+    substituteInPlace utils/prune_binaries.py \
+      --replace-fail "KEEP_SUFFIXES = (" "KEEP_SUFFIXES = ('.patch', "
   '';
 
   installPhase = ''

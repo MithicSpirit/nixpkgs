@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -10,6 +15,8 @@ let
 in
 
 {
+  meta.maintainers = [ maintainers.booxter ];
+
   options = {
 
     services.xserver.desktopManager.xterm.enable = mkOption {
@@ -23,13 +30,13 @@ in
 
   config = mkIf cfg.enable {
 
-    services.xserver.desktopManager.session = singleton
-      { name = "xterm";
-        start = ''
-          ${pkgs.xterm}/bin/xterm -ls &
-          waitPID=$!
-        '';
-      };
+    services.xserver.desktopManager.session = singleton {
+      name = "xterm";
+      start = ''
+        ${pkgs.xterm}/bin/xterm -ls &
+        waitPID=$!
+      '';
+    };
 
     environment.systemPackages = [ pkgs.xterm ];
 

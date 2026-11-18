@@ -5,27 +5,34 @@
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "types-docutils";
-  version = "0.21.0.20240423";
+  version = "0.22.3.20260724";
   pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-dxbsbGi1F5t7oXOMrOLxMm5k359Et6sI2ZBNMsI/wV8=";
+    pname = "types_docutils";
+    inherit (finalAttrs) version;
+    hash = "sha256-AiPOh/m4MxpaOnx4MugoAz0onaa4eKDc+8dMMOxYhQ4=";
   };
 
   build-system = [ setuptools ];
+
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "'docutils-stubs' = [" "'*' = [" \
+      --replace-fail "setuptools>=82.0.1" "setuptools"
+  '';
 
   # Module doesn't have tests
   doCheck = false;
 
   pythonImportsCheck = [ "docutils-stubs" ];
 
-  meta = with lib; {
+  meta = {
     description = "Typing stubs for docutils";
     homepage = "https://github.com/python/typeshed";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

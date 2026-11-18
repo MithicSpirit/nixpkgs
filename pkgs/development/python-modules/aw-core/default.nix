@@ -2,7 +2,7 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
+  fetchpatch,
   poetry-core,
   jsonschema,
   peewee,
@@ -13,25 +13,35 @@
   tomlkit,
   deprecation,
   timeslot,
+  click,
   pytestCheckHook,
+  writableTmpDirAsHomeHook,
   gitUpdater,
 }:
 
 buildPythonPackage rec {
   pname = "aw-core";
-  version = "0.5.16";
+  version = "0.5.18";
 
-  format = "pyproject";
+  pyproject = true;
 
   # pypi distribution doesn't include tests, so build from source instead
   src = fetchFromGitHub {
     owner = "ActivityWatch";
     repo = "aw-core";
     rev = "v${version}";
-    sha256 = "sha256-7xT7bOGzH5G4WpgNo8pDyiQqX0dWNLNHpgssozUa9kQ=";
+    hash = "sha256-v5cCV3NFk7oz04WjbHgxQr4I72/gOUQRcARIcz6zXjo=";
   };
 
-  disabled = pythonOlder "3.8";
+  patches = [
+    # Fixes many ParseErrors in tests:
+    # "iso8601.iso8601.ParseError: expected string or bytes-like object, got 'datetime.datetime'"
+    (fetchpatch {
+      name = "datastore-serialize-native-bucket-datetimes.patch";
+      url = "https://github.com/ActivityWatch/aw-core/commit/35a48676069e730684421d6ca56e214b163e1fd9.patch";
+      hash = "sha256-KTMMdTC2kSZ0+8l5zmf+rDGFwyHJvdPzO7eYevCJUpM=";
+    })
+  ];
 
   nativeBuildInputs = [
     poetry-core
@@ -47,29 +57,27 @@ buildPythonPackage rec {
     tomlkit
     deprecation
     timeslot
+    click
   ];
 
   pythonRelaxDeps = [
     "platformdirs"
-    "iso8601"
   ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
-
-  preCheck = ''
-    # Fake home folder for tests that write to $HOME
-    export HOME="$TMPDIR"
-  '';
+  nativeCheckInputs = [
+    pytestCheckHook
+    writableTmpDirAsHomeHook
+  ];
 
   pythonImportsCheck = [ "aw_core" ];
 
   passthru.updateScript = gitUpdater { rev-prefix = "v"; };
 
-  meta = with lib; {
+  meta = {
     description = "Core library for ActivityWatch";
     mainProgram = "aw-cli";
     homepage = "https://github.com/ActivityWatch/aw-core";
-    maintainers = with maintainers; [ huantian ];
-    license = licenses.mpl20;
+    maintainers = with lib.maintainers; [ huantian ];
+    license = lib.licenses.mpl20;
   };
 }

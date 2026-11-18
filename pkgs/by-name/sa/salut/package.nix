@@ -1,15 +1,16 @@
-{ lib
-, rustPlatform
-, fetchFromGitLab
-, pkg-config
-, fontconfig
-, libxkbcommon
-, wayland
+{
+  lib,
+  rustPlatform,
+  fetchFromGitLab,
+  pkg-config,
+  fontconfig,
+  libxkbcommon,
+  wayland,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage {
   pname = "salut";
-  version = "unstable-2022-12-17";
+  version = "0.3.1-unstable-2022-12-17";
 
   src = fetchFromGitLab {
     owner = "snakedye";
@@ -18,15 +19,13 @@ rustPlatform.buildRustPackage rec {
     hash = "sha256-W0lhhImSXtYJDeMbxyEioYu/Bh7ZclwR1/5DzNbxM8o=";
   };
 
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-    outputHashes = {
-      "msg-api-0.1.0" = "sha256-SGEr9kitvD+KZPGejwDAISK6ERk7G2uskxX8ljiJ2To=";
-      "smithay-client-toolkit-0.16.0" = "sha256-kiTO+BZIgpuwAr6gs9FCqz81jRg+3dV4NxzOX9kbJOc=";
-      "snui-0.1.4" = "sha256-jJL9ukSOczHjPM2EAXcXcz620SK4DQfr+xAT8v7fp9o=";
-      "snui-adwaita-0.1.0" = "sha256-pILhLMzqnhLZfGAXT8QQn6x+IvwG7CSa96wZqq1yrLY=";
-    };
-  };
+  cargoHash = "sha256-xqj9USqVG7g2zT2P3VxDVt8fFDtyUnZOdT6gYZh4cRI=";
+
+  postPatch = ''
+    substituteInPlace "$cargoDepsCopy"/source-git-*/snui-*/src/context.rs \
+      --replace-fail " RadialGradient::new(" " tiny_skia::RadialGradient::new(" \
+      --replace-fail " LinearGradient::new(" " tiny_skia::LinearGradient::new("
+  '';
 
   nativeBuildInputs = [
     pkg-config
@@ -42,7 +41,7 @@ rustPlatform.buildRustPackage rec {
     description = "Sleek notification daemon for Wayland";
     homepage = "https://gitlab.com/snakedye/salut/-/wikis/Home";
     license = lib.licenses.mpl20;
-    maintainers = with lib.maintainers; [ eclairevoyant ];
+    maintainers = [ ];
     mainProgram = "salut";
     platforms = lib.platforms.linux;
   };

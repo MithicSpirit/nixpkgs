@@ -3,46 +3,61 @@
   rustPlatform,
   fetchFromGitHub,
   pkg-config,
+  cacert,
   oniguruma,
-  stdenv,
-  darwin,
+  installShellFiles,
+  writableTmpDirAsHomeHook,
 }:
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "atac";
-  version = "0.16.0";
+  version = "0.24.0";
 
   src = fetchFromGitHub {
     owner = "Julien-cpsn";
     repo = "ATAC";
-    rev = "v${version}";
-    hash = "sha256-PTslXzgZCzmy45zI2omv4Ef5h4gJdfWcK5ko7ulHnXo=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-8UasKiDLUoUJm+BCSntoLOkAZi7Z5OTN7DA4wPQOVUg=";
   };
 
-  cargoHash = "sha256-ZQyj2+gsZnayWD29dYZDh1zYTstaQluzzF7pXf0yoY4=";
+  cargoHash = "sha256-CYsyvHRgoUqymPALDeTj0YDyPY2d58xuh33Br92f7Ec=";
 
   nativeBuildInputs = [
+    installShellFiles
+    writableTmpDirAsHomeHook
     pkg-config
   ];
 
-  buildInputs =
-    [
-      oniguruma
-    ]
-    ++ lib.optionals stdenv.isDarwin [
-      darwin.apple_sdk.frameworks.AppKit
-      darwin.apple_sdk.frameworks.Security
-      darwin.apple_sdk.frameworks.SystemConfiguration
-    ];
+  nativeCheckInputs = [
+    cacert
+  ];
+
+  buildInputs = [ oniguruma ];
 
   env = {
     RUSTONIG_SYSTEM_LIBONIG = true;
   };
 
-  meta = with lib; {
+  postInstall = ''
+    $out/bin/atac completions bash
+    $out/bin/atac completions fish
+    $out/bin/atac completions zsh
+    installShellCompletion --cmd atac \
+      --bash atac.bash \
+      --fish atac.fish \
+      --zsh _atac
+
+    mkdir -p $out/share/powershell
+    $out/bin/atac completions powershell $out/share/powershell
+
+    $out/bin/atac man
+    installManPage atac.1
+  '';
+
+  meta = {
     description = "Simple API client (postman like) in your terminal";
     homepage = "https://github.com/Julien-cpsn/ATAC";
-    license = licenses.mit;
-    maintainers = with maintainers; [vinnymeller];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ vinnymeller ];
     mainProgram = "atac";
   };
-}
+})

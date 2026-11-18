@@ -1,26 +1,46 @@
-{lib, stdenv, fetchurl, cups, dpkg, gnused, makeWrapper, ghostscript, file, a2ps, coreutils, gawk }:
+{
+  lib,
+  stdenv,
+  fetchurl,
+  cups,
+  dpkg,
+  gnused,
+  makeWrapper,
+  ghostscript,
+  file,
+  a2ps,
+  coreutils,
+  gawk,
+}:
 
 let
   version = "1.1.4-0";
   cupsdeb = fetchurl {
     url = "https://download.brother.com/welcome/dlf007070/hl3140cwcupswrapper-${version}.i386.deb";
-    sha256 = "a76281828ca6ee86c63034673577fadcf5f24e8ed003213bdbb6bf47a7aced6f";
+    hash = "sha256-p2KBgoym7obGMDRnNXf63PXyTo7QAyE727a/R6es7W8=";
   };
   srcdir = "hl3140cw_cupswrapper_GPL_source_${version}";
   cupssrc = fetchurl {
     url = "https://download.brother.com/welcome/dlf006740/${srcdir}.tar.gz";
-    sha256 = "1wp85rbvbar6rqqkaffymxjpls6jx9m9230dlrpqwy5akiaxf0rl";
+    hash = "sha256-NAPXVZyqeI5vpg0MkWrq0mh6Za/eOTUxziartVcu6PI=";
   };
   lprdeb = fetchurl {
     url = "https://support.brother.com/g/b/files/dlf/dlf007068/hl3140cwlpr-1.1.2-1.i386.deb";
-    sha256 = "601f392b52ed7080f71b780181823bb8f6abfd0591146b452ba1f23e21f9f865";
+    hash = "sha256-YB85K1LtcID3G3gBgYI7uPar/QWRFGtFK6HyPiH5+GU=";
   };
 in
 stdenv.mkDerivation {
   pname = "cups-brother-hl3140cw";
   inherit version;
-  nativeBuildInputs = [ makeWrapper dpkg ];
-  buildInputs = [ cups ghostscript a2ps ];
+  nativeBuildInputs = [
+    makeWrapper
+    dpkg
+  ];
+  buildInputs = [
+    cups
+    ghostscript
+    a2ps
+  ];
 
   unpackPhase = ''
     tar -xvf ${cupssrc}
@@ -45,10 +65,24 @@ stdenv.mkDerivation {
     patchelf --set-interpreter ${stdenv.cc.libc}/lib/ld-linux.so.2 $out/usr/bin/brprintconf_hl3140cw
 
     wrapProgram $out/opt/brother/Printers/hl3140cw/lpd/psconvertij2 \
-      --prefix PATH ":" ${ lib.makeBinPath [ gnused coreutils gawk ] }
+      --prefix PATH ":" ${
+        lib.makeBinPath [
+          gnused
+          coreutils
+          gawk
+        ]
+      }
 
     wrapProgram $out/opt/brother/Printers/hl3140cw/lpd/filterhl3140cw \
-      --prefix PATH ":" ${ lib.makeBinPath [ ghostscript a2ps file gnused coreutils ] }
+      --prefix PATH ":" ${
+        lib.makeBinPath [
+          ghostscript
+          a2ps
+          file
+          gnused
+          coreutils
+        ]
+      }
 
 
     dpkg-deb -x ${cupsdeb} $out
@@ -66,7 +100,13 @@ stdenv.mkDerivation {
     ln -s $out/opt/brother/Printers/hl3140cw/lpd/filterhl3140cw $out/lib/cups/filter/brother_lpdwrapper_hl3140cw
 
     wrapProgram $out/opt/brother/Printers/hl3140cw/cupswrapper/cupswrapperhl3140cw \
-      --prefix PATH ":" ${ lib.makeBinPath [ gnused coreutils gawk ] }
+      --prefix PATH ":" ${
+        lib.makeBinPath [
+          gnused
+          coreutils
+          gawk
+        ]
+      }
   '';
 
   meta = {

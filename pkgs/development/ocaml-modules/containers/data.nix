@@ -1,8 +1,12 @@
-{ buildDunePackage, containers
-, ocaml
-, dune-configurator
-, gen, iter, qcheck-core
-, mdx
+{
+  buildDunePackage,
+  containers,
+  ocaml,
+  dune-configurator,
+  gen,
+  iter,
+  qcheck-core,
+  mdx,
 }:
 
 buildDunePackage {
@@ -13,8 +17,12 @@ buildDunePackage {
   doCheck = containers.doCheck && ocaml.meta.branch != "5.0";
 
   buildInputs = [ dune-configurator ];
-  nativeCheckInputs = [ mdx.bin ];
-  checkInputs = [ gen iter qcheck-core ];
+  nativeCheckInputs = [ mdx.out ];
+  checkInputs = [
+    gen
+    iter
+    qcheck-core
+  ];
 
   propagatedBuildInputs = [ containers ];
 

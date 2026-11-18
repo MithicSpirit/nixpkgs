@@ -6,9 +6,11 @@
 let
   lib = import ../default.nix;
   mseteq = x: y: {
-    expr     = lib.sort lib.lessThan x;
+    expr = lib.sort lib.lessThan x;
     expected = lib.sort lib.lessThan y;
   };
+
+  platformsContaining = system: lib.attrNames (lib.filterAttrs (_: lib.elem system) lib.platforms);
 
   /*
     Try to convert an elaborated system back to a simple string. If not possible,
@@ -20,86 +22,212 @@ let
     NOTE: This property is not guaranteed when `sys` was elaborated by a different
           version of Nixpkgs.
   */
-  toLosslessStringMaybe = sys:
-    if lib.isString sys then sys
-    else if lib.systems.equals sys (lib.systems.elaborate sys.system) then sys.system
-    else null;
+  toLosslessStringMaybe =
+    sys:
+    if lib.isString sys then
+      sys
+    else if lib.systems.equals sys (lib.systems.elaborate sys.system) then
+      sys.system
+    else
+      null;
 
 in
 lib.runTests (
-# We assert that the new algorithmic way of generating these lists matches the
-# way they were hard-coded before.
-#
-# One might think "if we exhaustively test, what's the point of procedurally
-# calculating the lists anyway?". The answer is one can mindlessly update these
-# tests as new platforms become supported, and then just give the diff a quick
-# sanity check before committing :).
-
-(with lib.systems.doubles; {
-  testall = mseteq all (linux ++ darwin ++ freebsd ++ openbsd ++ netbsd ++ illumos ++ wasi ++ windows ++ embedded ++ mmix ++ js ++ genode ++ redox);
-
-  testarm = mseteq arm [ "armv5tel-linux" "armv6l-linux" "armv6l-netbsd" "armv6l-none" "armv7a-linux" "armv7a-netbsd" "armv7l-linux" "armv7l-netbsd" "arm-none" "armv7a-darwin" ];
-  testarmv7 = mseteq armv7 [ "armv7a-darwin" "armv7a-linux" "armv7l-linux" "armv7a-netbsd" "armv7l-netbsd" ];
-  testi686 = mseteq i686 [ "i686-linux" "i686-freebsd" "i686-genode" "i686-netbsd" "i686-openbsd" "i686-cygwin" "i686-windows" "i686-none" "i686-darwin" ];
-  testmips = mseteq mips [ "mips-none" "mips64-none" "mips-linux" "mips64-linux" "mips64el-linux" "mipsel-linux" "mipsel-netbsd" ];
-  testmmix = mseteq mmix [ "mmix-mmixware" ];
-  testpower = mseteq power [ "powerpc-netbsd" "powerpc-none" "powerpc64-linux" "powerpc64le-linux" "powerpcle-none" ];
-  testriscv = mseteq riscv [ "riscv32-linux" "riscv64-linux" "riscv32-netbsd" "riscv64-netbsd" "riscv32-none" "riscv64-none" ];
-  testriscv32 = mseteq riscv32 [ "riscv32-linux" "riscv32-netbsd" "riscv32-none" ];
-  testriscv64 = mseteq riscv64 [ "riscv64-linux" "riscv64-netbsd" "riscv64-none" ];
-  tests390x = mseteq s390x [ "s390x-linux" "s390x-none" ];
-  testx86_64 = mseteq x86_64 [ "x86_64-linux" "x86_64-darwin" "x86_64-freebsd" "x86_64-genode" "x86_64-redox" "x86_64-openbsd" "x86_64-netbsd" "x86_64-cygwin" "x86_64-solaris" "x86_64-windows" "x86_64-none" ];
-
-  testcygwin = mseteq cygwin [ "i686-cygwin" "x86_64-cygwin" ];
-  testdarwin = mseteq darwin [ "x86_64-darwin" "i686-darwin" "aarch64-darwin" "armv7a-darwin" ];
-  testfreebsd = mseteq freebsd [ "i686-freebsd" "x86_64-freebsd" ];
-  testgenode = mseteq genode [ "aarch64-genode" "i686-genode" "x86_64-genode" ];
-  testredox = mseteq redox [ "x86_64-redox" ];
-  testgnu = mseteq gnu (linux /* ++ kfreebsd ++ ... */);
-  testillumos = mseteq illumos [ "x86_64-solaris" ];
-  testlinux = mseteq linux [ "aarch64-linux" "armv5tel-linux" "armv6l-linux" "armv7a-linux" "armv7l-linux" "i686-linux" "loongarch64-linux" "m68k-linux" "microblaze-linux" "microblazeel-linux" "mips-linux" "mips64-linux" "mips64el-linux" "mipsel-linux" "powerpc64-linux" "powerpc64le-linux" "riscv32-linux" "riscv64-linux" "s390-linux" "s390x-linux" "x86_64-linux" ];
-  testnetbsd = mseteq netbsd [ "aarch64-netbsd" "armv6l-netbsd" "armv7a-netbsd" "armv7l-netbsd" "i686-netbsd" "m68k-netbsd" "mipsel-netbsd" "powerpc-netbsd" "riscv32-netbsd" "riscv64-netbsd" "x86_64-netbsd" ];
-  testopenbsd = mseteq openbsd [ "i686-openbsd" "x86_64-openbsd" ];
-  testwindows = mseteq windows [ "i686-cygwin" "x86_64-cygwin" "i686-windows" "x86_64-windows" ];
-  testunix = mseteq unix (linux ++ darwin ++ freebsd ++ openbsd ++ netbsd ++ illumos ++ cygwin ++ redox);
-})
-
-// {
-  test_equals_example_x86_64-linux = {
-    expr = lib.systems.equals (lib.systems.elaborate "x86_64-linux") (lib.systems.elaborate "x86_64-linux");
-    expected = true;
-  };
-
-  test_toLosslessStringMaybe_example_x86_64-linux = {
-    expr = toLosslessStringMaybe (lib.systems.elaborate "x86_64-linux");
-    expected = "x86_64-linux";
-  };
-  test_toLosslessStringMaybe_fail = {
-    expr = toLosslessStringMaybe (lib.systems.elaborate "x86_64-linux" // { something = "extra"; });
-    expected = null;
-  };
-}
-
-# Generate test cases to assert that a change in any non-function attribute makes a platform unequal
-// lib.concatMapAttrs (platformAttrName: origValue: {
-
-  ${"test_equals_unequal_${platformAttrName}"} =
-    let modified =
-          assert origValue != arbitraryValue;
-          lib.systems.elaborate "x86_64-linux" // { ${platformAttrName} = arbitraryValue; };
-        arbitraryValue = x: "<<modified>>";
-    in {
-      expr = lib.systems.equals (lib.systems.elaborate "x86_64-linux") modified;
-      expected = {
-        # Changes in these attrs are not detectable because they're function.
-        # The functions should be derived from the data, so this is not a problem.
-        canExecute = null;
-        emulator = null;
-        emulatorAvailable = null;
-        isCompatible = null;
-      }?${platformAttrName};
+  # Computing the lib.platforms lists is surprisingly expensive, since all 70+
+  # system doubles needs to be first parsed into a system attribute, and then
+  # filtered with matchAttrs to see whether they match linux, darwin, gnu, etc.
+  #
+  # We could just compute the platforms based on the doubles alone (if the
+  # string ends in linux, it's a linux system). But this wouldn't work well for
+  # complicated platforms like bigEndian. Instead, we choose to keep our complex
+  # logic for generating the platforms, but preprocess it into a
+  # `platforms/generated.json` file. Whenever we want to support a new system, we
+  # just add it to the list of all systems in platforms/generate.nix, and then
+  # regenerate the data.
+  #
+  {
+    # The test below enforces that generating the platforms fresh gives exactly
+    # the preprocessed platforms.
+    test_platforms_match_generated = {
+      expr = lib.platforms;
+      expected = import ../platforms/generate.nix { inherit lib; };
     };
 
-}) (lib.systems.elaborate "x86_64-linux" /* arbitrary choice, just to get all the elaborated attrNames */)
+    # These tests compare the generated lists with each other rather than with
+    # hand-written expectations, so adding a system doesn't require updating them.
+    # For example, testall fails if a system ends up in no kernel list, or in two.
+    testall =
+      with lib.systems.doubles;
+      mseteq all (
+        linux
+        ++ darwin
+        ++ freebsd
+        ++ openbsd
+        ++ netbsd
+        ++ illumos
+        ++ wasi
+        ++ windows
+        ++ cygwin
+        ++ embedded
+        ++ mmix
+        ++ js
+        ++ genode
+        ++ redox
+        ++ uefi
+      );
+    testgnu = with lib.systems.doubles; mseteq gnu linux; # ++ kfreebsd ++ ...
+    testunix =
+      with lib.systems.doubles;
+      mseteq unix (linux ++ darwin ++ freebsd ++ openbsd ++ netbsd ++ illumos ++ cygwin ++ redox);
+
+    # These tests guard against broken generation logic that moves a
+    # primary system into or out of a list erroneously.
+    test_platforms_containing_x86_64-linux = {
+      expr = platformsContaining "x86_64-linux";
+      expected = [
+        "all"
+        "gnu"
+        "linux"
+        "littleEndian"
+        "unix"
+        "x86"
+        "x86_64"
+      ];
+    };
+    test_platforms_containing_aarch64-linux = {
+      expr = platformsContaining "aarch64-linux";
+      expected = [
+        "aarch"
+        "aarch64"
+        "all"
+        "gnu"
+        "linux"
+        "littleEndian"
+        "unix"
+      ];
+    };
+    test_platforms_containing_aarch64-darwin = {
+      expr = platformsContaining "aarch64-darwin";
+      expected = [
+        "aarch"
+        "aarch64"
+        "all"
+        "darwin"
+        "littleEndian"
+        "unix"
+      ];
+    };
+
+    test_equals_example_x86_64-linux = {
+      expr = lib.systems.equals (lib.systems.elaborate "x86_64-linux") (
+        lib.systems.elaborate "x86_64-linux"
+      );
+      expected = true;
+    };
+
+    test_toLosslessStringMaybe_example_x86_64-linux = {
+      expr = toLosslessStringMaybe (lib.systems.elaborate "x86_64-linux");
+      expected = "x86_64-linux";
+    };
+    test_toLosslessStringMaybe_fail = (
+      let
+        baseSystem = lib.systems.elaborate "x86_64-linux";
+      in
+      {
+        expr = toLosslessStringMaybe (
+          baseSystem
+          // {
+            _withoutFunctions = baseSystem._withoutFunctions // {
+              something = "extra";
+            };
+          }
+        );
+        expected = null;
+      }
+    );
+    test_elaborate_config_over_system = {
+      expr =
+        (lib.systems.elaborate {
+          config = "i686-unknown-linux-gnu";
+          system = "x86_64-linux";
+        }).system;
+      expected = "i686-linux";
+    };
+    test_elaborate_config_over_parsed = {
+      expr =
+        (lib.systems.elaborate {
+          config = "i686-unknown-linux-gnu";
+          parsed = (lib.systems.elaborate "x86_64-linux").parsed;
+        }).parsed.cpu.arch;
+      expected = "i686";
+    };
+    test_elaborate_system_over_parsed = {
+      expr =
+        (lib.systems.elaborate {
+          system = "i686-linux";
+          parsed = (lib.systems.elaborate "x86_64-linux").parsed;
+        }).parsed.cpu.arch;
+      expected = "i686";
+    };
+    test_equals_reelaborate_overridden_platform = {
+      expr =
+        let
+          base = lib.systems.elaborate "x86_64-linux";
+        in
+        lib.systems.equals base (
+          lib.systems.elaborate (
+            base
+            // {
+              useLLVM = true;
+              linker = "lld";
+            }
+          )
+        );
+      expected = false;
+    };
+  }
+  // {
+    # equals.functionNames must list exactly the function-valued attrs of an
+    # elaborated system, so that _withoutFunctions stays correct without
+    # iterating.
+    test_equals_functionNames_in_sync =
+      let
+        sys = lib.systems.elaborate "x86_64-linux";
+        actual = lib.filter (n: builtins.isFunction sys.${n}) (builtins.attrNames sys);
+        expected = lib.sort lib.lessThan lib.systems.functionNames;
+      in
+      {
+        expr = lib.sort lib.lessThan actual;
+        inherit expected;
+      };
+  }
+
+  # Generate test cases to assert that a change in any non-function attribute makes a platform unequal
+  // (
+    let
+      # arbitrary choice, just to get all the elaborated attrNames
+      baseSystem = lib.systems.elaborate "x86_64-linux";
+    in
+    lib.concatMapAttrs (platformAttrName: origValue: {
+      ${"test_equals_unequal_${platformAttrName}"} =
+        let
+          # lib.systems.equals only checks the subattrset
+          modified =
+            assert origValue != arbitraryValue;
+            baseSystem
+            // {
+              _withoutFunctions = baseSystem._withoutFunctions // {
+                ${platformAttrName} = arbitraryValue;
+              };
+            };
+          arbitraryValue = x: "<<modified>>";
+        in
+        {
+          expr = lib.systems.equals baseSystem modified;
+          expected = false;
+        };
+
+    }) baseSystem
+  )
 
 )

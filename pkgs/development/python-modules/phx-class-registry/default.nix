@@ -3,32 +3,33 @@
   buildPythonPackage,
   fetchFromGitHub,
   pytestCheckHook,
-  pythonOlder,
-}:
 
-buildPythonPackage rec {
-  pname = "class-registry";
-  version = "4.1.0";
-  disabled = pythonOlder "3.5";
+  hatchling,
+}:
+buildPythonPackage (finalAttrs: {
+  pname = "phx-class-registry";
+  version = "6.0.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "todofixthis";
-    repo = pname;
-    rev = "refs/tags/${version}";
-    hash = "sha256-kJbyUzyklVSvW6bBxTTTrY+WhfcV0GUf/+Pzyv+7sEA=";
+    repo = "class-registry";
+    tag = finalAttrs.version;
+    hash = "sha256-F6AR1D65HXp1VJCHiEj4OMe2eASitN5+Mulk1m8nBCQ=";
   };
+
+  build-system = [ hatchling ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "class_registry" ];
 
-  meta = with lib; {
+  meta = {
     description = "Factory and registry pattern for Python classes";
     homepage = "https://class-registry.readthedocs.io/en/latest/";
-    license = licenses.mit;
-    maintainers = with maintainers; [
-      hrdinka
-      tomhoule
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      debtquity
     ];
   };
-}
+})

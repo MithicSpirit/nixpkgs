@@ -45,7 +45,7 @@ nixexpr() {
           lib = import $1/lib;
           hydraJobs = import $1/pkgs/top-level/release.nix
             # Compromise: accuracy vs. resources needed for evaluation.
-            { supportedSystems = cfg.systems or [ "x86_64-linux" "x86_64-darwin" ]; };
+            { supportedSystems = cfg.systems or [ "x86_64-linux" "aarch64-darwin" ]; };
           cfg = (import $1 {}).config.rebuild-amount or {};
 
           recurseIntoAttrs = attrs: attrs // { recurseForDerivations = true; };
@@ -69,7 +69,7 @@ nixexpr() {
           ];
 
         in
-          tweak (builtins.removeAttrs hydraJobs blacklist)
+          tweak (removeAttrs hydraJobs blacklist)
 EONIX
 }
 
@@ -81,11 +81,13 @@ newPkgs() {
     # could eat too much memory for a standard 4GiB machine.
     local -a list
     for i in 1 2; do
-        local l="$($MKTEMP)"
+        local l
+        l="$($MKTEMP)"
         list[$i]="$l"
         toRemove+=("$l")
 
-        local expr="$($MKTEMP)"
+        local expr
+        expr="$($MKTEMP)"
         toRemove+=("$expr")
         nixexpr "${!i}" > "$expr"
 

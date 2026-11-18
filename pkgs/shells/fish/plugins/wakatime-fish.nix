@@ -1,17 +1,17 @@
-{ lib
-, wakatime-cli
-, buildFishPlugin
-, fetchFromGitHub
+{
+  lib,
+  wakatime-cli,
+  buildFishPlugin,
+  fetchFromGitHub,
 }:
-
-buildFishPlugin rec {
+buildFishPlugin (finalAttrs: {
   pname = "wakatime-fish";
   version = "0.0.6";
 
   src = fetchFromGitHub {
     owner = "ik11235";
     repo = "wakatime.fish";
-    rev = "v${version}";
+    tag = "v${finalAttrs.version}";
     hash = "sha256-Hsr69n4fCvPc64NztgaBZQuR0znkzlL8Uotw9Jf2S1o=";
   };
 
@@ -21,10 +21,10 @@ buildFishPlugin rec {
       --replace-fail "(type -p wakatime)" "${lib.getExe wakatime-cli}"
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Fish plugin for wakatime";
     homepage = "https://github.com/ik11235/wakatime.fish";
-    license = licenses.mit;
-    maintainers = with maintainers; [ ocfox ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ ocfox ];
   };
-}
+})

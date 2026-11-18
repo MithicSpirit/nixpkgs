@@ -3,40 +3,47 @@
   fetchFromGitHub,
   installShellFiles,
   php,
+  stdenv,
   nix-update-script,
-  testers,
+  versionCheckHook,
+  writableTmpDirAsHomeHook,
 }:
 
 php.buildComposerProject2 (finalAttrs: {
   pname = "castor";
-  version = "0.17.1";
+  version = "1.9.1";
 
   src = fetchFromGitHub {
     owner = "jolicode";
     repo = "castor";
-    rev = "v${finalAttrs.version}";
-    hash = "sha256-ng32vuGlGffpkzf3hXu0sNbj0PCDu4DpZnMnbDV9pZk=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-lQJgkitWXO8pMS1Dt7wCp3d9krdWyF+gzvmt1zoKkxI=";
   };
 
-  vendorHash = "sha256-0aDT0hPhoPl0U/QbstiGmUHaqDdQb1ReY2hy9FEnzwM=";
+  vendorHash = "sha256-G1ClyhYbvHGegZKqO98vK306Qg/yV2ko8+0ADB9LiL8=";
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [
+    installShellFiles
+    writableTmpDirAsHomeHook
+  ];
 
-  # install shell completions
-  postInstall = ''
+  # castor loads castor.php from the working directory, so generate the
+  # completions outside the source tree to prevent it
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    pushd "$(mktemp -d)"
     installShellCompletion --cmd castor \
       --bash <(php $out/bin/castor completion bash) \
       --fish <(php $out/bin/castor completion fish) \
       --zsh <(php $out/bin/castor completion zsh)
+    popd
   '';
+
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  versionCheckKeepEnvironment = [ "HOME" ];
 
   passthru = {
     updateScript = nix-update-script { };
-    tests.version = testers.testVersion {
-      command = "castor --version";
-      package = php.packages.castor;
-      version = "v${finalAttrs.version}";
-    };
   };
 
   meta = {
@@ -44,7 +51,8 @@ php.buildComposerProject2 (finalAttrs: {
     description = "DX oriented task runner and command launcher built with PHP";
     homepage = "https://github.com/jolicode/castor";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ gaelreyrol ];
+    maintainers = with lib.maintainers; [ mykiwi ];
     mainProgram = "castor";
+    broken = lib.versionOlder php.version "8.4";
   };
 })

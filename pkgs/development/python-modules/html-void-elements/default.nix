@@ -8,10 +8,10 @@
 buildPythonPackage rec {
   pname = "html-void-elements";
   version = "0.1.0";
-  format = "pyproject";
+  pyproject = true;
 
   src = fetchFromGitHub {
-    owner = "Riverside-Healthcare";
+    owner = "djlint";
     repo = "html-void-elements";
     rev = version;
     hash = "sha256-Q5OEczTdgCCyoOsKv3MKRE3w4t/qyPG4YKbF19jlC88=";
@@ -24,10 +24,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "HtmlVoidElements" ];
 
-  meta = with lib; {
+  meta = {
     description = "List of HTML void tag names";
-    homepage = "https://github.com/Riverside-Healthcare/html-void-elements";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ traxys ];
+    homepage = "https://github.com/djlint/html-void-elements";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ traxys ];
   };
 }

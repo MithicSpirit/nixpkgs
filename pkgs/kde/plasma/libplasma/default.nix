@@ -8,6 +8,16 @@
 mkKdeDerivation {
   pname = "libplasma";
 
-  extraNativeBuildInputs = [pkg-config];
-  extraBuildInputs = [qtsvg qtwayland wayland];
+  patches = [
+    # https://invent.kde.org/plasma/libplasma/-/merge_requests/1406
+    ./rb-extracomponents.patch
+  ];
+
+  extraNativeBuildInputs = [ pkg-config ];
+
+  extraBuildInputs = [
+    qtsvg
+    qtwayland
+    wayland
+  ];
 }

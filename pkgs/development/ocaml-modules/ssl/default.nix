@@ -1,41 +1,44 @@
-{ alcotest
-, buildDunePackage
-, dune-configurator
-, fetchFromGitHub
-, lib
-, ocaml
-, openssl
-, pkg-config
+{
+  alcotest,
+  buildDunePackage,
+  dune-configurator,
+  fetchFromGitHub,
+  lib,
+  ocaml,
+  openssl,
+  pkg-config,
 }:
 
-buildDunePackage rec {
+buildDunePackage (finalAttrs: {
   pname = "ssl";
-  version = "0.7.0";
+  version = "0.8.1";
 
-  duneVersion = "3";
+  minimalOCamlVersion = "4.12";
 
   src = fetchFromGitHub {
     owner = "savonet";
     repo = "ocaml-ssl";
-    rev = "v${version}";
-    hash = "sha256-gi80iwlKaI4TdAVnCyPG03qRWFa19DHdTrA0KMFBAc4=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-SqIklmWpriTV/r1tcI3y/7jGI48Cjk6PtczoQORnE38=";
   };
 
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ dune-configurator ];
   propagatedBuildInputs = [ openssl ];
 
-  doCheck = lib.versionAtLeast ocaml.version "4.08";
+  __darwinAllowLocalNetworking = true;
+  doCheck = lib.versionAtLeast ocaml.version "4.14";
   checkInputs = [ alcotest ];
-  preCheck = ''
-    mkdir -p _build/default/tests/
-    cp tests/digicert_certificate.pem _build/default/tests/
-  '';
 
   meta = {
-    homepage = "http://savonet.rastageeks.org/";
+    homepage = "https://www.liquidsoap.info/ocaml-ssl/ssl/index.html";
     description = "OCaml bindings for libssl";
-    license = "LGPL+link exception";
-    maintainers = with lib.maintainers; [ anmonteiro dandellion maggesi ];
+    license = with lib.licenses; [
+      lgpl21Plus
+      ocamlLgplLinkingException
+    ];
+    maintainers = with lib.maintainers; [
+      dandellion
+    ];
   };
-}
+})

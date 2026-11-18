@@ -4,24 +4,24 @@
   bleak-retry-connector,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
+  setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "cometblue-lite";
   version = "0.7.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.8";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "neffs";
     repo = "python-cometblue_lite";
-    rev = "refs/tags/${version}";
+    tag = finalAttrs.version;
     hash = "sha256-Cjd7PdZ2/neRr1jStDY5iJaGMJ/srnFmCea8aLNan6g=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     bleak
     bleak-retry-connector
   ];
@@ -31,10 +31,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "cometblue_lite" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module for Eurotronic Comet Blue thermostats";
     homepage = "https://github.com/neffs/python-cometblue_lite";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

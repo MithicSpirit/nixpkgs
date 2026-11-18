@@ -1,20 +1,24 @@
-{ build-idris-package
-, fetchFromGitHub
-, effects
-, test
-, lib
+{
+  build-idris-package,
+  fetchFromGitHub,
+  effects,
+  test,
+  lib,
 }:
-build-idris-package  {
+build-idris-package {
   pname = "containers";
   version = "2017-09-10";
 
-  idrisDeps = [ effects test ];
+  idrisDeps = [
+    effects
+    test
+  ];
 
   src = fetchFromGitHub {
     owner = "jfdm";
     repo = "idris-containers";
     rev = "fb96aaa3f40faa432cd7a36d956dbc4fe9279234";
-    sha256 = "0vyjadd9sb8qcbzvzhnqwc8wa7ma770c10xhn96jsqsnzr81k52d";
+    hash = "sha256-TZQZUP5WYy1NsrCDwMA5qh7FEePYwr//YhgtnVpT0m8=";
   };
 
   meta = {

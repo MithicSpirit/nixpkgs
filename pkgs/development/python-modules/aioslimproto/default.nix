@@ -1,51 +1,52 @@
 {
   lib,
   aiohttp,
-  async-timeout,
   buildPythonPackage,
   fetchFromGitHub,
   pillow,
-  pythonOlder,
+  pyprojectVersionPatchHook,
+  pytest-asyncio,
+  pytest-cov-stub,
+  pytestCheckHook,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aioslimproto";
-  version = "3.0.1";
+  version = "3.3.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.10";
-
   src = fetchFromGitHub {
-    owner = "home-assistant-libs";
+    owner = "music-assistant";
     repo = "aioslimproto";
-    rev = "refs/tags/${version}";
-    hash = "sha256-K7z34fT0PQ5qcV+66VbhYTUhCjqW/OjPnrygBFKIW1k=";
+    tag = finalAttrs.version;
+    hash = "sha256-98GLhv60SaPQIi8OEWTVPz+3TT2rBRuXUKfF/8TG/nU=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "--cov" ""
-  '';
+  nativeBuildInputs = [
+    pyprojectVersionPatchHook
+  ];
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     aiohttp
-    async-timeout
     pillow
   ];
 
-  # Module has no tests
-  doCheck = false;
+  nativeCheckInputs = [
+    pytest-asyncio
+    pytest-cov-stub
+    pytestCheckHook
+  ];
 
   pythonImportsCheck = [ "aioslimproto" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module to control Squeezebox players";
-    homepage = "https://github.com/home-assistant-libs/aioslimproto";
-    changelog = "https://github.com/home-assistant-libs/aioslimproto/releases/tag/${version}";
-    license = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ fab ];
+    homepage = "https://github.com/music-assistant/aioslimproto";
+    changelog = "https://github.com/music-assistant/aioslimproto/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

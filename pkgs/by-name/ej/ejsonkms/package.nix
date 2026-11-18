@@ -6,21 +6,23 @@
   ejsonkms,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "ejsonkms";
-  version = "0.2.2";
+  version = "0.4.0";
 
   src = fetchFromGitHub {
     owner = "envato";
     repo = "ejsonkms";
-    rev = "v${version}";
-    hash = "sha256-aHnxdEADrzaRld7G2owSHO/0xYXIa8EBBR+phdA4eRM=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-GTCLtr08jpx0j4KXyrqSVZkD0YTdN4Qpm8gZjPzYbjM=";
   };
 
-  vendorHash = "sha256-aLcSCDgd3IGiUg/JAPNIV30tAh6tDYZnFnqzaLELXw0=";
+  vendorHash = "sha256-2v39BWX3b99yOrQI77j4I875Y6Su6/YyRpRFJ8iTgTI=";
 
   ldflags = [
-    "-X main.version=v${version}" "-s" "-w"
+    "-X main.version=v${finalAttrs.version}"
+    "-s"
+    "-w"
   ];
 
   doCheck = false;
@@ -28,14 +30,14 @@ buildGoModule rec {
   passthru.tests = {
     version = testers.testVersion {
       package = ejsonkms;
-      version = "v${version}";
+      version = "v${finalAttrs.version}";
     };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Integrates EJSON with AWS KMS";
     homepage = "https://github.com/envato/ejsonkms";
-    license = licenses.mit;
-    maintainers = with maintainers; [ viraptor ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ viraptor ];
   };
-}
+})

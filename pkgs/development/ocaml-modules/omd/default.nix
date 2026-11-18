@@ -1,14 +1,18 @@
-{ lib, buildDunePackage, fetchurl }:
+{
+  lib,
+  buildDunePackage,
+  fetchurl,
+}:
 
-buildDunePackage rec {
+buildDunePackage (finalAttrs: {
   pname = "omd";
   version = "1.3.2";
 
   minimalOCamlVersion = "4.03";
 
   src = fetchurl {
-    url = "https://github.com/ocaml/omd/releases/download/${version}/omd-${version}.tbz";
-    sha256 = "sha256-YCPhZCYx8I9njrVyWCCHnte7Wj/+53fN7evCjB+F+ts=";
+    url = "https://github.com/ocaml/omd/releases/download/${finalAttrs.version}/omd-${finalAttrs.version}.tbz";
+    hash = "sha256-YCPhZCYx8I9njrVyWCCHnte7Wj/+53fN7evCjB+F+ts=";
   };
 
   preBuild = ''
@@ -22,4 +26,4 @@ buildDunePackage rec {
     maintainers = [ lib.maintainers.vbgl ];
     mainProgram = "omd";
   };
-}
+})

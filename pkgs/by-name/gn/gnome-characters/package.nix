@@ -20,13 +20,13 @@
   gnome-desktop,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "gnome-characters";
-  version = "46.0";
+  version = "51.0";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/gnome-characters/${lib.versions.major version}/gnome-characters-${version}.tar.xz";
-    hash = "sha256-pOjixRC/SCBLmZSk581TeEQkbnTIqYb52+BOIj9dgnw=";
+    url = "mirror://gnome/sources/gnome-characters/${lib.versions.major finalAttrs.version}/gnome-characters-${finalAttrs.version}.tar.xz";
+    hash = "sha256-i5Dp1/z/Q2Iu00Z38AKc10tEAYXxY5r0jEOfY7663DE=";
   };
 
   nativeBuildInputs = [
@@ -64,12 +64,12 @@ stdenv.mkDerivation rec {
     updateScript = gnome.updateScript { packageName = "gnome-characters"; };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://apps.gnome.org/Characters/";
     description = "Simple utility application to find and insert unusual characters";
     mainProgram = "gnome-characters";
-    maintainers = teams.gnome.members;
-    license = licenses.gpl2Plus;
-    platforms = platforms.linux;
+    teams = [ lib.teams.gnome ];
+    license = lib.licenses.gpl2Plus;
+    platforms = lib.platforms.linux;
   };
-}
+})

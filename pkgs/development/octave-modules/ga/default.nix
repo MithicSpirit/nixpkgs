@@ -1,6 +1,7 @@
-{ buildOctavePackage
-, lib
-, fetchurl
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
 }:
 
 buildOctavePackage rec {
@@ -9,13 +10,13 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "sha256-hsrjh2rZFhP6WA+qaKjiGfJkDtT2nTlXlKr3jAJ5Y44=";
+    hash = "sha256-hsrjh2rZFhP6WA+qaKjiGfJkDtT2nTlXlKr3jAJ5Y44=";
   };
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/ga/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/ga/";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Genetic optimization code";
   };
 }

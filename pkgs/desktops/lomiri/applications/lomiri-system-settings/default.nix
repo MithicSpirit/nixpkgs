@@ -5,11 +5,9 @@
   gitUpdater,
   testers,
   accountsservice,
-  ayatana-indicator-datetime,
   biometryd,
   cmake,
   cmake-extras,
-  content-hub,
   dbus,
   deviceinfo,
   geonames,
@@ -18,17 +16,21 @@
   gnome-desktop,
   gsettings-qt,
   gtk3,
-  icu,
+  icu75,
   intltool,
   json-glib,
   libqofono,
   libqtdbustest,
   libqtdbusmock,
+  lomiri-content-hub,
+  lomiri-indicator-datetime,
   lomiri-indicator-network,
   lomiri-schemas,
   lomiri-settings-components,
+  lomiri-ui-extras,
   lomiri-ui-toolkit,
   maliit-keyboard,
+  mesa,
   pkg-config,
   polkit,
   python3,
@@ -45,15 +47,25 @@
   xvfb-run,
 }:
 
+let
+  qtQmlPaths = lib.makeSearchPathOutput "bin" qtbase.qtQmlPrefix (
+    [
+      qtdeclarative
+      lomiri-ui-toolkit
+      lomiri-settings-components
+    ]
+    ++ lomiri-ui-toolkit.propagatedBuildInputs
+  );
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "lomiri-system-settings-unwrapped";
-  version = "1.2.0";
+  version = "1.5.0";
 
   src = fetchFromGitLab {
     owner = "ubports";
     repo = "development/core/lomiri-system-settings";
-    rev = finalAttrs.version;
-    hash = "sha256-dWaXPr9Z5jz5SbwLSd3jVqjK0E5BdcKVeF15p8j47uM=";
+    tag = finalAttrs.version;
+    hash = "sha256-pPczShoVwEoAga/tT6WQV5EjU+SWDraWOYFNKumDxoY=";
   };
 
   outputs = [
@@ -61,34 +73,59 @@ stdenv.mkDerivation (finalAttrs: {
     "dev"
   ];
 
-  patches = [ ./2000-Support-wrapping-for-Nixpkgs.patch ];
+  patches = [
+    ./2000-Support-wrapping-for-Nixpkgs.patch
+  ];
 
   postPatch = ''
     substituteInPlace CMakeLists.txt \
-      --replace-fail "\''${CMAKE_INSTALL_LIBDIR}/qt5/qml" "\''${CMAKE_INSTALL_PREFIX}/${qtbase.qtQmlPrefix}" \
-
-    # Port from lomiri-keyboard to maliit-keyboard
-    substituteInPlace plugins/language/CMakeLists.txt \
-      --replace-fail 'LOMIRI_KEYBOARD_PLUGIN_PATH=\"''${CMAKE_INSTALL_FULL_LIBDIR}/lomiri-keyboard/plugins\"' 'LOMIRI_KEYBOARD_PLUGIN_PATH=\"${lib.getLib maliit-keyboard}/lib/maliit/keyboard2/languages\"'
-    substituteInPlace plugins/language/{PageComponent,SpellChecking,ThemeValues}.qml plugins/language/onscreenkeyboard-plugin.cpp plugins/sound/PageComponent.qml \
-      --replace-fail 'com.lomiri.keyboard.maliit' 'org.maliit.keyboard.maliit'
-
-    # Gets list of available localisations from current system, but later drops any language that doesn't cover LSS
-    # So just give it its own prefix
+      --replace-fail \
+        "\''${CMAKE_INSTALL_LIBDIR}/qt5/qml" \
+        "\''${CMAKE_INSTALL_PREFIX}/${qtbase.qtQmlPrefix}"
+  ''
+  # Port from lomiri-keyboard to maliit-keyboard
+  + ''
+    substituteInPlace \
+      plugins/language/{PageComponent,SpellChecking,ThemeValues}.qml \
+      plugins/language/onscreenkeyboard-plugin.cpp \
+      plugins/sound/PageComponent.qml \
+      --replace-fail \
+        'com.lomiri.keyboard.maliit' 'org.maliit.keyboard.maliit'
+  ''
+  # Gets list of available localisations from current system, but later drops any language that doesn't cover LSS
+  # So just give it its own prefix
+  + ''
     substituteInPlace plugins/language/language-plugin.cpp \
-      --replace-fail '/usr/share/locale' '${placeholder "out"}/share/locale'
-
-    # Decide which entries should be visible based on the current system
+      --replace-fail \
+        '/usr/share/locale' \
+        '${placeholder "out"}/share/locale'
+  ''
+  # Decide which entries should be visible based on the current system
+  + ''
     substituteInPlace plugins/*/*.settings \
-      --replace-warn '/etc' '/run/current-system/sw/etc'
-
-    # Don't use absolute paths in desktop file
+      --replace-warn \
+        '/etc' \
+        '/run/current-system/sw/etc'
+  ''
+  # Don't use absolute paths in desktop file
+  + ''
     substituteInPlace lomiri-system-settings.desktop.in.in \
-      --replace-fail 'Icon=@SETTINGS_SHARE_DIR@/system-settings.svg' 'Icon=lomiri-system-settings' \
-      --replace-fail 'X-Lomiri-Splash-Image=@SETTINGS_SHARE_DIR@/system-settings-app-splash.svg' 'X-Lomiri-Splash-Image=lomiri-app-launch/splash/lomiri-system-settings.svg' \
-      --replace-fail 'X-Screenshot=@SETTINGS_SHARE_DIR@/screenshot.png' 'X-Screenshot=lomiri-app-launch/screenshot/lomiri-system-settings.png'
+      --replace-fail \
+        'Icon=@SETTINGS_SHARE_DIR@/system-settings.svg' \
+        'Icon=lomiri-system-settings' \
+      --replace-fail \
+        'X-Lomiri-Splash-Image=@SETTINGS_SHARE_DIR@/system-settings-app-splash.svg' \
+        'X-Lomiri-Splash-Image=lomiri-app-launch/splash/lomiri-system-settings.svg'
+  ''
+  # Include our QML2_IMPORT_PATH
+  + ''
+    substituteInPlace tests/CMakeLists.txt \
+      --replace-fail \
+        'QML2_IMPORT_PATH=''${dir}:''${CMAKE_BINARY_DIR}/plugins:''${CMAKE_BINARY_DIR}/tests/mocks' \
+        'QML2_IMPORT_PATH=''${dir}:''${CMAKE_BINARY_DIR}/plugins:''${CMAKE_BINARY_DIR}/tests/mocks:${qtQmlPaths}'
   '';
 
+  __structuredAttrs = true;
   strictDeps = true;
 
   nativeBuildInputs = [
@@ -109,7 +146,7 @@ stdenv.mkDerivation (finalAttrs: {
     gnome-desktop
     gsettings-qt
     gtk3
-    icu
+    icu75
     json-glib
     polkit
     qtbase
@@ -120,13 +157,14 @@ stdenv.mkDerivation (finalAttrs: {
 
   # QML components and schemas the wrapper needs
   propagatedBuildInputs = [
-    ayatana-indicator-datetime
     biometryd
-    content-hub
     libqofono
+    lomiri-content-hub
+    lomiri-indicator-datetime
     lomiri-indicator-network
     lomiri-schemas
     lomiri-settings-components
+    lomiri-ui-extras
     lomiri-ui-toolkit
     maliit-keyboard
     qmenumodel
@@ -136,6 +174,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeCheckInputs = [
     dbus
+    mesa.llvmpipeHook # ShapeMaterial needs an OpenGL context: https://gitlab.com/ubports/development/core/lomiri-ui-toolkit/-/issues/35
     (python3.withPackages (ps: with ps; [ python-dbusmock ]))
     xvfb-run
   ];
@@ -149,21 +188,9 @@ stdenv.mkDerivation (finalAttrs: {
   dontWrapQtApps = true;
 
   cmakeFlags = [
-    (lib.cmakeBool "ENABLE_LIBDEVICEINFO" true)
-    (lib.cmakeBool "ENABLE_TESTS" finalAttrs.finalPackage.doCheck)
-    (lib.cmakeFeature "CMAKE_CTEST_ARGUMENTS" (
-      lib.concatStringsSep ";" [
-        # Exclude tests
-        "-E"
-        (lib.strings.escapeShellArg "(${
-          lib.concatStringsSep "|" [
-            # Hits OpenGL context issue inside lomiri-ui-toolkit, see derivation of that on details
-            "^testmouse"
-            "^tst_notifications"
-          ]
-        })")
-      ]
-    ))
+    (lib.strings.cmakeBool "ENABLE_LIBDEVICEINFO" true)
+    (lib.strings.cmakeBool "ENABLE_TESTS" finalAttrs.finalPackage.doCheck)
+    (lib.strings.cmakeFeature "LOMIRI_KEYBOARD_PLUGIN_PATH" "${lib.getLib maliit-keyboard}/lib/maliit/keyboard2/languages")
   ];
 
   # The linking for this normally ignores missing symbols, which is inconvenient for figuring out why subpages may be
@@ -175,28 +202,19 @@ stdenv.mkDerivation (finalAttrs: {
   # Parallelism breaks D-Bus tests
   enableParallelChecking = false;
 
+  # Not all tests use the wrapper that sets QML2_IMPORT_PATH, so need to export it here still
   preCheck = ''
     export QT_PLUGIN_PATH=${lib.getBin qtbase}/${qtbase.qtPluginPrefix}
-    export QML2_IMPORT_PATH=${
-      lib.makeSearchPathOutput "bin" qtbase.qtQmlPrefix (
-        [
-          qtdeclarative
-          lomiri-ui-toolkit
-          lomiri-settings-components
-        ]
-        ++ lomiri-ui-toolkit.propagatedBuildInputs
-      )
-    }
+    export QML2_IMPORT_PATH=${qtQmlPaths}
   '';
 
   postInstall = ''
     glib-compile-schemas $out/share/glib-2.0/schemas
 
-    mkdir -p $out/share/{icons/hicolor/scalable/apps,lomiri-app-launch/{splash,screenshot}}
+    mkdir -p $out/share/{icons/hicolor/scalable/apps,lomiri-app-launch/splash}
 
     ln -s $out/share/lomiri-system-settings/system-settings.svg $out/share/icons/hicolor/scalable/apps/lomiri-system-settings.svg
     ln -s $out/share/lomiri-system-settings/system-settings-app-splash.svg $out/share/lomiri-app-launch/splash/lomiri-system-settings.svg
-    ln -s $out/share/lomiri-system-settings/screenshot.png $out/share/lomiri-app-launch/screenshot/lomiri-system-settings.png
   '';
 
   passthru = {
@@ -204,14 +222,16 @@ stdenv.mkDerivation (finalAttrs: {
     updateScript = gitUpdater { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "System Settings application for Lomiri";
     homepage = "https://gitlab.com/ubports/development/core/lomiri-system-settings";
-    changelog = "https://gitlab.com/ubports/development/core/lomiri-system-settings/-/blob/${finalAttrs.version}/ChangeLog";
-    license = licenses.gpl3Only;
+    changelog = "https://gitlab.com/ubports/development/core/lomiri-system-settings/-/blob/${
+      if (!isNull finalAttrs.src.tag) then finalAttrs.src.tag else finalAttrs.src.rev
+    }/ChangeLog";
+    license = lib.licenses.gpl3Only;
     mainProgram = "lomiri-system-settings";
-    maintainers = teams.lomiri.members;
-    platforms = platforms.linux;
+    teams = [ lib.teams.lomiri ];
+    platforms = lib.platforms.linux;
     pkgConfigModules = [ "LomiriSystemSettings" ];
   };
 })

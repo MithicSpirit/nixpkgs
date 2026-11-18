@@ -2,7 +2,7 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
+  setuptools,
   # build inputs
   starlette,
   brotli,
@@ -12,24 +12,21 @@
   mypy,
   brotlipy,
 }:
-let
+buildPythonPackage (finalAttrs: {
   pname = "brotli-asgi";
-  version = "1.4.0";
-in
-buildPythonPackage {
-  inherit pname version;
-  format = "setuptools";
-
-  disabled = pythonOlder "3.8";
+  version = "1.7.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "fullonic";
-    repo = pname;
-    rev = "v${version}";
-    hash = "sha256-hQ6CSXnAoUSaKUSmE+2GHZemkFqd8Dc5+OvcUD7/r5Y=";
+    repo = "brotli-asgi";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-GGJIENtxRBJZ/IzHGvDxLwtr63wGPoQ8AqVB3mRmYEY=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     starlette
     brotli
   ];
@@ -43,10 +40,10 @@ buildPythonPackage {
     brotlipy
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Compression AGSI middleware using brotli";
     homepage = "https://github.com/fullonic/brotli-asgi";
-    license = licenses.mit;
-    maintainers = with maintainers; [ happysalada ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ happysalada ];
   };
-}
+})

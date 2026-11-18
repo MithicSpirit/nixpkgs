@@ -1,26 +1,32 @@
-{ lib
-, stdenv
-, fetchurl
-, buildPackages
-, gawk
-, gmp
-, libtool
-, makeWrapper
-, pkg-config
-, pkgsBuildBuild
-, readline
+{
+  lib,
+  stdenv,
+  fetchurl,
+  buildPackages,
+  gawk,
+  gmp,
+  libtool,
+  makeWrapper,
+  pkg-config,
+  pkgsBuildBuild,
+  readline,
+  guileImportsCheckHook,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "guile";
   version = "1.8.8";
 
   src = fetchurl {
-    url = "mirror://gnu/${pname}/${pname}-${version}.tar.gz";
+    url = "mirror://gnu/guile/guile-${finalAttrs.version}.tar.gz";
     sha256 = "0l200a0v7h8bh0cwz6v7hc13ds39cgqsmfrks55b1rbj5vniyiy3";
   };
 
-  outputs = [ "out" "dev" "info" ];
+  outputs = [
+    "out"
+    "dev"
+    "info"
+  ];
   setOutputFlags = false; # $dev gets into the library otherwise
 
   # GCC 4.6 raises a number of set-but-unused warnings.
@@ -29,14 +35,12 @@ stdenv.mkDerivation rec {
   ]
   # Guile needs patching to preset results for the configure tests about
   # pthreads, which work only in native builds.
-  ++ lib.optional (stdenv.hostPlatform != stdenv.buildPlatform)
-    "--with-threads=no";
+  ++ lib.optional (stdenv.hostPlatform != stdenv.buildPlatform) "--with-threads=no";
 
   depsBuildBuild = [
     buildPackages.stdenv.cc
   ]
-  ++ lib.optional (stdenv.hostPlatform != stdenv.buildPlatform)
-    pkgsBuildBuild.guile_1_8;
+  ++ lib.optional (stdenv.hostPlatform != stdenv.buildPlatform) pkgsBuildBuild.guile_1_8;
   nativeBuildInputs = [
     makeWrapper
     pkg-config
@@ -54,6 +58,9 @@ stdenv.mkDerivation rec {
     # see below.
     libtool
   ];
+  propagatedNativeBuildInputs = lib.optionals (stdenv.buildPlatform == stdenv.hostPlatform) [
+    (guileImportsCheckHook.override { effectiveVersion = finalAttrs.passthru.effectiveVersion; })
+  ];
 
   patches = [
     # Fix doc snarfing with GCC 4.5.
@@ -61,6 +68,10 @@ stdenv.mkDerivation rec {
     # Self explanatory
     ./CVE-2016-8605.patch
   ];
+
+  env = {
+    NIX_CFLAGS_COMPILE = "-std=gnu17";
+  };
 
   preBuild = ''
     sed -e '/lt_dlinit/a  lt_dladdsearchdir("'$out/lib'");' -i libguile/dynl.c
@@ -82,17 +93,17 @@ stdenv.mkDerivation rec {
   # This is fixed here:
   # <https://git.savannah.gnu.org/cgit/guile.git/commit/?h=branch_release-1-8&id=a0aa1e5b69d6ef0311aeea8e4b9a94eae18a1aaf>.
   doCheck = false;
-  doInstallCheck = doCheck;
+  doInstallCheck = finalAttrs.doCheck;
 
   setupHook = ./setup-hook-1.8.sh;
 
   passthru = {
-    effectiveVersion = lib.versions.majorMinor version;
+    effectiveVersion = lib.versions.majorMinor finalAttrs.version;
     siteCcacheDir = "lib/guile/site-ccache";
     siteDir = "share/guile/site";
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://www.gnu.org/software/guile/";
     description = "Embeddable Scheme implementation";
     longDescription = ''
@@ -103,8 +114,8 @@ stdenv.mkDerivation rec {
       system calls, networking support, multiple threads, dynamic linking, a
       foreign function call interface, and powerful string processing.
     '';
-    license = licenses.lgpl3Plus;
-    maintainers = with maintainers; [ ludo ];
-    platforms = platforms.all;
+    license = lib.licenses.lgpl3Plus;
+    maintainers = with lib.maintainers; [ ludo ];
+    platforms = lib.platforms.all;
   };
-}
+})

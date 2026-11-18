@@ -8,13 +8,13 @@
 
 buildDunePackage rec {
   pname = "xenstore";
-  version = "2.3.0";
+  version = "2.4.1";
 
   src = fetchFromGitHub {
     owner = "mirage";
     repo = "ocaml-xenstore";
-    rev = "v${version}";
-    hash = "sha256-LaynsbCE/+2QfbQCOLZi8nw1rqmZtgrwAov9cSxYZw8=";
+    tag = "v${version}";
+    hash = "sha256-a90pCVpgW3xR1fXrXUaEMek4/0DBXq4ysmQKg3NxwE8=";
   };
 
   propagatedBuildInputs = [ lwt ];
@@ -22,13 +22,11 @@ buildDunePackage rec {
   doCheck = true;
   checkInputs = [ ounit2 ];
 
-  meta = with lib; {
+  meta = {
     description = "Xenstore protocol in pure OCaml";
-    license = licenses.lgpl21Only;
-    maintainers = with maintainers; [
-      sternenseemann
-      sigmasquadron
-    ];
+    license = lib.licenses.lgpl21Only;
+    maintainers = [ lib.maintainers.sternenseemann ];
+    teams = [ lib.teams.xen ];
     homepage = "https://github.com/mirage/ocaml-xenstore";
   };
 }

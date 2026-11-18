@@ -2,10 +2,12 @@
   lib,
   fetchPypi,
   buildPythonPackage,
+  pythonAtLeast,
   stdenv,
-  pythonOlder,
-  overrideSDK,
   rustPlatform,
+  pkg-config,
+  rocksdb_9_10,
+  zstd,
   bitstring,
   cachetools,
   cffi,
@@ -21,34 +23,41 @@
   pytestCheckHook,
 }:
 let
-  stdenv' = if stdenv.isDarwin then overrideSDK stdenv { darwinMinVersion = "10.14"; } else stdenv;
+  rocksdb = rocksdb_9_10;
 in
 buildPythonPackage rec {
   pname = "sourmash";
-  version = "4.8.11";
+  version = "4.9.4";
   pyproject = true;
-  disabled = pythonOlder "3.9";
-
-  stdenv = stdenv';
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-GganbfRkuSaFd5qqpu0CpXe91zpKsyly6BNFgQNNNL8=";
+    hash = "sha256-KIidEQQeOYgxh1x9F6Nn4+WTewldAGdS5Fx/IwL0Ym0=";
   };
 
-  cargoDeps = rustPlatform.fetchCargoTarball {
-    inherit src;
-    name = "${pname}-${version}";
-    hash = "sha256-im/TPxnT8c2QbWlzCY60wVwJFRIhSnVW7E4kv6bm0p4=";
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit pname version src;
+    hash = "sha256-/tVuR31T38/xx1+jglSGECAT1GmQEddQp9o6zAqlPyY=";
   };
 
-  nativeBuildInputs = with rustPlatform; [
-    cargoSetupHook
-    maturinBuildHook
-    bindgenHook
+  nativeBuildInputs = [
+    pkg-config
+    rustPlatform.cargoSetupHook
+    rustPlatform.maturinBuildHook
+    rustPlatform.bindgenHook
   ];
 
-  buildInputs = [ iconv ];
+  buildInputs = [
+    iconv
+    zstd
+  ];
+
+  env = {
+    ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
+    ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+  };
+
+  pythonRelaxDeps = [ "cachetools" ];
 
   propagatedBuildInputs = [
     bitstring
@@ -74,14 +83,24 @@ buildPythonPackage rec {
     "test_compare_no_such_file"
     "test_do_sourmash_index_multiscaled_rescale_fail"
     "test_metagenome_kreport_out_fail"
+  ]
+  ++ lib.optionals (pythonAtLeast "3.14") [
+    # argparse subparser usage prefix changed in 3.14
+    "test_cmd_3"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # rocksdb segfaults pytest workers
+    "rocksdb"
+    "disk_revindex"
+    "create_dataset_picklist"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Quickly search, compare, and analyze genomic and metagenomic data sets";
     mainProgram = "sourmash";
     homepage = "https://sourmash.bio";
     changelog = "https://github.com/sourmash-bio/sourmash/releases/tag/v${version}";
-    maintainers = with maintainers; [ luizirber ];
-    license = licenses.bsd3;
+    maintainers = with lib.maintainers; [ luizirber ];
+    license = lib.licenses.bsd3;
   };
 }

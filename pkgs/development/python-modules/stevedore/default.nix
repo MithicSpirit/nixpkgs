@@ -1,38 +1,45 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  pythonOlder,
-  importlib-metadata,
+  callPackage,
+  fetchFromGitHub,
   pbr,
   setuptools,
-  six,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "stevedore";
-  version = "5.2.0";
-  format = "setuptools";
-  disabled = pythonOlder "3.6";
+  version = "5.9.1";
+  pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-Rrk8pA4RFM6pPXOKbB42U5aYG7a7eMJwRbdYfJRzVE0=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "stevedore";
+    tag = finalAttrs.version;
+    hash = "sha256-peKMn3Oa9B+HlvLYKIyFzVpS5h65tYg5MKCgjnr0s6M=";
   };
 
-  propagatedBuildInputs = [
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
+
+  build-system = [
     pbr
     setuptools
-    six
-  ] ++ lib.optionals (pythonOlder "3.8") [ importlib-metadata ];
+  ];
 
+  # Checks moved to 'passthru.tests' to workaround infinite recursion
   doCheck = false;
+
+  passthru.tests = {
+    tests = callPackage ./tests.nix { };
+  };
+
   pythonImportsCheck = [ "stevedore" ];
 
-  meta = with lib; {
+  meta = {
     description = "Manage dynamic plugins for Python applications";
-    homepage = "https://docs.openstack.org/stevedore/";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    homepage = "https://github.com/openstack/stevedore";
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

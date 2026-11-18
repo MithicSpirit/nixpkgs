@@ -3,30 +3,32 @@
   buildPythonPackage,
   fetchFromGitHub,
   pytestCheckHook,
-  pythonOlder,
+  setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "hsluv";
-  version = "5.0.4";
-  format = "setuptools";
-  disabled = pythonOlder "3.6";
+  version = "5.0.5";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "hsluv";
     repo = "hsluv-python";
-    rev = "v${version}";
-    hash = "sha256-bjivmPTU3Gp3pcC0ru4GSZANdhPqS1QSTMeiPGN8GCI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-M2oELRuDwsFgmywtTLiTaL86ANh4gn9W7hwjDlgiMRo=";
   };
+
+  build-system = [ setuptools ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "hsluv" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python implementation of HSLuv";
     homepage = "https://github.com/hsluv/hsluv-python";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/hsluv/hsluv-python/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

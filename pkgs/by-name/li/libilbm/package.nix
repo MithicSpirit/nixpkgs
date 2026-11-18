@@ -15,7 +15,7 @@ stdenv.mkDerivation {
     owner = "svanderburg";
     repo = "libilbm";
     rev = "586f5822275ef5780509a851cb90c7407b2633d9";
-    sha256 = "sha256-EcsrspL/N40yFE15UFWGienpJHhoq1zd8zZe6x4nK6o=";
+    hash = "sha256-EcsrspL/N40yFE15UFWGienpJHhoq1zd8zZe6x4nK6o=";
   };
   buildInputs = [ libiff ];
   nativeBuildInputs = [
@@ -23,7 +23,7 @@ stdenv.mkDerivation {
     pkg-config
     help2man
   ];
-  meta = with lib; {
+  meta = {
     description = "Parser for the ILBM: IFF Interleaved BitMap format";
     longDescription = ''
       libilbm is a portable parser library built on top of libiff,
@@ -32,8 +32,8 @@ stdenv.mkDerivation {
     '';
     homepage = "https://github.com/svanderburg/libilbm";
     changelog = "https://github.com/svanderburg/libilbm/blob/master/ChangeLog";
-    maintainers = with maintainers; [ _414owen ];
-    platforms = platforms.all;
-    license = licenses.mit;
+    maintainers = with lib.maintainers; [ _414owen ];
+    platforms = lib.platforms.all;
+    license = lib.licenses.mit;
   };
 }

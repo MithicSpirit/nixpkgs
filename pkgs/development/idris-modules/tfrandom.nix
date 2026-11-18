@@ -1,9 +1,10 @@
-{ lib
-, build-idris-package
-, fetchFromGitHub
+{
+  lib,
+  build-idris-package,
+  fetchFromGitHub,
 }:
 
-build-idris-package  {
+build-idris-package {
   pname = "tf-random";
   version = "2020-01-15";
 
@@ -11,7 +12,7 @@ build-idris-package  {
     owner = "david-christiansen";
     repo = "idris-tf-random";
     rev = "202aac3b96757e8247f6e26945329d90dd668aed";
-    sha256 = "1z8pyrsm1kdsspcs3h96k38h44ss0mv39lcz7xvwg8ickys3kqxl";
+    hash = "sha256-tOM5tJ8sosd3P5/RNHYFWhMC0ZgmwaHZ1brNUHX2F/0=";
   };
 
   meta = {

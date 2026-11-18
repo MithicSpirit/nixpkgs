@@ -2,49 +2,49 @@
   lib,
   authlib,
   buildPythonPackage,
+  deprecated,
   fetchFromGitHub,
-  pkce,
+  hatchling,
+  requests,
+  pyprojectVersionPatchHook,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
-  simplejson,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pyvicare";
-  version = "2.32.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  version = "2.64.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
-    owner = "somm15";
+    owner = "openviess";
     repo = "PyViCare";
-    rev = "refs/tags/${version}";
-    hash = "sha256-qK5JCaCL+gbgNcBo5IjhlRrXD1IhA1B56hmcjvPie6Y=";
+    tag = finalAttrs.version;
+    hash = "sha256-Gl/CYWMongvhoGk6xAHMFrl4jy8Nra9yjA+fxIaHtFs=";
   };
 
-  postPatch = ''
-    substituteInPlace setup.py \
-      --replace "version_config=True," 'version="${version}",' \
-      --replace "'setuptools-git-versioning<1.8.0'" ""
-  '';
+  build-system = [ hatchling ];
 
-  propagatedBuildInputs = [
+  nativeBuildInputs = [ pyprojectVersionPatchHook ];
+
+  dependencies = [
     authlib
-    pkce
+    deprecated
+    requests
   ];
 
   nativeCheckInputs = [
+    pytest-cov-stub
     pytestCheckHook
-    simplejson
   ];
 
   pythonImportsCheck = [ "PyViCare" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python Library to access Viessmann ViCare API";
     homepage = "https://github.com/somm15/PyViCare";
-    license = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/openviess/PyViCare/releases/tag/${finalAttrs.version}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

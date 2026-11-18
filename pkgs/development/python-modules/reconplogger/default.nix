@@ -2,29 +2,36 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+  fetchpatch2,
   flask,
   logmatic-python,
   pytestCheckHook,
-  pythonOlder,
   pyyaml,
   requests,
   setuptools,
   testfixtures,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "reconplogger";
-  version = "4.16.1";
+  version = "5.0.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "omni-us";
     repo = "reconplogger";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-F/6vT3jLxpteUFtYNtGyiO/JxeRtwJKpdGXTFJ6IDCE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-/+nPLji8iGTBpWTCR83JRfxMltMYjP62KrB+HRTQQE8=";
   };
+
+  patches = [
+    # Support for later testfixtures releases, https://github.com/omni-us/reconplogger/pull/22
+    (fetchpatch2 {
+      name = "testfixtures-12.patch";
+      url = "https://github.com/omni-us/reconplogger/commit/0ad58ef25cc4dcc6b65fc90b01f1fef68d24fa91.patch";
+      hash = "sha256-g6Pfjx9Iyf6pz+V7oCoIJBDqIH3LJ24EHDyAMjrYtYk=";
+    })
+  ];
 
   build-system = [ setuptools ];
 
@@ -33,7 +40,7 @@ buildPythonPackage rec {
     pyyaml
   ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     all = [
       flask
       requests
@@ -47,12 +54,13 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "reconplogger" ];
 
-  pytestFlagsArray = [ "reconplogger_tests.py" ];
+  enabledTestPaths = [ "reconplogger_tests.py" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module to ease the standardization of logging within omni:us";
     homepage = "https://github.com/omni-us/reconplogger";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/omni-us/reconplogger/releases/tag/v${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

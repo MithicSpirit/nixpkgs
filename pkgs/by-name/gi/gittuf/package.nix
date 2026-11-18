@@ -1,31 +1,57 @@
-{ lib, fetchFromGitHub, buildGoModule, git, openssh }:
+{
+  lib,
+  fetchFromGitHub,
+  buildGoModule,
+  git,
+  gnupg,
+  less,
+  openssh,
+  versionCheckHook,
+  nix-update-script,
+}:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "gittuf";
-  version = "0.5.2";
+  version = "0.18.0";
 
   src = fetchFromGitHub {
     owner = "gittuf";
-    repo = pname;
-    rev = "v${version}";
-    hash = "sha256-mes+6Bs6KhLkcHRzI07ciT1SuSJU/YxjXt0MCDeVCUk=";
+    repo = "gittuf";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-a7vcC6oNcdowM+9J4I66qkFjPktzbwCv3IbsO1Me/dM=";
   };
 
-  vendorHash = "sha256-7z7+ycV6e24JUlLIxRCAgJwxRcRgGWBYPgbXgGqatEE=";
+  vendorHash = "sha256-wydhdcmdrmo9Gezopt+gN1nPRGm/T2yPxjfLwcMGW14=";
 
-  ldflags = [ "-X github.com/gittuf/gittuf/internal/version.gitVersion=${version}" ];
+  ldflags = [ "-X github.com/gittuf/gittuf/internal/version.gitVersion=${finalAttrs.version}" ];
 
-  nativeCheckInputs = [ git openssh ];
-  checkFlags = [ "-skip=TestLoadRepository" "-skip=TestSSH" ];
+  __structuredAttrs = true;
 
-  postInstall = "rm $out/bin/cli"; # remove gendoc cli binary
+  nativeCheckInputs = [
+    git
+    gnupg
+    less
+    openssh
+  ];
+  checkFlags = [ "-skip=TestLoadRepository|TestSSH" ];
 
-  meta = with lib; {
-    changelog = "https://github.com/gittuf/gittuf/blob/v${version}/CHANGELOG.md";
+  postInstall = "rm $out/bin/cli"; # remove gendoc helper binaries
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  versionCheckProgramArg = "version";
+  doInstallCheck = true;
+
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
+    changelog = "https://github.com/gittuf/gittuf/blob/${finalAttrs.src.tag}/CHANGELOG.md";
     description = "Security layer for Git repositories";
     homepage = "https://gittuf.dev";
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
     mainProgram = "gittuf";
-    maintainers = with maintainers; [ flandweber ];
+    maintainers = with lib.maintainers; [
+      flandweber
+      anish
+    ];
   };
-}
+})

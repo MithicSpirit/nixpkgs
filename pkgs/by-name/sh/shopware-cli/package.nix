@@ -1,29 +1,36 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
-, installShellFiles
-, makeWrapper
-, dart-sass
-, git
+{
+  lib,
+  stdenv,
+  buildGo127Module,
+  fetchFromGitHub,
+  installShellFiles,
+  makeWrapper,
+  dart-sass,
+  git,
 }:
 
-buildGoModule rec {
+buildGo127Module (finalAttrs: {
   pname = "shopware-cli";
-  version = "0.4.51";
+  version = "0.19.5";
   src = fetchFromGitHub {
     repo = "shopware-cli";
-    owner = "FriendsOfShopware";
-    rev = version;
-    hash = "sha256-mimFOZjWiDodCopJ23RZxWijOT7bDPUOH+A8GL/UyXs=";
+    owner = "shopware";
+    tag = finalAttrs.version;
+    hash = "sha256-fvvGojs+NZdtz56LnIadtvQiUo8meQ72o7jytS/bnJ4=";
   };
 
-  nativeBuildInputs = [ installShellFiles makeWrapper ];
-  nativeCheckInputs = [ git dart-sass ];
+  nativeBuildInputs = [
+    installShellFiles
+    makeWrapper
+  ];
+  nativeCheckInputs = [
+    git
+    dart-sass
+  ];
 
-  vendorHash = "sha256-NXk3wH/XHohI7aYK+dvUmh+0hUrBNiH6xouT9EM8eiE=";
+  vendorHash = "sha256-quTZYiVyFtK0esZ2GryF9XbOXTUJ0xRXUyTM3EtFehw=";
 
-  postInstall = ''
-    export HOME="$(mktemp -d)"
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd shopware-cli \
       --bash <($out/bin/shopware-cli completion bash) \
       --zsh <($out/bin/shopware-cli completion zsh) \
@@ -38,15 +45,20 @@ buildGoModule rec {
   ldflags = [
     "-s"
     "-w"
-    "-X 'github.com/FriendsOfShopware/shopware-cli/cmd.version=${version}'"
+    "-X 'github.com/shopware/shopware-cli/cmd.version=${finalAttrs.version}'"
   ];
 
-  meta = with lib; {
+  __darwinAllowLocalNetworking = true;
+
+  meta = {
     description = "Command line tool for Shopware 6";
     mainProgram = "shopware-cli";
-    homepage = "https://github.com/FriendsOfShopware/shopware-cli";
-    changelog = "https://github.com/FriendsOfShopware/shopware-cli/releases/tag/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ shyim ];
+    homepage = "https://github.com/shopware/shopware-cli";
+    changelog = "https://github.com/shopware/shopware-cli/releases/tag/${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      shyim
+      maltejanz
+    ];
   };
-}
+})

@@ -6,22 +6,25 @@
   lib,
 }:
 
-rustPlatform.buildRustPackage {
-  name = "nix-ld";
+rustPlatform.buildRustPackage (finalAttrs: {
+  pname = "nix-ld";
+  version = "2.0.7";
 
   src = fetchFromGitHub {
-    owner = "mic92";
+    owner = "nix-community";
     repo = "nix-ld";
-    rev = "2.0.0";
-    sha256 = "sha256-rmSXQ4MYQe/OFDBRlqqw5kyp9b/aeEg0Fg9c167xofg=";
+    rev = finalAttrs.version;
+    hash = "sha256-1X4XlIo9iAvCHLK3kOhJ7iLvN2Ym7O8ln3XDDxmesaM=";
   };
 
-  cargoHash = "sha256-w6CQx9kOyBtM2nMwdFb+LtU4oHVEYrTNVmH1A6R5DHM=";
+  cargoHash = "sha256-sALalBTD49aIXTn7x1Qw4MgbxAojxrkUh6nU4lH9i9k=";
 
   hardeningDisable = [ "stackprotector" ];
 
-  NIX_SYSTEM = stdenv.system;
-  RUSTC_BOOTSTRAP = "1";
+  env = {
+    NIX_SYSTEM = stdenv.system;
+    RUSTC_BOOTSTRAP = "1";
+  };
 
   preCheck = ''
     export NIX_LD=${stdenv.cc.bintools.dynamicLinker}
@@ -43,11 +46,11 @@ rustPlatform.buildRustPackage {
 
   passthru.tests = nixosTests.nix-ld;
 
-  meta = with lib; {
+  meta = {
     description = "Run unpatched dynamic binaries on NixOS";
-    homepage = "https://github.com/Mic92/nix-ld";
-    license = licenses.mit;
-    maintainers = with maintainers; [ mic92 ];
-    platforms = platforms.linux;
+    homepage = "https://github.com/nix-community/nix-ld";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ mic92 ];
+    platforms = lib.platforms.linux;
   };
-}
+})

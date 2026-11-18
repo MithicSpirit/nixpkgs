@@ -1,71 +1,63 @@
 {
-  stdenv,
   lib,
+  stdenv,
+  fetchFromGitHub,
   meson,
   ninja,
-  fetchurl,
-  cairo,
-  girara,
-  gtk-mac-integration,
-  gumbo,
-  jbig2dec,
-  libjpeg,
-  mupdf,
-  openjpeg,
   pkg-config,
+  desktop-file-utils,
+  appstream,
   zathura_core,
-  tesseract,
-  leptonica,
-  mujs,
+  girara,
+  mupdf,
+  glib,
+  cairo,
   gitUpdater,
 }:
 
-stdenv.mkDerivation rec {
-  version = "0.4.2";
+stdenv.mkDerivation (finalAttrs: {
+  version = "2026.07.18";
   pname = "zathura-pdf-mupdf";
 
-  src = fetchurl {
-    url = "https://pwmt.org/projects/${pname}/download/${pname}-${version}.tar.xz";
-    hash = "sha256-fFC+z9mJX9ccExsV336Ut+zJJa8UdfUz/qVp9YgcnhM=";
+  strictDeps = true;
+  __structuredAttrs = true;
+
+  src = fetchFromGitHub {
+    owner = "pwmt";
+    repo = "zathura-pdf-mupdf";
+    tag = finalAttrs.version;
+    hash = "sha256-zHqs+7Pu6ps4+PV/3rW1FETQVcat2QlPpUvwQXPHgV8=";
   };
 
   nativeBuildInputs = [
     meson
     ninja
     pkg-config
+    desktop-file-utils
+    appstream
   ];
 
   buildInputs = [
-    cairo
-    girara
-    gumbo
-    jbig2dec
-    libjpeg
-    mupdf
-    openjpeg
     zathura_core
-    tesseract
-    leptonica
-    mujs
-  ] ++ lib.optional stdenv.isDarwin gtk-mac-integration;
+    girara
+    mupdf
+    glib
+    cairo
+  ];
 
-  PKG_CONFIG_ZATHURA_PLUGINDIR = "lib/zathura";
+  env.PKG_CONFIG_ZATHURA_PLUGINDIR = "lib/zathura";
 
-  postPatch = ''
-    sed -i -e '/^mupdfthird =/d' -e 's/, mupdfthird//g' meson.build
-  '';
+  passthru.updateScript = gitUpdater { };
 
-  passthru.updateScript = gitUpdater { url = "https://git.pwmt.org/pwmt/zathura-pdf-mupdf.git"; };
-
-  meta = with lib; {
+  meta = {
     homepage = "https://pwmt.org/projects/zathura-pdf-mupdf/";
     description = "Zathura PDF plugin (mupdf)";
     longDescription = ''
       The zathura-pdf-mupdf plugin adds PDF support to zathura by
       using the mupdf rendering library.
     '';
-    license = licenses.zlib;
-    platforms = platforms.unix;
-    maintainers = [ ];
+    license = lib.licenses.zlib;
+    platforms = lib.platforms.unix;
+    maintainers = with lib.maintainers; [ mithicspirit ];
   };
-}
+})

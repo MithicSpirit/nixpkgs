@@ -13,46 +13,50 @@
 
   # native dependencies
   glibcLocales,
-  llvmPackages,
-  pytestCheckHook,
-  pytest-xdist,
-  pillow,
   joblib,
+  llvmPackages,
+  narwhals,
+  pillow,
+  pytest-xdist,
+  pytestCheckHook,
   threadpoolctl,
-  pythonOlder,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "scikit-learn";
-  version = "1.5.0";
+  version = "1.9.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchPypi {
     pname = "scikit_learn";
-    inherit version;
-    hash = "sha256-eJ49sBx1DtbUlvott9UGN4V7RR5XvK6GO/9wfBJHvvc=";
+    inherit (finalAttrs) version;
+    hash = "sha256-Ypyto+M+K5vzds3HYUpHpBQLiu3B2DZXnjWXNvvYKXc=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "numpy>=2.0.0rc2" "numpy"
+  pythonRelaxDeps = [
+    "numpy"
+    "scipy"
+  ];
 
+  postPatch = ''
     substituteInPlace meson.build --replace-fail \
       "run_command('sklearn/_build_utils/version.py', check: true).stdout().strip()," \
-      "'${version}',"
+      "'${finalAttrs.version}',"
+    substituteInPlace pyproject.toml \
+      --replace-fail "cython>=3.1.2,<3.2.6" cython \
+      --replace-fail "meson-python>=0.17.1,<0.22.0" meson-python \
+      --replace-fail "numpy>=2,<2.6.0" numpy \
+      --replace-fail "scipy>=1.10.0,<1.19.0" scipy
   '';
 
   buildInputs = [
     numpy.blas
     pillow
     glibcLocales
-  ] ++ lib.optionals stdenv.cc.isClang [ llvmPackages.openmp ];
+  ]
+  ++ lib.optionals stdenv.cc.isClang [ llvmPackages.openmp ];
 
-  nativeBuildInputs = [
-    gfortran
-  ];
+  nativeBuildInputs = [ gfortran ];
 
   build-system = [
     cython
@@ -63,6 +67,7 @@ buildPythonPackage rec {
 
   dependencies = [
     joblib
+    narwhals
     numpy
     scipy
     threadpoolctl
@@ -75,56 +80,50 @@ buildPythonPackage rec {
 
   env.LC_ALL = "en_US.UTF-8";
 
-  preBuild = ''
-    export SKLEARN_BUILD_PARALLEL=$NIX_BUILD_CORES
-  '';
-
   # PermissionError: [Errno 1] Operation not permitted: '/nix/nix-installer'
-  doCheck = !stdenv.isDarwin;
+  doCheck = !stdenv.hostPlatform.isDarwin;
 
   disabledTests = [
     # Skip test_feature_importance_regression - does web fetch
     "test_feature_importance_regression"
-  ] ++ lib.optionals stdenv.isAarch64 [
-    # doesn't seem to produce correct results?
-    # possibly relevant: https://github.com/scikit-learn/scikit-learn/issues/25838#issuecomment-2308650816
-    "test_sparse_input"
-  ];
-
-  pytestFlagsArray = [
-    # verbose build outputs needed to debug hard-to-reproduce hydra failures
-    "-v"
-    "--pyargs"
-    "sklearn"
 
     # NuSVC memmap tests causes segmentation faults in certain environments
     # (e.g. Hydra Darwin machines) related to a long-standing joblib issue
     # (https://github.com/joblib/joblib/issues/563). See also:
     # https://github.com/scikit-learn/scikit-learn/issues/17582
-    # Since we are overriding '-k' we need to include the 'disabledTests' from above manually.
-    "-k"
-    "'not (NuSVC and memmap) ${toString (lib.forEach disabledTests (t: "and not ${t}"))}'"
+    "NuSVC and memmap"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isAarch64 [
+    # doesn't seem to produce correct results?
+    # possibly relevant: https://github.com/scikit-learn/scikit-learn/issues/25838#issuecomment-2308650816
+    "test_sparse_input"
+  ];
+
+  pytestFlags = [
+    # verbose build outputs needed to debug hard-to-reproduce hydra failures
+    "-v"
+    "--pyargs"
+    "sklearn"
   ];
 
   preCheck = ''
     cd $TMPDIR
     export HOME=$TMPDIR
-    export OMP_NUM_THREADS=1
   '';
 
   pythonImportsCheck = [ "sklearn" ];
 
-  meta = with lib; {
+  meta = {
     description = "Set of python modules for machine learning and data mining";
     changelog =
       let
-        major = versions.major version;
-        minor = versions.minor version;
-        dashVer = replaceStrings [ "." ] [ "-" ] version;
+        major = lib.versions.major finalAttrs.version;
+        minor = lib.versions.minor finalAttrs.version;
+        dashVer = lib.replaceStrings [ "." ] [ "-" ] finalAttrs.version;
       in
       "https://scikit-learn.org/stable/whats_new/v${major}.${minor}.html#version-${dashVer}";
     homepage = "https://scikit-learn.org";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ davhau ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ davhau ];
   };
-}
+})

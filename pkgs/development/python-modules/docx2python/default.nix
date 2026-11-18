@@ -2,39 +2,49 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
-  poetry-core,
   lxml,
+  paragraphs,
   pytestCheckHook,
+  types-lxml,
+  typing-extensions,
+  uv-build,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "docx2python";
-  version = "2.11.0";
+  version = "3.7.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "ShayHill";
     repo = "docx2python";
-    rev = "refs/tags/${version}";
-    hash = "sha256-SavRYnNbESRQh9Elk8qCt/qdI2x+sYZJFMYy+Gojg2k=";
+    tag = finalAttrs.version;
+    hash = "sha256-mKaRDaVYAeO68Jxz/SklV7hVP+LYd0MPdqyer4LQvGg=";
   };
 
-  nativeBuildInputs = [ poetry-core ];
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "uv_build>=0.11.25,<0.12.0" "uv_build"
+  '';
 
-  propagatedBuildInputs = [ lxml ];
+  build-system = [ uv-build ];
+
+  dependencies = [
+    lxml
+    paragraphs
+    types-lxml
+    typing-extensions
+  ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "docx2python" ];
 
-  meta = with lib; {
-    homepage = "https://github.com/ShayHill/docx2python";
+  meta = {
     description = "Extract docx headers, footers, (formatted) text, footnotes, endnotes, properties, and images";
-    changelog = "https://github.com/ShayHill/docx2python/blob/${src.rev}/CHANGELOG.md";
+    homepage = "https://github.com/ShayHill/docx2python";
+    changelog = "https://github.com/ShayHill/docx2python/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
     maintainers = [ ];
-    license = licenses.mit;
   };
-}
+})

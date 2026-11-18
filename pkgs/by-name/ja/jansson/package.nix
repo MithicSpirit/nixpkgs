@@ -10,7 +10,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "jansson";
-  version = "2.14";
+  version = "2.15.1";
 
   outputs = [
     "dev"
@@ -20,8 +20,8 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "akheron";
     repo = "jansson";
-    rev = "v${finalAttrs.version}";
-    hash = "sha256-FQgy2+g3AyRVJeniqPQj0KNeHgPdza2pmEIXqSyYry4=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-iOOZyrNlCbibT7qozH7B2RjAgG9yv+B2ldAaz8U6IhQ=";
   };
 
   nativeBuildInputs = [
@@ -29,21 +29,31 @@ stdenv.mkDerivation (finalAttrs: {
     validatePkgConfig
   ];
 
+  strictDeps = true;
+
   cmakeFlags = [
     # networkmanager relies on libjansson.so:
     #   https://github.com/NixOS/nixpkgs/pull/176302#issuecomment-1150239453
-    "-DJANSSON_BUILD_SHARED_LIBS=${if stdenv.hostPlatform.isStatic then "OFF" else "ON"}"
+    (lib.cmakeBool "JANSSON_BUILD_SHARED_LIBS" (!stdenv.hostPlatform.isStatic))
   ];
+
+  postFixup = ''
+    # Incorrectly references the dev output, libjansson.so is in out
+    substituteInPlace $dev/lib/cmake/jansson/janssonTargets-release.cmake \
+      --replace-fail "\''${_IMPORT_PREFIX}/lib" "$out/lib"
+  '';
 
   passthru = {
     tests.pkg-config = testers.hasPkgConfigModules { package = finalAttrs.finalPackage; };
     updateScript = nix-update-script { };
   };
 
+  __structuredAttrs = true;
+
   meta = {
     description = "C library for encoding, decoding and manipulating JSON data";
     homepage = "https://github.com/akheron/jansson";
-    changelog = "https://github.com/akheron/jansson/raw/${finalAttrs.src.rev}/CHANGES";
+    changelog = "https://github.com/akheron/jansson/raw/${finalAttrs.src.tag}/CHANGES";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ getchoo ];
     platforms = lib.platforms.all;

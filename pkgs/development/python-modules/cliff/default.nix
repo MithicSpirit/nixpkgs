@@ -1,40 +1,41 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   autopage,
   cmd2,
-  importlib-metadata,
   openstackdocstheme,
   pbr,
   prettytable,
-  pyparsing,
   pyyaml,
-  setuptools,
   stevedore,
   sphinxHook,
   callPackage,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "cliff";
-  version = "4.7.0";
+  version = "4.17.0";
   pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-bKRfjfUZu8ByLGEEnee35EKkZfp/P1Urltc1+ib9WyY=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "cliff";
+    tag = finalAttrs.version;
+    hash = "sha256-zHUWBNdfekEpAqvdY8K9uyFcJYYKB4Z8eAjR3O8080U=";
   };
 
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
+
   postPatch = ''
-    # only a small portion of the listed packages are actually needed for running the tests
-    # so instead of removing them one by one remove everything
-    rm test-requirements.txt
+    # pbr needs git to ship subpackages and package data
+    echo "recursive-include cliff *" > MANIFEST.in
   '';
 
   build-system = [
     openstackdocstheme
-    setuptools
+    pbr
     sphinxHook
   ];
 
@@ -43,10 +44,7 @@ buildPythonPackage rec {
   dependencies = [
     autopage
     cmd2
-    importlib-metadata
-    pbr
     prettytable
-    pyparsing
     pyyaml
     stevedore
   ];
@@ -54,16 +52,19 @@ buildPythonPackage rec {
   # check in passthru.tests.pytest to escape infinite recursion with stestr
   doCheck = false;
 
-  pythonImportsCheck = [ "cliff" ];
+  pythonImportsCheck = [
+    "cliff"
+    "cliff.formatters"
+  ];
 
   passthru.tests = {
     pytest = callPackage ./tests.nix { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Command Line Interface Formulation Framework";
     homepage = "https://github.com/openstack/cliff";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

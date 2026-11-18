@@ -7,34 +7,32 @@
   pep440,
   pip,
   pytestCheckHook,
-  pythonOlder,
-  setuptools-scm,
+  setuptools,
   six,
-  wheel,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "setupmeta";
-  version = "3.6.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.6";
+  version = "4.0.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "codrsquad";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-OI7PU5LQ6w0iAbK7nsP+6RizsEWjKP9nec2J6n0xUhI=";
+    repo = "setupmeta";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-aTSb6wy272Rt3axxG/4gidY515G6g4sQWzBZ31qH9jA=";
   };
 
-  preBuild = ''
-    export PYGRADLE_PROJECT_VERSION=${version};
+  postPatch = ''
+    substituteInPlace setup.py \
+      --replace-fail 'args["versioning"] = "dev"' 'args["version"] = "${finalAttrs.version}"'
   '';
 
-  nativeBuildInputs = [
-    setuptools-scm
-    wheel
-  ];
+  preBuild = ''
+    export PYGRADLE_PROJECT_VERSION=${finalAttrs.version};
+  '';
+
+  build-system = [ setuptools ];
 
   nativeCheckInputs = [
     git
@@ -62,10 +60,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "setupmeta" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module to simplify setup.py files";
     homepage = "https://github.com/codrsquad/setupmeta";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/codrsquad/setupmeta/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

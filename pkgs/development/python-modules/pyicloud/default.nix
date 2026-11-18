@@ -1,63 +1,87 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitHub,
-  pythonAtLeast,
-  setuptools,
   certifi,
   click,
+  cryptography,
+  fetchFromGitHub,
+  fido2,
   keyring,
   keyrings-alt,
-  pytz,
-  requests,
-  six,
-  tzlocal,
-  pytest-mock,
+  protobuf,
+  pydantic,
+  pytest-socket,
+  pytest-timeout,
   pytestCheckHook,
-  future,
+  pythonAtLeast,
+  requests,
+  rich,
+  setuptools,
+  setuptools-scm,
+  srp,
+  tinyhtml,
+  typer,
+  typing-extensions,
+  tzlocal,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pyicloud";
-  version = "1.0.0";
+  version = "2026.10.1";
   pyproject = true;
 
   src = fetchFromGitHub {
-    owner = "picklepete";
-    repo = pname;
-    rev = version;
-    hash = "sha256-2E1pdHHt8o7CGpdG+u4xy5OyNCueUGVw5CY8oicYd5w=";
+    owner = "timlaing";
+    repo = "pyicloud";
+    tag = finalAttrs.version;
+    hash = "sha256-Bzv7wSCeB8h+V1TJMFjT3r972PghR5MNupoqf2rWPG4=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     certifi
-    click
-    future
+    cryptography
+    fido2
     keyring
     keyrings-alt
-    pytz
+    protobuf
+    pydantic
     requests
-    six
+    srp
+    tinyhtml
+    typing-extensions
     tzlocal
   ];
 
-  nativeCheckInputs = [
-    pytest-mock
-    pytestCheckHook
-  ];
+  pythonRelaxDeps = [ "tzlocal" ];
 
-  disabledTests = lib.optionals (pythonAtLeast "3.12") [
-    # https://github.com/picklepete/pyicloud/issues/446
-    "test_storage"
-  ];
-
-  meta = with lib; {
-    description = "PyiCloud is a module which allows pythonistas to interact with iCloud webservices";
-    mainProgram = "icloud";
-    homepage = "https://github.com/picklepete/pyicloud";
-    license = licenses.mit;
-    maintainers = [ maintainers.mic92 ];
+  optional-dependencies = {
+    cli = [
+      click
+      rich
+      typer
+    ];
   };
-}
+
+  nativeCheckInputs = [
+    pytest-socket
+    pytest-timeout
+    pytestCheckHook
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
+
+  pythonImportsCheck = [ "pyicloud" ];
+
+  meta = {
+    description = "Module to interact with iCloud webservices";
+    mainProgram = "icloud";
+    homepage = "https://github.com/timlaing/pyicloud";
+    changelog = "https://github.com/timlaing/pyicloud/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.mic92 ];
+  };
+})

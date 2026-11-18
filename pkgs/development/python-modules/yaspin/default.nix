@@ -3,31 +3,34 @@
   buildPythonPackage,
   fetchFromGitHub,
   poetry-core,
+  pytest-mock,
   pytest-xdist,
   pytestCheckHook,
-  pythonOlder,
   termcolor,
 }:
 
 buildPythonPackage rec {
   pname = "yaspin";
-  version = "3.0.1";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.7";
+  version = "3.5.1";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "pavdmyt";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-cYTCJyHZ9yNg6BfpZ+g3P0yMWFhYUxgYtlbANNgfohQ=";
+    repo = "yaspin";
+    tag = "v${version}";
+    hash = "sha256-KX3UrDRM5ZBRiCnKyP1OsMi1gLAq7iRb6Wl2Sz00zys=";
   };
 
-  nativeBuildInputs = [ poetry-core ];
+  build-system = [ poetry-core ];
 
-  propagatedBuildInputs = [ termcolor ];
+  dependencies = [ termcolor ];
+
+  pythonRelaxDeps = [
+    "termcolor"
+  ];
 
   nativeCheckInputs = [
+    pytest-mock
     pytest-xdist
     pytestCheckHook
   ];
@@ -39,10 +42,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "yaspin" ];
 
-  meta = with lib; {
+  meta = {
     description = "Yet Another Terminal Spinner";
     homepage = "https://github.com/pavdmyt/yaspin";
-    license = licenses.mit;
-    maintainers = with maintainers; [ samuela ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ samuela ];
   };
 }

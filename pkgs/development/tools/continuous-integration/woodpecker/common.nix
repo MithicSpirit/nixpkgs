@@ -1,35 +1,33 @@
-{ lib, fetchzip }:
+{ lib, fetchFromGitHub }:
 let
-  version = "2.7.0";
-  srcHash = "sha256-A9F+kKR4oM4IEA5qLqMaQiW9KAjuQgyvv3peXos3gX8=";
-  # The tarball contains vendored dependencies
-  vendorHash = null;
+  version = "3.20.1";
+  vendorHash = "sha256-FUHqdjuOv+ojg686YfQ6YdAdXivYvHOW0iM4h5I4Wdc=";
+  nodeModulesHash = "sha256-x0hwU8hlUMQ1AH9dz0G1sKoXYLSMKI8wNq7hE0CrJ+M=";
 in
 {
-  inherit version vendorHash;
+  inherit version vendorHash nodeModulesHash;
 
-  src = fetchzip {
-    url = "https://github.com/woodpecker-ci/woodpecker/releases/download/v${version}/woodpecker-src.tar.gz";
-    hash = srcHash;
-    stripRoot = false;
+  src = fetchFromGitHub {
+    owner = "woodpecker-ci";
+    repo = "woodpecker";
+    tag = "v${version}";
+    hash = "sha256-vGAgZKz0zWS+xXid2uJUjbLnCB40TTg2KRT3cuWAR6Y=";
   };
 
   postInstall = ''
     cd $out/bin
     for f in *; do
       if [ "$f" = cli ]; then
-        mv -- "$f" "woodpecker"
         # Issue a warning to the user if they call the deprecated executable
-        cat >woodpecker-cli << EOF
+        cat >woodpecker << EOF
     #!/bin/sh
-    echo 'WARNING: calling \`woodpecker-cli\` is deprecated, use \`woodpecker\` instead.' >&2
-    $out/bin/woodpecker "\$@"
+    echo 'WARNING: calling \`woodpecker\` is deprecated, use \`woodpecker-cli\` instead.' >&2
+    $out/bin/woodpecker-cli "\$@"
     EOF
-        chmod +x woodpecker-cli
-        patchShebangs woodpecker-cli
-      else
-        mv -- "$f" "woodpecker-$f"
+        chmod +x woodpecker
+        patchShebangs woodpecker
       fi
+        mv -- "$f" "woodpecker-$f"
     done
     cd -
   '';
@@ -37,13 +35,17 @@ in
   ldflags = [
     "-s"
     "-w"
-    "-X go.woodpecker-ci.org/woodpecker/v2/version.Version=${version}"
+    "-X go.woodpecker-ci.org/woodpecker/v3/version.Version=${version}"
   ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://woodpecker-ci.org/";
     changelog = "https://github.com/woodpecker-ci/woodpecker/blob/v${version}/CHANGELOG.md";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ ambroisie techknowlogick adamcstephens ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
+      ambroisie
+      marcusramberg
+      techknowlogick
+    ];
   };
 }

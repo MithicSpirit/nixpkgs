@@ -1,39 +1,34 @@
 {
   lib,
-  async-timeout,
   buildPythonPackage,
   click,
   click-log,
   fetchFromGitHub,
-  pure-pcapy3,
-  pyserial-asyncio,
   pytest-asyncio,
   pytest-timeout,
   pytestCheckHook,
-  pythonOlder,
+  serialx,
   setuptools,
   voluptuous,
   zigpy,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "bellows";
-  version = "0.40.4";
+  version = "1.2.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "zigpy";
     repo = "bellows";
-    rev = "refs/tags/${version}";
-    hash = "sha256-9YReXaD4qmd2gzbGwzhslzT4K3ajCQrCN7TVl/6fOMU=";
+    tag = finalAttrs.version;
+    hash = "sha256-5Ysj5mHoUdlSapYwW07qqsLH7svYCtUb9tNzHzi/KB8=";
   };
 
   postPatch = ''
     substituteInPlace pyproject.toml \
       --replace-fail '"setuptools-git-versioning<2"' "" \
-      --replace-fail 'dynamic = ["version"]' 'version = "${version}"'
+      --replace-fail 'dynamic = ["version"]' 'version = "${finalAttrs.version}"'
   '';
 
   build-system = [ setuptools ];
@@ -41,11 +36,10 @@ buildPythonPackage rec {
   dependencies = [
     click
     click-log
-    pure-pcapy3
-    pyserial-asyncio
+    serialx
     voluptuous
     zigpy
-  ] ++ lib.optionals (pythonOlder "3.11") [ async-timeout ];
+  ];
 
   nativeCheckInputs = [
     pytestCheckHook
@@ -55,12 +49,12 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "bellows" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module to implement EZSP for EmberZNet devices";
     homepage = "https://github.com/zigpy/bellows";
-    changelog = "https://github.com/zigpy/bellows/releases/tag/${version}";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ mvnetbiz ];
+    changelog = "https://github.com/zigpy/bellows/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ mvnetbiz ];
     mainProgram = "bellows";
   };
-}
+})

@@ -2,25 +2,24 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+  httpx,
   setuptools,
-  pythonOlder,
+  pytest-asyncio,
   pytestCheckHook,
   requests,
   typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "resend";
-  version = "2.4.0";
+  version = "2.53.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "resend";
     repo = "resend-python";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-pxHDR9hJWhNHwSYJbakOCEkJbHU/RDhvTy5AGyfr33w=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-k/7EI2Juoeh1QKW4Ahql2EU4Y3GIorkXswmDdqS09uI=";
   };
 
   build-system = [ setuptools ];
@@ -30,15 +29,23 @@ buildPythonPackage rec {
     typing-extensions
   ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  optional-dependencies = {
+    async = [ httpx ];
+  };
+
+  nativeCheckInputs = [
+    pytest-asyncio
+    pytestCheckHook
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
   pythonImportsCheck = [ "resend" ];
 
-  meta = with lib; {
+  meta = {
     description = "SDK for Resend";
     homepage = "https://github.com/resend/resend-python";
-    changelog = "https://github.com/resend/resend-python/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/resend/resend-python/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

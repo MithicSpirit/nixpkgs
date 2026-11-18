@@ -3,7 +3,6 @@
   makeSetupHook,
   jq,
   writeShellApplication,
-  moreutils,
   cacert,
   buildPackages,
 }:
@@ -18,21 +17,24 @@ in
 {
   composerVendorHook = makeSetupHook {
     name = "composer-vendor-hook.sh";
-    propagatedBuildInputs = [
+    propagatedNativeBuildInputs = [
       jq
-      moreutils
+    ];
+    propagatedBuildInputs = [
       cacert
     ];
     substitutions = {
       phpScriptUtils = lib.getExe php-script-utils;
     };
+    meta.license = lib.licenses.mit;
   } ./composer-vendor-hook.sh;
 
   composerInstallHook = makeSetupHook {
     name = "composer-install-hook.sh";
-    propagatedBuildInputs = [
+    propagatedNativeBuildInputs = [
       jq
-      moreutils
+    ];
+    propagatedBuildInputs = [
       cacert
     ];
     substitutions = {
@@ -40,6 +42,8 @@ in
       # inputs do not cause us to find the wrong `diff`.
       cmp = "${lib.getBin buildPackages.diffutils}/bin/cmp";
       phpScriptUtils = lib.getExe php-script-utils;
+      caBundle = "${cacert}/etc/ssl/certs/ca-bundle.crt";
     };
+    meta.license = lib.licenses.mit;
   } ./composer-install-hook.sh;
 }

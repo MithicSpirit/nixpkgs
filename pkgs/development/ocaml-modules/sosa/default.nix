@@ -1,9 +1,11 @@
-{ lib, fetchFromGitHub, stdenv
-, findlib, ocaml, ocamlbuild
+{
+  lib,
+  fetchFromGitHub,
+  stdenv,
+  findlib,
+  ocaml,
+  ocamlbuild,
 }:
-
-lib.throwIf (lib.versionOlder ocaml.version "4.02")
-  "sosa is not available for OCaml ${ocaml.version}"
 
 stdenv.mkDerivation rec {
   pname = "ocaml${ocaml.version}-sosa";
@@ -12,8 +14,8 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "hammerlab";
     repo = "sosa";
-    rev = "sosa.${version}";
-    sha256 = "053hdv6ww0q4mivajj4iyp7krfvgq8zajq9d8x4mia4lid7j0dyk";
+    tag = "sosa.${version}";
+    hash = "sha256-0zcgT4uUqFhJRy1hqT7Cb7s8z/WRSKl2rAQDzs1ucBQ=";
   };
 
   postPatch = lib.optionalString (lib.versionAtLeast ocaml.version "4.07") ''
@@ -23,7 +25,11 @@ stdenv.mkDerivation rec {
     done
   '';
 
-  nativeBuildInputs = [ ocaml ocamlbuild findlib ];
+  nativeBuildInputs = [
+    ocaml
+    ocamlbuild
+    findlib
+  ];
 
   strictDeps = true;
 
@@ -33,10 +39,11 @@ stdenv.mkDerivation rec {
 
   doCheck = true;
 
-  meta = with lib; {
-    homepage = "http://www.hammerlab.org/docs/sosa/master/index.html";
+  meta = {
+    homepage = "https://github.com/hammerlab/sosa";
     description = "Sane OCaml String API";
-    license = licenses.isc;
-    maintainers = [ maintainers.alexfmpe ];
+    license = lib.licenses.isc;
+    maintainers = [ ];
+    broken = !(lib.versionOlder ocaml.version "4.02");
   };
 }

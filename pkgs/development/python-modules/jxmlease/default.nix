@@ -6,14 +6,15 @@
   unittestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "jxmlease";
   version = "1.0.3";
   format = "setuptools";
 
   src = fetchPypi {
-    inherit pname version;
-    sha256 = "17l3w3ak07p72s8kv8hg0ilxs0kkxjn7bfwnl3g2cw58v1siab31";
+    pname = "jxmlease";
+    inherit (finalAttrs) version;
+    hash = "sha256-YSwVddiocCbeoJa7dazscwLdaQQPoj2RFuceMNXgg54=";
   };
 
   propagatedBuildInputs = [ lxml ];
@@ -24,12 +25,12 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [ unittestCheckHook ];
 
-  unittestFlagsArray = [ "-v" ];
+  unittestFlags = [ "-v" ];
 
-  meta = with lib; {
+  meta = {
     description = "Converts between XML and intelligent Python data structures";
     homepage = "https://github.com/Juniper/jxmlease";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
-}
+})

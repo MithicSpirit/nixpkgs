@@ -1,9 +1,8 @@
 {
   lib,
-  stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
+  stdenv,
 
   # build-system
   distutils,
@@ -13,27 +12,31 @@
   openldap,
   cyrus_sasl,
 
-  # dependencies
   pyasn1,
   pyasn1-modules,
 
   # tests
   pytestCheckHook,
+  jaraco-functools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-ldap";
-  version = "3.4.4";
+  version = "3.4.8";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
 
   src = fetchFromGitHub {
     owner = "python-ldap";
     repo = "python-ldap";
-    rev = "refs/tags/python-ldap-${version}";
-    hash = "sha256-v1cWoRGxbvvFnHqnwoIfmiQQcxfaA8Bf3+M5bE5PtuU=";
+    tag = "python-ldap-${finalAttrs.version}";
+    hash = "sha256-EvLH8Yyx2iEde4OFk9MkzPtPr/n7NnGxAb8xJTo8Tn8=";
   };
+
+  patches = [
+    # 20261023: can remove patch once it's upstreamed
+    #   https://github.com/python-ldap/python-ldap/issues/687#issuecomment-6360014514
+    ./001-test-simple-bind-fileno-invalid.patch
+  ];
 
   build-system = [
     distutils
@@ -50,7 +53,10 @@ buildPythonPackage rec {
     pyasn1-modules
   ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  nativeCheckInputs = [
+    jaraco-functools
+    pytestCheckHook
+  ];
 
   preCheck = ''
     # Needed by tests to setup a mockup ldap server.
@@ -60,18 +66,19 @@ buildPythonPackage rec {
     export SCHEMA="${openldap}/etc/schema"
   '';
 
-  disabledTests = [
-    # https://github.com/python-ldap/python-ldap/issues/501
-    "test_tls_ext_noca"
-  ];
+  __darwinAllowLocalNetworking = true;
 
-  doCheck = !stdenv.isDarwin;
-
-  meta = with lib; {
-    changelog = "https://github.com/python-ldap/python-ldap/releases/tag/python-ldap-${version}";
+  meta = {
     description = "Python modules for implementing LDAP clients";
     downloadPage = "https://github.com/python-ldap/python-ldap";
     homepage = "https://www.python-ldap.org/";
-    license = licenses.psfl;
+    changelog = "https://github.com/python-ldap/python-ldap/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.AND [
+      lib.licenses.psfl
+      lib.licenses.mit # for contributions after 2021-07-01 and specific contributors
+    ];
+    maintainers = with lib.maintainers; [
+      debtquity
+    ];
   };
-}
+})

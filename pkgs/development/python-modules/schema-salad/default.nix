@@ -1,75 +1,64 @@
 {
   lib,
-  black,
   buildPythonPackage,
+  black,
   cachecontrol,
   fetchFromGitHub,
-  fetchpatch,
-  importlib-resources,
+  hatch-vcs,
+  hatchling,
   mistune,
-  mypy,
   mypy-extensions,
+  mypy,
+  pytest-xdist,
   pytestCheckHook,
-  pythonOlder,
   rdflib,
   requests,
+  rich-argparse,
   ruamel-yaml,
-  setuptools-scm,
-  types-dataclasses,
-  types-requests,
-  types-setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "schema-salad";
-  version = "8.5.20240503091721";
+  version = "8.10.20261106141337";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "common-workflow-language";
     repo = "schema_salad";
-    rev = "refs/tags/${version}";
-    hash = "sha256-VbEIkWzg6kPnJWqbvlfsD83oS0VQasGQo+pUIPiGjhU=";
+    tag = finalAttrs.version;
+    hash = "sha256-dd1ZmD0BsJhRkNfdYr2B5ifkHwJH8Heq5umvjzqLFjg=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "black>=19.10b0,<23.12" "black>=19.10b0"
-  '';
+  build-system = [
+    hatch-vcs
+    hatchling
+  ];
 
-  build-system = [ setuptools-scm ];
+  dependencies = [
+    cachecontrol
+    mistune
+    mypy
+    mypy-extensions
+    rdflib
+    requests
+    rich-argparse
+    ruamel-yaml
+  ]
+  ++ cachecontrol.optional-dependencies.filecache;
 
-  dependencies =
-    [
-      cachecontrol
-      mistune
-      mypy
-      mypy-extensions
-      rdflib
-      requests
-      ruamel-yaml
-      types-dataclasses
-      types-requests
-      types-setuptools
-    ]
-    ++ cachecontrol.optional-dependencies.filecache
-    ++ lib.optionals (pythonOlder "3.9") [ importlib-resources ];
+  optional-dependencies = {
+    pycodegen = [ black ];
+  };
 
-  patches = [ (fetchpatch {
-    url = "https://patch-diff.githubusercontent.com/raw/common-workflow-language/schema_salad/pull/840.patch";
-    hash = "sha256-fke75FCCn23LAMJ5bDWJpuBR6E9XIpjmzzXSbjqpxn8=";
-  } ) ];
-
-  nativeCheckInputs = [ pytestCheckHook ] ++ passthru.optional-dependencies.pycodegen;
-
-  preCheck = ''
-    rm tox.ini
-  '';
+  nativeCheckInputs = [
+    pytest-xdist
+    pytestCheckHook
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
   disabledTests = [
     "test_load_by_yaml_metaschema"
+    "test_detect_changes_in_html"
     # Setup for these tests requires network access
     "test_secondaryFiles"
     "test_outputBinding"
@@ -80,15 +69,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "schema_salad" ];
 
-  passthru.optional-dependencies = {
-    pycodegen = [ black ];
-  };
-
-  meta = with lib; {
+  meta = {
     description = "Semantic Annotations for Linked Avro Data";
     homepage = "https://github.com/common-workflow-language/schema_salad";
-    changelog = "https://github.com/common-workflow-language/schema_salad/releases/tag/${version}";
-    license = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ veprbl ];
+    changelog = "https://github.com/common-workflow-language/schema_salad/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ veprbl ];
   };
-}
+})

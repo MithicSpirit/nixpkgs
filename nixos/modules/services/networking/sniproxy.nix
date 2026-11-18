@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 with lib;
 
@@ -14,7 +19,11 @@ let
 
 in
 {
-  imports = [ (mkRemovedOptionModule [ "services" "sniproxy" "logDir" ] "Now done by LogsDirectory=. Set to a custom path if you log to a different folder in your config.") ];
+  imports = [
+    (mkRemovedOptionModule [ "services" "sniproxy" "logDir" ]
+      "Now done by LogsDirectory=. Set to a custom path if you log to a different folder in your config."
+    )
+  ];
 
   options = {
     services.sniproxy = {
@@ -64,7 +73,7 @@ in
 
       serviceConfig = {
         Type = "forking";
-        ExecStart = "${pkgs.sniproxy}/bin/sniproxy -c ${configFile}";
+        ExecStart = "${pkgs.sniproxy}/bin/sniproxy -i -c ${configFile}";
         LogsDirectory = "sniproxy";
         LogsDirectoryMode = "0640";
         Restart = "always";

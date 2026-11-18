@@ -1,73 +1,106 @@
 {
   lib,
+  fetchFromGitHub,
   buildPythonPackage,
-  fetchgit,
+  pytestCheckHook,
+
   cmake,
-  pkgconfig,
+  gcc14,
   python,
-  mpi ? null,
+  eigen,
+  mpi,
+  cereal,
+  numpy,
+  pybind11,
+  rowan,
+  gsd,
+  h5py,
+  mpi4py,
+  sybil,
+
+  # https://github.com/glotzerlab/hoomd-blue/blob/v7.2.0/BUILDING.rst#configure
+  withHpmc ? true,
+  withMd ? true,
+  withMetal ? true,
+  withMpcd ? true,
+  withMpi ? false,
 }:
-
-let
-  components = {
-    cgcmm = true;
-    depreciated = true;
-    hpmc = true;
-    md = true;
-    metal = true;
-  };
-  onOffBool = b: if b then "ON" else "OFF";
-  withMPI = (mpi != null);
-in
-buildPythonPackage rec {
-  version = "2.3.4";
+buildPythonPackage (finalAttrs: {
+  version = "7.2.1";
   pname = "hoomd-blue";
-  pyproject = false; # Built with cmake
+  pyproject = false; # build with cmake
 
-  src = fetchgit {
-    url = "https://bitbucket.org/glotzer/hoomd-blue";
-    rev = "v${version}";
-    sha256 = "0in49f1dvah33nl5n2qqbssfynb31pw1ds07j8ziryk9w252j1al";
-  };
-
-  passthru = {
-    inherit components mpi;
+  src = fetchFromGitHub {
+    owner = "glotzerlab";
+    repo = "hoomd-blue";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-nRANjVcKyttXzofEJWpriCaI1MN2XIns5bVcrQ2jOC0=";
+    fetchSubmodules = true;
   };
 
   nativeBuildInputs = [
     cmake
-    pkgconfig
+    gcc14
+  ]
+  ++ lib.optionals withMpi [
+    mpi
   ];
-  buildInputs = lib.optionals withMPI [ mpi ];
-  propagatedBuildInputs = [ python.pkgs.numpy ] ++ lib.optionals withMPI [ python.pkgs.mpi4py ];
+
+  buildInputs = [
+    eigen
+    cereal
+  ]
+  ++ lib.optionals withMpi [
+    cereal
+  ];
+
+  dependencies = [
+    numpy
+    pybind11
+  ];
 
   dontAddPrefix = true;
   cmakeFlags = [
-    "-DENABLE_MPI=${onOffBool withMPI}"
-    "-DBUILD_CGCMM=${onOffBool components.cgcmm}"
-    "-DBUILD_DEPRECIATED=${onOffBool components.depreciated}"
-    "-DBUILD_HPMC=${onOffBool components.hpmc}"
-    "-DBUILD_MD=${onOffBool components.md}"
-    "-DBUILD_METAL=${onOffBool components.metal}"
+    (lib.cmakeFeature "CMAKE_INSTALL_PREFIX" "${placeholder "out"}/${python.sitePackages}")
+
+    (lib.cmakeBool "BUILD_MD" withMd)
+    (lib.cmakeBool "BUILD_HPMC" withHpmc)
+    (lib.cmakeBool "BUILD_METAL" withMetal)
+    (lib.cmakeBool "BUILD_MPCD" withMpcd)
+
+    (lib.cmakeBool "BUILD_TESTING" finalAttrs.doCheck)
+
+    (lib.cmakeBool "ENABLE_MPI" withMpi)
+  ]
+  ++ (lib.optional withMpi (lib.cmakeFeature "MPI_HOME" "${lib.getDev mpi}"));
+
+  doCheck = true;
+
+  nativeCheckInputs = [
+    pytestCheckHook
+    gsd
+    h5py
+    rowan
+    sybil
+  ]
+  ++ lib.optionals withMpi [
+    mpi4py
   ];
 
-  preConfigure = ''
-    # Since we can't expand $out in `cmakeFlags`
-    cmakeFlags="$cmakeFlags -DCMAKE_INSTALL_PREFIX=$out/${python.sitePackages}"
-  '';
+  pytestFlags = [ "hoomd" ];
 
-  # tests fail but have tested that package runs properly
-  doCheck = false;
-  checkTarget = "test";
-
-  meta = with lib; {
-    homepage = "http://glotzerlab.engin.umich.edu/hoomd-blue/";
-    description = "HOOMD-blue is a general-purpose particle simulation toolkit";
-    license = licenses.bsdOriginal;
-    platforms = [ "x86_64-linux" ];
-    maintainers = [ ];
-    # Has compilation errors since some dependencies got updated, will probably
-    # be fixed if updated by itself to the latest version.
-    broken = true;
+  meta = {
+    description = "Molecular dynamics and Monte Carlo soft matter simulation on GPUs";
+    longDescription = ''
+      HOOMD-blue is a Python package that performs hard particle Monte Carlo simulations of a
+      variety of shape classes and molecular dynamics simulations of particles with a range of pair,
+      bond, angle, and other potentials.
+    '';
+    homepage = "https://glotzerlab.engin.umich.edu/software/";
+    changelog = "https://github.com/glotzerlab/hoomd-blue/blob/${finalAttrs.src.tag}/CHANGELOG.rst";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [
+      debtquity
+    ];
   };
-}
+})

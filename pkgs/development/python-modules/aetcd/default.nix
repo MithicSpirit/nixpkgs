@@ -5,46 +5,46 @@
   grpcio,
   protobuf,
   pytest-asyncio,
+  pytest-cov-stub,
   pytest-mock,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
   setuptools-scm,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aetcd";
-  version = "1.0.0a4";
+  version = "1.0.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "martyanov";
     repo = "aetcd";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-g49ppfh8dyGpZeu/HdTDX8RAk5VTcZmqENRpNY12qkg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-wGs1YG/7gCVMd6iS2RLoMBVJ93aO3dAG1x6/rrhK+C0=";
   };
 
   postPatch = ''
-    substituteInPlace setup.py \
-      --replace-fail "setuptools_scm==6.3.2" "setuptools_scm"
-    substituteInPlace setup.cfg \
-      --replace-fail "--cov=aetcd" ""
+    substituteInPlace pyproject.toml \
+      --replace-fail "setuptools==82.0.1" "setuptools" \
+      --replace-fail "setuptools-scm[toml]==10.0.5" "setuptools_scm"
   '';
 
-  nativeBuildInputs = [
+  pythonRelaxDeps = [ "protobuf" ];
+
+  build-system = [
     setuptools
     setuptools-scm
   ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     grpcio
     protobuf
   ];
 
   nativeCheckInputs = [
     pytest-asyncio
+    pytest-cov-stub
     pytest-mock
     pytestCheckHook
   ];
@@ -56,11 +56,11 @@ buildPythonPackage rec {
     "tests/integration/"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Python asyncio-based client for etcd";
     homepage = "https://github.com/martyanov/aetcd";
-    changelog = "https://github.com/martyanov/aetcd/blob/v${version}/docs/changelog.rst";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/martyanov/aetcd/blob/${finalAttrs.src.tag}/docs/changelog.rst";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

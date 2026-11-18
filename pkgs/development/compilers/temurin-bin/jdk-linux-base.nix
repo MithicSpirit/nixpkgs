@@ -1,136 +1,188 @@
-{ name-prefix ? "temurin"
-, brand-name ? "Eclipse Temurin"
-, sourcePerArch
-, knownVulnerabilities ? [ ]
+{
+  name-prefix ? "temurin",
+  brand-name ? "Eclipse Temurin",
+  sourcePerArch,
+  jmodsSourcePreArch ? null,
+  knownVulnerabilities ? [ ],
 }:
 
-{ stdenv
-, lib
-, fetchurl
-, autoPatchelfHook
-, makeWrapper
-, setJavaClassPath
+{
+  stdenv,
+  lib,
+  fetchurl,
+  autoPatchelfHook,
+  makeWrapper,
+  setJavaClassPath,
+  cacert,
+  jre-generate-cacerts,
+  # regenerate lib/security/cacerts from cacert; needs a runnable keytool
+  regenerateCacerts ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
   # minimum dependencies
-, alsa-lib
-, fontconfig
-, freetype
-, libffi
-, xorg
-, zlib
+  alsa-lib,
+  fontconfig,
+  freetype,
+  libffi,
+  libxtst,
+  libxrender,
+  libxi,
+  libxext,
+  libx11,
+  zlib,
   # runtime dependencies
-, cups
+  cups,
   # runtime dependencies for GTK+ Look and Feel
   # TODO(@sternenseemann): gtk3 fails to evaluate in pkgsCross.ghcjs.buildPackages
   # which should be fixable, this is a no-rebuild workaround for GHC.
-, gtkSupport ? !stdenv.targetPlatform.isGhcjs
-, cairo
-, glib
-, gtk3
+  gtkSupport ? !stdenv.targetPlatform.isGhcjs,
+  cairo,
+  glib,
+  gtk3,
 }:
 
 let
   cpuName = stdenv.hostPlatform.parsed.cpu.name;
   runtimeDependencies = [
     cups
-  ] ++ lib.optionals gtkSupport [
+  ]
+  ++ lib.optionals gtkSupport [
     cairo
     glib
     gtk3
   ];
   runtimeLibraryPath = lib.makeLibraryPath runtimeDependencies;
   validCpuTypes = builtins.attrNames lib.systems.parse.cpuTypes;
-  providedCpuTypes = builtins.filter
-    (arch: builtins.elem arch validCpuTypes)
-    (builtins.attrNames sourcePerArch);
-  result = stdenv.mkDerivation {
-    pname =
-      if sourcePerArch.packageType == "jdk"
-      then "${name-prefix}-bin"
-      else "${name-prefix}-${sourcePerArch.packageType}-bin";
+  providedCpuTypes = builtins.filter (arch: builtins.elem arch validCpuTypes) (
+    builtins.attrNames sourcePerArch
+  );
+  # only the JDK 8 tarball keeps its JRE under jre/
+  isJdk8 =
+    sourcePerArch.packageType == "jdk" && lib.versions.major sourcePerArch.${cpuName}.version == "8";
+  result = stdenv.mkDerivation (
+    {
+      pname =
+        if sourcePerArch.packageType == "jdk" then
+          "${name-prefix}-bin"
+        else
+          "${name-prefix}-${sourcePerArch.packageType}-bin";
 
-    version =
-      sourcePerArch.${cpuName}.version or (throw "unsupported CPU ${cpuName}");
+      version = sourcePerArch.${cpuName}.version or "unsupported";
 
-    src = fetchurl {
-      inherit (sourcePerArch.${cpuName}) url sha256;
-    };
+      srcs = [
+        (fetchurl {
+          inherit (sourcePerArch.${cpuName}) url sha256;
+        })
+      ]
+      ++ lib.optional (jmodsSourcePreArch != null) (fetchurl {
+        inherit (jmodsSourcePreArch.${cpuName}) url sha256;
+      });
 
-    buildInputs = [
-      alsa-lib # libasound.so wanted by lib/libjsound.so
-      fontconfig
-      freetype
-      stdenv.cc.cc.lib # libstdc++.so.6
-      xorg.libX11
-      xorg.libXext
-      xorg.libXi
-      xorg.libXrender
-      xorg.libXtst
-      zlib
-    ] ++ lib.optional stdenv.isAarch32 libffi;
+      sourceRoot = ".";
 
-    nativeBuildInputs = [ autoPatchelfHook makeWrapper ];
+      buildInputs = [
+        alsa-lib # libasound.so wanted by lib/libjsound.so
+        fontconfig
+        freetype
+        (lib.getLib stdenv.cc.cc) # libstdc++.so.6
+        libx11
+        libxext
+        libxi
+        libxrender
+        libxtst
+        zlib
+      ]
+      ++ lib.optional stdenv.hostPlatform.isAarch32 libffi;
 
-    # See: https://github.com/NixOS/patchelf/issues/10
-    dontStrip = 1;
+      nativeBuildInputs = [
+        autoPatchelfHook
+        makeWrapper
+      ];
 
-    installPhase = ''
-      cd ..
+      # See: https://github.com/NixOS/patchelf/issues/10
+      dontStrip = 1;
 
-      mv $sourceRoot $out
+      installPhase = ''
+        # compatible semeru jdk
+        TARGET_SOURCE=$(find . -maxdepth 1 -type d ! -name "." ! -name "*jmods" -print -quit)
 
-      # jni.h expects jni_md.h to be in the header search path.
-      ln -s $out/include/linux/*_md.h $out/include/
+        mv "$TARGET_SOURCE" $out
 
-      # Remove some broken manpages.
-      # Only for 11 and earlier.
-      [ -e "$out/man/ja" ] && rm -r $out/man/ja*
+        ${lib.optionalString (jmodsSourcePreArch != null) "mv */ $out/jmods"}
 
-      # Remove embedded freetype to avoid problems like
-      # https://github.com/NixOS/nixpkgs/issues/57733
-      find "$out" -name 'libfreetype.so*' -delete
+        # jni.h expects jni_md.h to be in the header search path.
+        ln -s $out/include/linux/*_md.h $out/include/
 
-      # Propagate the setJavaClassPath setup hook from the JDK so that
-      # any package that depends on the JDK has $CLASSPATH set up
-      # properly.
-      mkdir -p $out/nix-support
-      printWords ${setJavaClassPath} > $out/nix-support/propagated-build-inputs
+        # Remove some broken manpages.
+        # Only for 11 and earlier.
+        [ -e "$out/man/ja" ] && rm -r $out/man/ja*
 
-      # Set JAVA_HOME automatically.
-      cat <<EOF >> "$out/nix-support/setup-hook"
-      if [ -z "\''${JAVA_HOME-}" ]; then export JAVA_HOME=$out; fi
-      EOF
+        # Remove embedded freetype to avoid problems like
+        # https://github.com/NixOS/nixpkgs/issues/57733
+        find "$out" -name 'libfreetype.so*' -delete
 
-      # We cannot use -exec since wrapProgram is a function but not a command.
-      #
-      # jspawnhelper is executed from JVM, so it doesn't need to wrap it, and it
-      # breaks building OpenJDK (#114495).
-      for bin in $( find "$out" -executable -type f -not -name jspawnhelper ); do
-        if patchelf --print-interpreter "$bin" &> /dev/null; then
-          wrapProgram "$bin" --prefix LD_LIBRARY_PATH : "${runtimeLibraryPath}"
-        fi
-      done
-    '';
+        # Propagate the setJavaClassPath setup hook from the JDK so that
+        # any package that depends on the JDK has $CLASSPATH set up
+        # properly.
+        mkdir -p $out/nix-support
+        printWords ${setJavaClassPath} > $out/nix-support/propagated-build-inputs
 
-    preFixup = ''
-      find "$out" -name libfontmanager.so -exec \
-        patchelf --add-needed libfontconfig.so {} \;
-    '';
+        # Set JAVA_HOME automatically.
+        cat <<EOF >> "$out/nix-support/setup-hook"
+        if [ -z "\''${JAVA_HOME-}" ]; then export JAVA_HOME=$out; fi
+        EOF
 
-    # FIXME: use multiple outputs or return actual JRE package
-    passthru = {
-      jre = result;
-      home = result;
-    };
+        # We cannot use -exec since wrapProgram is a function but not a command.
+        #
+        # jspawnhelper is executed from JVM, so it doesn't need to wrap it, and it
+        # breaks building OpenJDK (#114495).
+        for bin in $( find "$out" -executable -type f -not -name jspawnhelper ); do
+          if patchelf --print-interpreter "$bin" &> /dev/null; then
+            wrapProgram "$bin" --prefix LD_LIBRARY_PATH : "${runtimeLibraryPath}"
+          fi
+        done
+      '';
 
-    meta = with lib; {
-      license = licenses.gpl2Classpath;
-      sourceProvenance = with sourceTypes; [ binaryNativeCode binaryBytecode ];
-      description = "${brand-name}, prebuilt OpenJDK binary";
-      platforms = builtins.map (arch: arch + "-linux") providedCpuTypes; # some inherit jre.meta.platforms
-      maintainers = with maintainers; [ taku0 ];
-      inherit knownVulnerabilities;
-      mainProgram = "java";
-    };
-  };
+      preFixup = ''
+        find "$out" -name libfontmanager.so -exec \
+          patchelf --add-needed libfontconfig.so {} \;
+      '';
+
+      # FIXME: use multiple outputs or return actual JRE package
+      passthru = {
+        jre = result;
+        home = result;
+      };
+
+      meta = {
+        license = with lib.licenses; [
+          gpl2
+          classpathException20
+        ];
+        sourceProvenance = with lib.sourceTypes; [
+          binaryNativeCode
+          binaryBytecode
+        ];
+        description = "${brand-name}, prebuilt OpenJDK binary";
+        platforms = map (arch: arch + "-linux") providedCpuTypes; # some inherit jre.meta.platforms
+        maintainers = with lib.maintainers; [ taku0 ];
+        teams = [ lib.teams.java ];
+        inherit knownVulnerabilities;
+        mainProgram = "java";
+      };
+    }
+    // lib.optionalAttrs regenerateCacerts {
+      # keytool must already be patched when postFixup regenerates cacerts
+      dontAutoPatchelf = true;
+      # regenerate the bundled CA keystore from cacert, as openjdk/generic.nix does
+      postFixup = ''
+        autoPatchelf -- "$out"
+        pushd "$out/${lib.optionalString isJdk8 "jre/"}lib/security"
+        rm cacerts
+        JAVA_TOOL_OPTIONS="-Dkeystore.pkcs12.certProtectionAlgorithm=NONE -Dkeystore.pkcs12.macAlgorithm=NONE" \
+          ${jre-generate-cacerts} "$out/bin/keytool" ${cacert}/etc/ssl/certs/ca-bundle.crt
+        [ -s cacerts ] || { echo "failed to generate cacerts" >&2; exit 1; }
+        popd
+      '';
+    }
+  );
 in
 result

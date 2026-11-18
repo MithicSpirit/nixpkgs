@@ -2,10 +2,8 @@
   lib,
   stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
   isPyPy,
-  substituteAll,
 
   # build-system
   setuptools,
@@ -23,33 +21,43 @@
   imageio-ffmpeg,
   pillow-heif,
   psutil,
+  pydicom,
   tifffile,
 
   # tests
-  pytestCheckHook,
   fsspec,
+  gitMinimal,
+  pytestCheckHook,
+  writableTmpDirAsHomeHook,
 }:
+
+let
+  test_images = fetchFromGitHub {
+    owner = "imageio";
+    repo = "test_images";
+    rev = "f676c96b1af7e04bb1eed1e4551e058eb2f14acd";
+    leaveDotGit = true;
+    hash = "sha256-Kh8DowuhcCT5C04bE5yJa2C+efilLxP0AM31XjnHRf4=";
+  };
+  libgl = "${libGL.out}/lib/libGL${stdenv.hostPlatform.extensions.sharedLibrary}";
+in
 
 buildPythonPackage rec {
   pname = "imageio";
-  version = "2.35.1";
+  version = "2.38.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "imageio";
     repo = "imageio";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-WeoZE2TPBAhzBBcZNQqoiqvribMCLSZWk/XpdMydvCQ=";
+    tag = "v${version}";
+    hash = "sha256-IFcLIEcUpWeCyTKnPCCd1poIzQsIRQ/IcrShYhoxi6w=";
   };
 
-  patches = lib.optionals (!stdenv.isDarwin) [
-    (substituteAll {
-      src = ./libgl-path.patch;
-      libgl = "${libGL.out}/lib/libGL${stdenv.hostPlatform.extensions.sharedLibrary}";
-    })
-  ];
+  postPatch = lib.optionalString (!stdenv.hostPlatform.isDarwin) ''
+    substituteInPlace tests/test_core.py \
+      --replace-fail 'ctypes.util.find_library("GL")' '"${libgl}"'
+  '';
 
   build-system = [ setuptools ];
 
@@ -71,6 +79,7 @@ buildPythonPackage rec {
     lytro = [ ];
     numpy = [ ];
     pillow = [ ];
+    pydicom = [ pydicom ];
     simpleitk = [ ];
     spe = [ ];
     swf = [ ];
@@ -81,39 +90,34 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [
     fsspec
+    gitMinimal
     psutil
     pytestCheckHook
-  ] ++ fsspec.optional-dependencies.github ++ lib.flatten (builtins.attrValues optional-dependencies);
+    writableTmpDirAsHomeHook
+  ]
+  ++ fsspec.optional-dependencies.github
+  ++ lib.concatAttrValues optional-dependencies;
 
-  pytestFlagsArray = [ "-m 'not needs_internet'" ];
+  pytestFlags = [ "--test-images=file://${test_images}" ];
 
-  preCheck = ''
-    export IMAGEIO_USERDIR="$TMP"
-    export HOME=$TMPDIR
-  '';
+  disabledTestMarks = [ "needs_internet" ];
 
   disabledTestPaths = [
-    # tries to fetch fixtures over the network
+    # These tests require the old and vulnerable freeimage binaries; skip.
     "tests/test_freeimage.py"
-    "tests/test_pillow.py"
-    "tests/test_spe.py"
-    "tests/test_swf.py"
+    # These tests require an older version of pillow
+    "tests/test_pillow.py::test_png_16bit"
+    "tests/test_pillow_legacy.py::test_png"
   ];
 
-  disabledTests = lib.optionals stdenv.isDarwin [
-    # Segmentation fault
-    "test_bayer_write"
-    # RuntimeError: No valid H.264 encoder was found with the ffmpeg installation
-    "test_writer_file_properly_closed"
-    "test_writer_pixelformat_size_verbose"
-    "test_writer_ffmpeg_params"
-    "test_reverse_read"
-  ];
+  preCheck = ''
+    export IMAGEIO_USERDIR=$(mktemp -d)
+  '';
 
   meta = {
     description = "Library for reading and writing a wide range of image, video, scientific, and volumetric data formats";
     homepage = "https://imageio.readthedocs.io";
-    changelog = "https://github.com/imageio/imageio/blob/v${version}/CHANGELOG.md";
+    changelog = "https://github.com/imageio/imageio/blob/${src.tag}/CHANGELOG.md";
     license = lib.licenses.bsd2;
     maintainers = with lib.maintainers; [ Luflosi ];
   };

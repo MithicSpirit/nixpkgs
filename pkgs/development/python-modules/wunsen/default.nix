@@ -3,8 +3,6 @@
   buildPythonPackage,
   fetchFromGitHub,
 
-  pythonOlder,
-
   unittestCheckHook,
 
   hatchling,
@@ -12,17 +10,15 @@
   khanaa,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "wunsen";
   version = "0.0.3";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchFromGitHub {
     owner = "cakimpei";
     repo = "wunsen";
-    rev = "refs/tags/v${version}";
+    tag = "v${finalAttrs.version}";
     hash = "sha256-lMEhtcWG+S3vAz+Y/qDxhaZslsO0pbs5xUn5QgZNs2U=";
   };
 
@@ -32,18 +28,17 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [ unittestCheckHook ];
 
-  unittestFlagsArray = [
-    "-s"
-    "tests"
+  unittestFlags = [
+    "--start-directory=tests"
   ];
 
   pythonImportsCheck = [ "wunsen" ];
 
-  meta = with lib; {
+  meta = {
     description = "Transliterate/transcribe other languages into Thai Topics";
     homepage = "https://github.com/cakimpei/wunsen";
-    changelog = "https://github.com/cakimpei/wunsen/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ vizid ];
+    changelog = "https://github.com/cakimpei/wunsen/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ vizid ];
   };
-}
+})

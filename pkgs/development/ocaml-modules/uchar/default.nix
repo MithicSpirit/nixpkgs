@@ -1,15 +1,28 @@
-{ stdenv, fetchurl, ocaml, findlib, ocamlbuild, opaline, withShared ? true, lib }:
+{
+  stdenv,
+  fetchurl,
+  ocaml,
+  findlib,
+  ocamlbuild,
+  opaline,
+  withShared ? true,
+  lib,
+}:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "ocaml${ocaml.version}-uchar";
   version = "0.0.2";
 
   src = fetchurl {
-    url = "https://github.com/ocaml/uchar/releases/download/v${version}/uchar-${version}.tbz";
-    sha256 = "1w2saw7zanf9m9ffvz2lvcxvlm118pws2x1wym526xmydhqpyfa7";
+    url = "https://github.com/ocaml/uchar/releases/download/v${finalAttrs.version}/uchar-${finalAttrs.version}.tbz";
+    hash = "sha256-Rzl/MWy+diNK9Tx0oflFIVS6O9tU/O1cqslZ9Q9XWvA=";
   };
 
-  nativeBuildInputs = [ ocaml ocamlbuild findlib ];
+  nativeBuildInputs = [
+    ocaml
+    ocamlbuild
+    findlib
+  ];
 
   strictDeps = true;
 
@@ -22,4 +35,4 @@ stdenv.mkDerivation rec {
     inherit (ocaml.meta) platforms license;
     maintainers = [ lib.maintainers.vbgl ];
   };
-}
+})

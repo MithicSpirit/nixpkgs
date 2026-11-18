@@ -2,40 +2,40 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  requests,
-  tqdm,
-  websocket-client,
-  pythonOlder,
+  mpv,
+  setuptools,
+  stdenvNoCC,
+  unittestCheckHook,
 }:
-
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-mpv-jsonipc";
-  version = "1.2.0";
-  format = "setuptools";
-  disabled = pythonOlder "3.6";
+  version = "1.5.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "iwalton3";
     repo = "python-mpv-jsonipc";
-    rev = "v${version}";
-    hash = "sha256-W9TNtbRhQmwZXhi0TJIDkZRtWhi92/iwL056YIcWnLM=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-m+FFj86bOGgt8IMV3SRzFK1zLYvU9T4D5DXVIxYeRro=";
   };
 
-  # 'mpv-jsonipc' does not have any tests
-  doCheck = false;
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
-    requests
-    tqdm
-    websocket-client
+  nativeCheckInputs = [ unittestCheckHook ] ++ lib.optional (!stdenvNoCC.hostPlatform.isDarwin) mpv;
+
+  unittestFlags = [
+    "--start-directory=tests"
+    "--verbose"
   ];
+
+  env.REQUIRE_MPV = !stdenvNoCC.hostPlatform.isDarwin;
 
   pythonImportsCheck = [ "python_mpv_jsonipc" ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/iwalton3/python-mpv-jsonipc";
     description = "Python API to MPV using JSON IPC";
-    license = licenses.gpl3;
-    maintainers = with maintainers; [ colemickens ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ connor-grady ];
   };
-}
+})

@@ -1,57 +1,34 @@
-{ lib, stdenv, fetchFromGitHub, writeText, elixir }:
+{
+  buildMix,
+  cacert,
+  fetchFromGitHub,
+  lib,
+}:
 
-let
-  shell = drv: stdenv.mkDerivation {
-    name = "interactive-shell-${drv.name}";
-    buildInputs = [ drv ];
+buildMix (finalAttrs: {
+  name = "hex";
+  version = "2.7.0";
+
+  src = fetchFromGitHub {
+    owner = "hexpm";
+    repo = "hex";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-6KZCiU+Loypar3z/Iy5A1FDxuvtqlXUKtC7Iy54wUTU=";
   };
 
-  pkg = self: stdenv.mkDerivation rec {
-    pname = "hex";
-    version = "2.1.1";
+  # Hex must bootstrap without depending on itself.
+  enableHex = false;
 
-    src = fetchFromGitHub {
-      owner = "hexpm";
-      repo = "hex";
-      rev = "v${version}";
-      sha256 = "sha256-pEfd2BqkVwZVbnka98MafJ/NRn94BHh+wM0i2Q5duTo=";
-    };
+  postPatch = ''
+    cp ${cacert}/etc/ssl/certs/ca-bundle.crt lib/hex/http/ca-bundle.crt
+  '';
 
-    setupHook = writeText "setupHook.sh" ''
-       addToSearchPath ERL_LIBS "$1/lib/erlang/lib/"
-    '';
-
-    dontStrip = true;
-
-    buildInputs = [ elixir ];
-
-    buildPhase = ''
-      runHook preBuild
-      export HEX_OFFLINE=1
-      export HEX_HOME=./
-      export MIX_ENV=prod
-      mix compile
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-
-      mkdir -p $out/lib/erlang/lib
-      cp -r ./_build/prod/lib/hex $out/lib/erlang/lib/
-
-      runHook postInstall
-    '';
-
-    meta = {
-      description = "Package manager for the Erlang VM https://hex.pm";
-      license = lib.licenses.mit;
-      homepage = "https://github.com/hexpm/hex";
-      maintainers = with lib.maintainers; [ ericbmerritt ];
-    };
-
-    passthru = {
-      env = shell self;
-    };
-};
-in lib.fix pkg
+  meta = {
+    description = "Package manager for the Erlang VM";
+    homepage = "https://github.com/hexpm/hex";
+    changelog = "https://github.com/hexpm/hex/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ ericbmerritt ];
+    teams = [ lib.teams.beam ];
+  };
+})

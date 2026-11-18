@@ -8,26 +8,22 @@
   fetchFromGitHub,
   pypubsub,
   pyserial,
-  pyserial-asyncio,
+  pyserial-asyncio-fast,
   pytestCheckHook,
-  pythonAtLeast,
-  pythonOlder,
   setuptools,
   voluptuous,
 }:
 
 buildPythonPackage rec {
   pname = "pyinsteon";
-  version = "1.6.3";
+  version = "1.8.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "pyinsteon";
     repo = "pyinsteon";
-    rev = "refs/tags/${version}";
-    hash = "sha256-SyhPM3NS7iJX8jwTJ4YWZ72eYLn9JT6eESekPf5eCKI=";
+    tag = version;
+    hash = "sha256-76FpayQryjN3vgbmuh87srAgbK3g+ltvP+NbnSNtcb4=";
   };
 
   build-system = [ setuptools ];
@@ -38,7 +34,7 @@ buildPythonPackage rec {
     async-timeout
     pypubsub
     pyserial
-    pyserial-asyncio
+    pyserial-asyncio-fast
     voluptuous
   ];
 
@@ -47,19 +43,9 @@ buildPythonPackage rec {
     pytestCheckHook
   ];
 
-  disabledTests = [
-    # RuntimeError: BUG: Dead Listener called, still subscribed!
-    "test_linking_with_i1_device"
-  ];
-
-  disabledTestPaths = lib.optionals (pythonAtLeast "3.12") [
-    # Tests are blocking or failing
-    "tests/test_handlers/"
-  ];
-
   pythonImportsCheck = [ "pyinsteon" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library to support Insteon home automation projects";
     longDescription = ''
       This is a Python package to interface with an Insteon Modem. It has been
@@ -68,8 +54,8 @@ buildPythonPackage rec {
     '';
     homepage = "https://github.com/pyinsteon/pyinsteon";
     changelog = "https://github.com/pyinsteon/pyinsteon/releases/tag/${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "insteon_tools";
   };
 }

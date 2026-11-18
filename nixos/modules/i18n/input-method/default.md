@@ -27,7 +27,11 @@ The following snippet can be used to configure IBus:
   i18n.inputMethod = {
     enable = true;
     type = "ibus";
-    ibus.engines = with pkgs.ibus-engines; [ anthy hangul mozc ];
+    ibus.engines = with pkgs.ibus-engines; [
+      anthy
+      hangul
+      mozc
+    ];
   };
 }
 ```
@@ -40,6 +44,7 @@ Available extra IBus engines are:
   - Anthy (`ibus-engines.anthy`): Anthy is a system for
     Japanese input method. It converts Hiragana text to Kana Kanji mixed text.
   - Hangul (`ibus-engines.hangul`): Korean input method.
+  - libpinyin (`ibus-engines.libpinyin`): A Chinese input method.
   - m17n (`ibus-engines.m17n`): m17n is an input method that
     uses input methods and corresponding icons in the m17n database.
   - mozc (`ibus-engines.mozc`): A Japanese input method from
@@ -53,7 +58,10 @@ Available extra IBus engines are:
 
     ```nix
     {
-      ibus.engines = with pkgs.ibus-engines; [ table table-others ];
+      ibus.engines = with pkgs.ibus-engines; [
+        table
+        table-others
+      ];
     }
     ```
 
@@ -84,7 +92,11 @@ The following snippet can be used to configure Fcitx:
   i18n.inputMethod = {
     enable = true;
     type = "fcitx5";
-    fcitx5.addons = with pkgs; [ fcitx5-mozc fcitx5-hangul fcitx5-m17n ];
+    fcitx5.addons = with pkgs; [
+      fcitx5-mozc
+      fcitx5-hangul
+      fcitx5-m17n
+    ];
   };
 }
 ```
@@ -96,6 +108,8 @@ Available extra Fcitx5 addons are:
 
   - Anthy (`fcitx5-anthy`): Anthy is a system for
     Japanese input method. It converts Hiragana text to Kana Kanji mixed text.
+  - Array (`fcitx5-array`): Array is a Chinese shape-based input method that
+    uses a grid of 30 keys.
   - Chewing (`fcitx5-chewing`): Chewing is an
     intelligent Zhuyin input method. It is one of the most popular input
     methods among Traditional Chinese Unix users.
@@ -145,24 +159,6 @@ The following snippet can be used to configure uim:
 
 Note: The [](#opt-i18n.inputMethod.uim.toolbar) option can be
 used to choose uim toolbar.
-
-## Hime {#module-services-input-methods-hime}
-
-Hime is an extremely easy-to-use input method framework. It is lightweight,
-stable, powerful and supports many commonly used input methods, including
-Cangjie, Zhuyin, Dayi, Rank, Shrimp, Greek, Korean Pinyin, Latin Alphabet,
-etc...
-
-The following snippet can be used to configure Hime:
-
-```nix
-{
-  i18n.inputMethod = {
-    enable = true;
-    type = "hime";
-  };
-}
-```
 
 ## Kime {#module-services-input-methods-kime}
 

@@ -5,14 +5,14 @@
   python,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage {
   pname = "fleep";
   version = "1.0.1";
   format = "setuptools";
 
   # Pypi version does not have tests
   src = fetchFromGitHub {
-    owner = "floyernick";
+    owner = "ua-nick";
     repo = "fleep-py";
     rev = "994bc2c274482d80ab13d89d8f7343eb316d3e44";
     hash = "sha256-TaU7njx98nxkhZawGMFqWj4g+yCtIX9aPWQHoamzfMY=";
@@ -27,10 +27,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "fleep" ];
 
-  meta = with lib; {
+  meta = {
     description = "File format determination library";
-    homepage = "https://github.com/floyernick/fleep-py";
-    license = licenses.mit;
+    homepage = "https://github.com/ua-nick/fleep-py";
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
 }

@@ -11,24 +11,21 @@
   cffi,
   zope-deferredimport,
   zope-interface,
-  pythonOlder,
 }:
 
 buildPythonPackage rec {
   pname = "persistent";
-  version = "6.0";
+  version = "6.8";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-CDZQwP/ty4gDKJY8KUuVEaArawXkIec3p9Vfnu2I+18=";
+    hash = "sha256-LnzKobGrU0a+kDmAv3SsMB5ae+TmlJyTz58qcWrdixg=";
   };
 
   build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     zope-interface
     zope-deferredimport
   ]
@@ -36,11 +33,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "persistent" ];
 
-  meta = with lib; {
+  meta = {
     description = "Automatic persistence for Python objects";
     homepage = "https://github.com/zopefoundation/persistent/";
     changelog = "https://github.com/zopefoundation/persistent/blob/${version}/CHANGES.rst";
-    license = licenses.zpl21;
+    license = lib.licenses.zpl21;
     maintainers = [ ];
   };
 }

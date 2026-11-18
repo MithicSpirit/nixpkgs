@@ -1,6 +1,7 @@
-{ buildOctavePackage
-, lib
-, fetchurl
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
 }:
 
 buildOctavePackage rec {
@@ -9,13 +10,13 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "00w69hxqnqdm3744z6p7gvzci44a3gy228x6bgq3xf5n3jwicnmg";
+    hash = "sha256-r1oWuRy2uD7wW6YjIfwbipDI/n7nmk/IGbVhiztMhgM=";
   };
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/mvn/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/mvn/";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Multivariate normal distribution clustering and utility functions";
   };
 }

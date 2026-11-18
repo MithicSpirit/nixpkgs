@@ -2,13 +2,12 @@
   lib,
   stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
+  clang-tools,
   cmake,
   cython,
   ninja,
-  scikit-build,
-  setuptools,
+  scikit-build-core,
   numpy,
   hypothesis,
   pandas,
@@ -17,32 +16,35 @@
   taskflow,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "rapidfuzz";
-  version = "3.9.6";
+  version = "3.14.6";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
   src = fetchFromGitHub {
-    owner = "maxbachmann";
+    owner = "rapidfuzz";
     repo = "RapidFuzz";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-vO63Zkc2ltgfpAq81qRP5MjQ08GTkJhnfqwLIxP5eEI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-yE0YH7WVjULPoxAp5keYIy5/kzdDxpWyHFSMObtCiXA=";
   };
 
   postPatch = ''
     substituteInPlace pyproject.toml \
-      --replace-fail "scikit-build~=0.18.0" "scikit-build" \
-      --replace-fail "Cython >=3.0.11, <3.1.0" "Cython"
+      --replace-fail "Cython >=3.1.6, <3.3.0" "Cython >=3.1.6"
+
+    # https://github.com/rapidfuzz/RapidFuzz/commit/377d0c0ace35bbb4683180ebf110414dfff11abb
+    substituteInPlace tests/distance/test_init.py \
+      --replace-fail 'str_len = 2**32' 'str_len = 2**32 - 1'
   '';
 
   build-system = [
     cmake
     cython
     ninja
-    scikit-build
-    setuptools
+    scikit-build-core
+  ]
+  ++ lib.optionals stdenv.cc.isClang [
+    clang-tools # provides wrapped clang-scan-deps
   ];
 
   dontUseCmakeConfigure = true;
@@ -52,16 +54,10 @@ buildPythonPackage rec {
     taskflow
   ];
 
-  preBuild =
-    ''
-      export RAPIDFUZZ_BUILD_EXTENSION=1
-    ''
-    + lib.optionalString (stdenv.isDarwin && stdenv.isx86_64) ''
-      export CMAKE_ARGS="-DCMAKE_CXX_COMPILER_AR=$AR -DCMAKE_CXX_COMPILER_RANLIB=$RANLIB"
-    '';
+  env.RAPIDFUZZ_BUILD_EXTENSION = 1;
 
-  passthru.optional-dependencies = {
-    full = [ numpy ];
+  optional-dependencies = {
+    all = [ numpy ];
   };
 
   preCheck = ''
@@ -74,11 +70,6 @@ buildPythonPackage rec {
     pytestCheckHook
   ];
 
-  disabledTests = lib.optionals (stdenv.isDarwin && stdenv.isx86_64) [
-    # segfaults
-    "test_cdist"
-  ];
-
   pythonImportsCheck = [
     "rapidfuzz.distance"
     "rapidfuzz.fuzz"
@@ -86,11 +77,11 @@ buildPythonPackage rec {
     "rapidfuzz.utils"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Rapid fuzzy string matching";
-    homepage = "https://github.com/maxbachmann/RapidFuzz";
-    changelog = "https://github.com/maxbachmann/RapidFuzz/blob/${src.rev}/CHANGELOG.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ dotlambda ];
+    homepage = "https://github.com/rapidfuzz/RapidFuzz";
+    changelog = "https://github.com/rapidfuzz/RapidFuzz/blob/${finalAttrs.src.tag}/CHANGELOG.rst";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ dotlambda ];
   };
-}
+})

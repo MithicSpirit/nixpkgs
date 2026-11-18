@@ -4,6 +4,7 @@
   fetchPypi,
   libcap,
   pytestCheckHook,
+  distutils,
 }:
 
 buildPythonPackage rec {
@@ -13,12 +14,22 @@ buildPythonPackage rec {
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "b4ca9a25a7d4f1ace4fffd1f3a2e64ef5208fe05f929f3edd5e27081ca7e67ce";
+    hash = "sha256-tMqaJafU8azk//0fOi5k71II/gX5KfPt1eJwgcp+Z84=";
   };
 
   buildInputs = [ libcap ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  nativeCheckInputs = [
+    distutils
+    pytestCheckHook
+  ];
+
+  postPatch = ''
+    substituteInPlace test_prctl.py \
+      --replace-fail \
+        'sys.version[0:3]' \
+        '"cpython-%d%d" % (sys.version_info.major, sys.version_info.minor)'
+  '';
 
   disabledTests = [
     # Intel MPX support was removed in GCC 9.1 & Linux kernel 5.6
@@ -40,6 +51,5 @@ buildPythonPackage rec {
     homepage = "https://github.com/seveas/python-prctl";
     license = lib.licenses.gpl3;
     platforms = lib.platforms.linux;
-    maintainers = with lib.maintainers; [ catern ];
   };
 }

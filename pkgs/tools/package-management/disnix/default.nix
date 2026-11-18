@@ -1,11 +1,24 @@
-{ lib, stdenv, fetchurl, fetchpatch, pkg-config, glib, libxml2, libxslt, getopt, dysnomia, libintl, libiconv }:
+{
+  lib,
+  stdenv,
+  fetchurl,
+  fetchpatch,
+  pkg-config,
+  glib,
+  libxml2,
+  libxslt,
+  getopt,
+  dysnomia,
+  libintl,
+  libiconv,
+}:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "disnix";
   version = "0.10.2";
 
   src = fetchurl {
-    url = "https://github.com/svanderburg/disnix/releases/download/${pname}-${version}/${pname}-${version}.tar.gz";
+    url = "https://github.com/svanderburg/disnix/releases/download/disnix-${finalAttrs.version}/disnix-${finalAttrs.version}.tar.gz";
     sha256 = "0mc0wy8fca60w0d56cljq2cw1xigbp2dklb43fxa5xph94j3i49a";
   };
 
@@ -20,12 +33,22 @@ stdenv.mkDerivation rec {
   ];
 
   nativeBuildInputs = [ pkg-config ];
-  buildInputs = [ glib libxml2 libxslt getopt libintl libiconv dysnomia ];
+  buildInputs = [
+    glib
+    libxml2
+    libxslt
+    getopt
+    libintl
+    libiconv
+    dysnomia
+  ];
 
   meta = {
     description = "Nix-based distributed service deployment tool";
     license = lib.licenses.lgpl21Plus;
-    maintainers = with lib.maintainers; [ sander tomberek ];
+    maintainers = with lib.maintainers; [
+      tomberek
+    ];
     platforms = lib.platforms.unix;
   };
-}
+})

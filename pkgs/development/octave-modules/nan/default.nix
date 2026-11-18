@@ -1,7 +1,8 @@
-{ buildOctavePackage
-, lib
-, fetchurl
-, blas
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
+  blas,
 }:
 
 buildOctavePackage rec {
@@ -10,17 +11,17 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "sha256-d9J6BfNFeM5LtMqth0boSPd9giYU42KBnxrsUCmKK1s=";
+    hash = "sha256-d9J6BfNFeM5LtMqth0boSPd9giYU42KBnxrsUCmKK1s=";
   };
 
   buildInputs = [
     blas
   ];
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/nan/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/nan/";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Statistics and machine learning toolbox for data with and w/o missing values";
   };
 }

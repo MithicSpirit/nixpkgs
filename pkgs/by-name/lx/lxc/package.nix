@@ -2,6 +2,9 @@
   lib,
   stdenv,
   fetchFromGitHub,
+  fetchpatch,
+
+  bashInteractive,
   dbus,
   docbook2x,
   libapparmor,
@@ -14,18 +17,19 @@
   openssl,
   pkg-config,
   systemd,
+
   nix-update-script,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "lxc";
-  version = "6.0.1";
+  version = "7.0.0";
 
   src = fetchFromGitHub {
     owner = "lxc";
     repo = "lxc";
-    rev = "refs/tags/v${finalAttrs.version}";
-    hash = "sha256-fJMNdMXlV1z9q1pMDh046tNmLDuK6zh6uPahTWzWMvc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-eB68l7SmVxJViGmVlVtEXVD+cRtr4WqOrA8b9ImQ89g=";
   };
 
   nativeBuildInputs = [
@@ -36,6 +40,8 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
+    # some hooks use compgen
+    bashInteractive
     dbus
     libapparmor
     libcap
@@ -52,6 +58,22 @@ stdenv.mkDerivation (finalAttrs: {
     # Fix hardcoded path of lxc-user-nic
     # This is needed to use unprivileged containers
     ./user-nic.diff
+
+    # CVE-2026-100395, GHSA-r23j-58gg-pjjc: lxc-copy followed symlinks while
+    # rewriting /etc/hostname in a cloned rootfs. Backported from git until a
+    # release containing the fix is available.
+    (fetchpatch {
+      name = "CVE-2026-100395-1-hostname-open.patch";
+      url = "https://github.com/lxc/lxc/commit/6424a91a55efc54edc25ca46e9165bd9f35b50b7.patch";
+      hash = "sha256-trkFDYxKO4g/7KH4PEwvjDS2+aKja4MXI5xrfXbWFT4=";
+    })
+
+    # follow-up to the same fix: keep fopen()'s truncation behavior
+    (fetchpatch {
+      name = "CVE-2026-100395-2-hostname-truncate.patch";
+      url = "https://github.com/lxc/lxc/commit/fa12709a79c2b63b3918297d7505108fcc840eb6.patch";
+      hash = "sha256-r0vEyUwG2NTiRzlVoSady2rro2S8wsF3AJnZEGIx7Ik=";
+    })
   ];
 
   mesonFlags = [
@@ -85,22 +107,16 @@ stdenv.mkDerivation (finalAttrs: {
 
   passthru = {
     tests = {
-      incus-legacy-init = nixosTests.incus.container-legacy-init;
-      incus-systemd-init = nixosTests.incus.container-systemd-init;
+      incus-lts = nixosTests.incus-lts.container;
       lxc = nixosTests.lxc;
-      lxd = nixosTests.lxd.container;
     };
 
-    updateScript = nix-update-script {
-      extraArgs = [
-        "--version-regex"
-        "v(6.0.*)"
-      ];
-    };
+    updateScript = nix-update-script { };
   };
 
   meta = {
-    homepage = "https://linuxcontainers.org/";
+    homepage = "https://linuxcontainers.org/lxc/";
+    changelog = "https://github.com/lxc/lxc/releases/tag/v${finalAttrs.version}";
     description = "Userspace tools for Linux Containers, a lightweight virtualization system";
     license = lib.licenses.gpl2;
 
@@ -111,6 +127,6 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
     platforms = lib.platforms.linux;
-    maintainers = lib.teams.lxc.members;
+    teams = [ lib.teams.lxc ];
   };
 })

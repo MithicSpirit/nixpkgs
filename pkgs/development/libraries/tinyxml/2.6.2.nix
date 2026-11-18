@@ -1,15 +1,22 @@
-{ lib, stdenv, fetchurl, fetchpatch, unzip }:
+{
+  lib,
+  stdenv,
+  fetchurl,
+  fetchpatch,
+  unzip,
+}:
 
 let
   version = "2.6.2";
   SHLIB_EXT = stdenv.hostPlatform.extensions.sharedLibrary;
-in stdenv.mkDerivation {
+in
+stdenv.mkDerivation {
   pname = "tinyxml";
   inherit version;
 
   src = fetchurl {
     url = "mirror://sourceforge/project/tinyxml/tinyxml/${version}/tinyxml_2_6_2.zip";
-    sha256 = "04nmw6im2d1xp12yir8va93xns5iz816pwi25n9cql3g3i8bjsxc";
+    hash = "sha256-rGu5UBxvUMySLSLyawL6sWjbR1Ib5ehFuD00UaPh1RI=";
   };
 
   patches = [
@@ -38,8 +45,7 @@ in stdenv.mkDerivation {
 
   hardeningDisable = [ "format" ];
 
-  env.NIX_CFLAGS_COMPILE =
-    lib.optionalString stdenv.isDarwin "-mmacosx-version-min=10.9";
+  env.NIX_CFLAGS_COMPILE = lib.optionalString stdenv.hostPlatform.isDarwin "-mmacosx-version-min=10.9";
 
   nativeBuildInputs = [ unzip ];
   buildPhase = ''
@@ -78,13 +84,14 @@ in stdenv.mkDerivation {
     cp -v tinyxml.pc $out/lib/pkgconfig/
 
     cp -v docs/* $out/share/doc/tinyxml/
-  '' + lib.optionalString stdenv.isDarwin ''
+  ''
+  + lib.optionalString stdenv.hostPlatform.isDarwin ''
     install_name_tool -id $out/lib/libtinyxml.dylib $out/lib/libtinyxml.dylib
   '';
 
   meta = {
     description = "Simple, small, C++ XML parser that can be easily integrating into other programs";
-    homepage = "http://www.grinninglizard.com/tinyxml/index.html";
+    homepage = "https://sourceforge.net/projects/tinyxml/";
     license = lib.licenses.zlib;
     platforms = lib.platforms.unix;
   };

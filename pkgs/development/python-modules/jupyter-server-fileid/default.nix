@@ -1,36 +1,37 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
   hatchling,
   jupyter-events,
   jupyter-server,
+  click,
   pytest-jupyter,
   pytestCheckHook,
 }:
 
 buildPythonPackage rec {
   pname = "jupyter-server-fileid";
-  version = "0.9.2";
-
-  disables = pythonOlder "3.7";
-
-  format = "pyproject";
+  version = "0.10.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "jupyter-server";
     repo = "jupyter_server_fileid";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-ApCDBVjJqpkC5FGEjU/LxwWBunTkL6i5Ki85M6MMLE0=";
+    tag = "v${version}";
+    hash = "sha256-Kt8CGO09NKTs7I5QJjzRdjeFJ1OJNwEQH2/2lPLPhUA=";
   };
 
-  nativeBuildInputs = [ hatchling ];
+  build-system = [ hatchling ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     jupyter-events
     jupyter-server
   ];
+
+  optional-dependencies = {
+    cli = [ click ];
+  };
 
   pythonImportsCheck = [ "jupyter_server_fileid" ];
 

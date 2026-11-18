@@ -1,25 +1,27 @@
-{ stdenv
-, lib
-, fetchFromGitHub
-, wrapGAppsHook3
-, python3
-, gobject-introspection
-, gsettings-desktop-schemas
-, gettext
-, gtk3
-, glib
-, common-licenses
+{
+  stdenv,
+  lib,
+  fetchFromGitHub,
+  wrapGAppsHook3,
+  python3,
+  gobject-introspection,
+  gsettings-desktop-schemas,
+  gettext,
+  gtk3,
+  glib,
+  xapp,
+  xapp-symbolic-icons,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "bulky";
-  version = "3.4";
+  version = "4.3";
 
   src = fetchFromGitHub {
     owner = "linuxmint";
     repo = "bulky";
-    rev = version;
-    hash = "sha256-YByzRDL/LuI/VwBHLRZ3+S2VnttYeuMgJpRLPhR/NCA=";
+    tag = finalAttrs.version;
+    hash = "sha256-tEOB5K++yeDpGuV/HMVfB5XKq0O9U4OuaP3dsj2s2/Q=";
   };
 
   nativeBuildInputs = [
@@ -30,18 +32,25 @@ stdenv.mkDerivation rec {
   ];
 
   buildInputs = [
-    (python3.withPackages (p: with p; [ pygobject3 magic setproctitle ]))
+    (python3.withPackages (
+      p: with p; [
+        pygobject3
+        python-xapp
+        setproctitle
+        unidecode
+      ]
+    ))
     gsettings-desktop-schemas
     gtk3
     glib
+    xapp
   ];
 
   postPatch = ''
     substituteInPlace usr/lib/bulky/bulky.py \
-                     --replace "/usr/share/locale" "$out/share/locale" \
-                     --replace /usr/share/bulky "$out/share/bulky" \
-                     --replace /usr/share/common-licenses "${common-licenses}/share/common-licenses" \
-                     --replace __DEB_VERSION__  "${version}"
+      --replace-fail "/usr/share/locale" "$out/share/locale" \
+      --replace-fail /usr/share/bulky "$out/share/bulky" \
+      --replace-fail __DEB_VERSION__  "${finalAttrs.version}"
   '';
 
   installPhase = ''
@@ -56,12 +65,18 @@ stdenv.mkDerivation rec {
     glib-compile-schemas $out/share/glib-2.0/schemas
   '';
 
-  meta = with lib; {
+  preFixup = ''
+    gappsWrapperArgs+=(
+      --prefix XDG_DATA_DIRS : ${lib.makeSearchPath "share" [ xapp-symbolic-icons ]}
+    )
+  '';
+
+  meta = {
     description = "Bulk rename app";
     mainProgram = "bulky";
     homepage = "https://github.com/linuxmint/bulky";
-    license = licenses.gpl3Plus;
-    platforms = platforms.linux;
-    maintainers = teams.cinnamon.members;
+    license = lib.licenses.gpl3Plus;
+    platforms = lib.platforms.linux;
+    teams = [ lib.teams.cinnamon ];
   };
-}
+})

@@ -1,28 +1,55 @@
-{ lib
-, fetchFromGitHub
-, stdenv
-, wayland-scanner
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  wayland-scanner,
+  nix-update-script,
+  nixosTests,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   pname = "cosmic-protocols";
-  version = "0-unstable-2024-07-31";
+  version = "0-unstable-2026-11-09";
 
   src = fetchFromGitHub {
     owner = "pop-os";
-    repo = pname;
-    rev = "de2fead49d6af3a221db153642e4d7c2235aafc4";
-    hash = "sha256-qgo8FMKo/uCbhUjfykRRN8KSavbyhZpu82M8npLcIPI=";
+    repo = "cosmic-protocols";
+    rev = "815b2c5df84a4a82eb8fb505343f8ebde6aefc38";
+    hash = "sha256-5BEUK/+RwSk6X3/4NRY91Ef1b/vZ0nk0oObN0Y1ylz0=";
   };
 
-  makeFlags = [ "PREFIX=${placeholder "out"}" ];
+  __structuredAttrs = true;
+  strictDeps = true;
+
   nativeBuildInputs = [ wayland-scanner ];
 
-  meta = with lib; {
+  makeFlags = [ "PREFIX=${placeholder "out"}" ];
+
+  passthru = {
+    tests = {
+      inherit (nixosTests)
+        cosmic
+        cosmic-autologin
+        cosmic-noxwayland
+        cosmic-autologin-noxwayland
+        ;
+    };
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version"
+        "branch=HEAD"
+      ];
+    };
+  };
+
+  meta = {
     homepage = "https://github.com/pop-os/cosmic-protocols";
     description = "Additional wayland-protocols used by the COSMIC desktop environment";
-    license = [ licenses.mit licenses.gpl3Only ];
-    maintainers = with maintainers; [ nyanbinary ];
-    platforms = platforms.linux;
+    license = with lib.licenses; [
+      mit
+      gpl3Only
+    ];
+    teams = [ lib.teams.cosmic ];
+    platforms = lib.platforms.linux;
   };
 }

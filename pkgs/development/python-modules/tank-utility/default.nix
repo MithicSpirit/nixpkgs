@@ -4,30 +4,27 @@
   fetchFromGitHub,
   mock,
   pytestCheckHook,
-  pythonOlder,
   requests,
   responses,
-  setuptools,
+  setuptools_80,
   urllib3,
 }:
 
 buildPythonPackage rec {
   pname = "tank-utility";
-  version = "1.5.0";
+  version = "1.5.3";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "krismolendyke";
-    repo = pname;
-    rev = "refs/tags/${version}";
-    hash = "sha256-h9y3X+FSzSFt+bd/chz+x0nocHaKZ8DvreMxAYMs8/E=";
+    repo = "tank-utility";
+    tag = version;
+    hash = "sha256-W30gkik7eigHM5hB3wIr4pSZEkmjbKbuVq2yMW8Xkfg=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools_80 ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     requests
     urllib3
   ];
@@ -40,12 +37,12 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "tank_utility" ];
 
-  meta = with lib; {
+  meta = {
     description = "Library for the Tank Utility API";
     mainProgram = "tank-utility";
     homepage = "https://github.com/krismolendyke/tank-utility";
     changelog = "https://github.com/krismolendyke/tank-utility/blob/${version}/HISTORY.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

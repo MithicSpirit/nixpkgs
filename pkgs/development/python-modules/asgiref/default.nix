@@ -5,42 +5,42 @@
   fetchFromGitHub,
   pytest-asyncio,
   pytestCheckHook,
-  pythonOlder,
+  setuptools,
   typing-extensions,
 }:
 
-buildPythonPackage rec {
-  version = "3.8.1";
+buildPythonPackage (finalAttrs: {
+  version = "3.13.0";
   pname = "asgiref";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "django";
     repo = "asgiref";
-    rev = "refs/tags/${version}";
-    hash = "sha256-xepMbxglBpHL7mnJYlnvNUgixrFwf/Tc6b1zL4Wy+to=";
+    tag = finalAttrs.version;
+    hash = "sha256-Qsg0PwD6XYZkcBIcnwEjPC+2fCro35MQyXMPWm64014=";
   };
 
-  propagatedBuildInputs = [ typing-extensions ];
+  build-system = [ setuptools ];
+
+  dependencies = [ typing-extensions ];
 
   nativeCheckInputs = [
     pytestCheckHook
     pytest-asyncio
   ];
 
-  disabledTests = lib.optionals stdenv.isDarwin [ "test_multiprocessing" ];
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [ "test_multiprocessing" ];
 
   __darwinAllowLocalNetworking = true;
 
   pythonImportsCheck = [ "asgiref" ];
 
-  meta = with lib; {
-    changelog = "https://github.com/django/asgiref/blob/${src.rev}/CHANGELOG.txt";
+  meta = {
+    changelog = "https://github.com/django/asgiref/blob/${finalAttrs.src.tag}/CHANGELOG.txt";
     description = "Reference ASGI adapters and channel layers";
     homepage = "https://github.com/django/asgiref";
-    license = licenses.bsd3;
-    maintainers = [ ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ miniharinn ];
   };
-}
+})

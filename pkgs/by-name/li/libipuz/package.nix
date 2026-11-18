@@ -1,42 +1,70 @@
-{ lib
-, stdenv
-, fetchFromGitLab
-, meson
-, ninja
-, pkg-config
-, glib
-, json-glib
+{
+  lib,
+  stdenv,
+  cargo,
+  fetchFromGitLab,
+  gi-docgen,
+  gobject-introspection,
+  json-glib,
+  meson,
+  ninja,
+  nix-update-script,
+  pkg-config,
+  rustPlatform,
 }:
-
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "libipuz";
-  version = "0.4.5";
+  version = "0.5.6";
+
+  strictDeps = true;
+  __structuredAttrs = true;
 
   src = fetchFromGitLab {
     domain = "gitlab.gnome.org";
     owner = "jrb";
     repo = "libipuz";
-    rev = version;
-    hash = "sha256-psC2cFqSTlToCtCxwosXyJbmX/96AEI0xqzXtlc/HQE=";
+    rev = finalAttrs.version;
+    hash = "sha256-5V4tbJuDgZ7HLXCnhYvFk2DnWa7ZGUr9WcthGwLjxmU=";
+  };
+
+  cargoRoot = "libipuz/rust";
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs)
+      pname
+      src
+      version
+      cargoRoot
+      ;
+    hash = "sha256-mkhjtgLt5lIuj32QmMcb5/TQZCai7mwLkXvTRcjO/+g=";
   };
 
   nativeBuildInputs = [
+    cargo
+    gi-docgen
+    gobject-introspection
     meson
     ninja
     pkg-config
-    glib
+    rustPlatform.cargoSetupHook
   ];
 
   buildInputs = [
-    glib
+    gi-docgen
     json-glib
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Library for parsing .ipuz puzzle files";
     homepage = "https://gitlab.gnome.org/jrb/libipuz";
-    license = licenses.lgpl21Plus;
-    maintainers = with maintainers; [ aleksana ];
-    platforms = platforms.unix;
+    changelog = "https://gitlab.gnome.org/jrb/libipuz/-/blob/${finalAttrs.version}/NEWS.md?ref_type=tags";
+    license = with lib.licenses; [
+      lgpl21Plus
+      mit
+    ];
+    maintainers = with lib.maintainers; [
+      aleksana
+      l0b0
+    ];
+    platforms = lib.platforms.unix;
   };
-}
+})

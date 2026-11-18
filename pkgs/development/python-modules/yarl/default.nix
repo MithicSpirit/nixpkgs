@@ -1,45 +1,44 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  pythonOlder,
+  fetchFromGitHub,
   cython,
   expandvars,
   setuptools,
   idna,
   multidict,
-  typing-extensions,
+  propcache,
+  hypothesis,
+  pydantic,
+  pytest-codspeed,
+  pytest-cov-stub,
   pytest-xdist,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "yarl";
-  version = "1.9.4";
-
-  disabled = pythonOlder "3.7";
-
+  version = "1.25.1";
   pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-Vm24ZxfPgIC5m1iwg7dzqQiuQPBmgeh+WJqXb6+CRr8=";
+  src = fetchFromGitHub {
+    owner = "aio-libs";
+    repo = "yarl";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-cQsVglP3OqaQW95OYPlbWCFTs5p6L5wOzx7QCIqqJ9U=";
   };
 
-  postPatch = ''
-    sed -i '/cov/d' pytest.ini
-  '';
-
-  nativeBuildInputs = [
+  build-system = [
     cython
     expandvars
     setuptools
   ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     idna
     multidict
-  ] ++ lib.optionals (pythonOlder "3.8") [ typing-extensions ];
+    propcache
+  ];
 
   preCheck = ''
     # don't import yarl from ./ so the C extension is available
@@ -47,6 +46,10 @@ buildPythonPackage rec {
   '';
 
   nativeCheckInputs = [
+    hypothesis
+    pydantic
+    pytest-codspeed
+    pytest-cov-stub
     pytest-xdist
     pytestCheckHook
   ];
@@ -57,11 +60,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "yarl" ];
 
-  meta = with lib; {
-    changelog = "https://github.com/aio-libs/yarl/blob/v${version}/CHANGES.rst";
+  meta = {
+    changelog = "https://github.com/aio-libs/yarl/blob/${finalAttrs.src.tag}/CHANGES.rst";
     description = "Yet another URL library";
     homepage = "https://github.com/aio-libs/yarl";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ dotlambda ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ dotlambda ];
   };
-}
+})

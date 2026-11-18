@@ -1,51 +1,64 @@
 {
   lib,
+  aioesphomeapi,
+  bleak,
   buildPythonPackage,
   callPackage,
   fetchFromGitHub,
-  pytest,
+  hypothesis,
   pythonOlder,
+  pytest,
+  pytestCheckHook,
   setuptools-scm,
+  typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pytest-asyncio";
-  version = "0.23.8"; # N.B.: when updating, tests bleak and aioesphomeapi tests
+  version = "1.4.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "pytest-dev";
     repo = "pytest-asyncio";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-kMv0crYuYHi1LF+VlXizZkG87kSL7xzsKq9tP9LgFVY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-gXBxFf+DcSTufQxSCZmLWdBKOM5ZtL9OEehp05hS5hc=";
   };
-
-  outputs = [
-    "out"
-    "testout"
-  ];
 
   build-system = [ setuptools-scm ];
 
+  pythonRelaxDeps = [ "pytest" ];
+
   buildInputs = [ pytest ];
 
-  postInstall = ''
-    mkdir $testout
-    cp -R tests $testout/tests
-  '';
+  dependencies = lib.optionals (pythonOlder "3.13") [
+    typing-extensions
+  ];
 
   doCheck = false;
-  passthru.tests.pytest = callPackage ./tests.nix { };
+  passthru = {
+    # bulk updater uses wrong tag
+    skipBulkUpdate = true;
+    tests = {
+      inherit aioesphomeapi bleak;
+      pytest = finalAttrs.finalPackage.overrideAttrs {
+        doInstallCheck = true;
+      };
+    };
+  };
+
+  nativeCheckInputs = [
+    hypothesis
+    pytestCheckHook
+  ];
 
   pythonImportsCheck = [ "pytest_asyncio" ];
 
-  meta = with lib; {
+  meta = {
     description = "Library for testing asyncio code with pytest";
     homepage = "https://github.com/pytest-dev/pytest-asyncio";
-    changelog = "https://github.com/pytest-dev/pytest-asyncio/blob/v${version}/docs/source/reference/changelog.rst";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ dotlambda ];
+    changelog = "https://github.com/pytest-dev/pytest-asyncio/blob/${finalAttrs.src.tag}/docs/reference/changelog.rst";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ dotlambda ];
   };
-}
+})

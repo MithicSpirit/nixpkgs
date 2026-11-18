@@ -1,6 +1,8 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  ccloader,
 }:
 
 let
@@ -17,12 +19,7 @@ rustPlatform.buildRustPackage {
   pname = "libcoldclear";
   version = "0.1.0";
 
-  src = fetchFromGitHub {
-    owner = "26F-Studio";
-    repo = "cold-clear";
-    rev = "1564ce9ad14aa60f32bf9a5120594933b3501548";
-    hash = "sha256-6fZpKHEJ0dsOTp755GLnxa/befCUJhjqA3Zna5UkKVo=";
-  };
+  src = "${ccloader.src}/cold-clear";
 
   # remove workspace cargo.toml so we don't load all of workspace's deps
   postPatch = ''
@@ -45,10 +42,10 @@ rustPlatform.buildRustPackage {
     cp coldclear.h $out/include
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Tetris AI";
     homepage = "https://github.com/26F-Studio/cold-clear";
-    license = licenses.mpl20;
-    maintainers = with maintainers; [ chayleaf ];
+    license = lib.licenses.mpl20;
+    maintainers = with lib.maintainers; [ chayleaf ];
   };
 }

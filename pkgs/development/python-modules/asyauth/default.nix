@@ -5,23 +5,23 @@
   buildPythonPackage,
   fetchPypi,
   minikerberos,
-  pythonOlder,
+  setuptools,
   unicrypto,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "asyauth";
-  version = "0.0.20";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  version = "0.0.24";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-QQVgIPdonPXwpVl1nH8Cps4nGb2oTfeDvRBY1XgeUUs=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-/Z+BrLpBSBxl0wXFfZ4Xv8ydbUWZ1uWV2RImRUtvGx0=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     asn1crypto
     asysocks
     minikerberos
@@ -33,11 +33,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "asyauth" ];
 
-  meta = with lib; {
+  meta = {
     description = "Unified authentication library";
     homepage = "https://github.com/skelsec/asyauth";
-    changelog = "https://github.com/skelsec/asyauth/releases/tag/${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/skelsec/asyauth/releases/tag/${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

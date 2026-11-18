@@ -2,25 +2,26 @@
   lib,
   buildPythonPackage,
   fetchPypi,
-  pythonOlder,
+  setuptools,
   redis,
   requests,
   urllib3,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "spotipy";
-  version = "2.24.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.8";
+  version = "2.26.0";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-OWr4HmQghlUa8VcnDN/nQsFzlAWHG6nawfplG4ZJ7w0=";
+    pname = "spotipy";
+    inherit (finalAttrs) version;
+    hash = "sha256-32ol2CCQcu+ozqFlYI7mRIhOOAT4dittjgbKGlx/imM=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     redis
     requests
     urllib3
@@ -34,11 +35,11 @@ buildPythonPackage rec {
     "spotipy.oauth2"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Library for the Spotify Web API";
     homepage = "https://spotipy.readthedocs.org/";
-    changelog = "https://github.com/plamere/spotipy/blob/${version}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ rvolosatovs ];
+    changelog = "https://github.com/plamere/spotipy/blob/${finalAttrs.version}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ rvolosatovs ];
   };
-}
+})

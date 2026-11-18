@@ -1,8 +1,9 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   betamax,
+  fixtures,
   hacking,
   iso8601,
   lxml,
@@ -10,76 +11,85 @@
   os-service-types,
   oslo-config,
   oslo-utils,
-  pbr,
   pycodestyle,
   pyyaml,
   requests,
   requests-kerberos,
   requests-mock,
   setuptools,
-  six,
-  stestr,
+  stestrCheckHook,
   stevedore,
   testresources,
   testtools,
+  typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "keystoneauth1";
-  version = "5.8.0";
+  version = "5.18.1";
   pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-MVfCEuEhFk3mTWPl734dqtK9NkmmjeHpcbdodwGe8cQ=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "keystoneauth";
+    tag = finalAttrs.version;
+    hash = "sha256-a9A7tz8l+onST/PJsYCZpiI0WRtJtD4cUf6TazE+Bi0=";
   };
 
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
+
   postPatch = ''
-    # only a small portion of the listed packages are actually needed for running the tests
-    # so instead of removing them one by one remove everything
-    rm test-requirements.txt
+    # pbr needs git to ship subpackages and package data
+    echo "recursive-include keystoneauth1 *" > MANIFEST.in
   '';
 
   build-system = [ setuptools ];
 
   dependencies = [
-    betamax
     iso8601
-    lxml
-    oauthlib
     os-service-types
-    pbr
     requests
-    requests-kerberos
-    six
     stevedore
-  ];
+    typing-extensions
+  ]
+  # TODO: remove this workaround and fix breakages
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
+
+  optional-dependencies = {
+    betamax = [
+      betamax
+      pyyaml
+    ];
+    kerberos = [ requests-kerberos ];
+    oauth1 = [ oauthlib ];
+    saml2 = [ lxml ];
+  };
+
+  __darwinAllowLocalNetworking = true;
 
   nativeCheckInputs = [
+    fixtures
     hacking
     oslo-config
     oslo-utils
     pycodestyle
-    pyyaml
     requests-mock
-    stestr
+    stestrCheckHook
     testresources
     testtools
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
+
+  pythonImportsCheck = [
+    "keystoneauth1"
+    "keystoneauth1.exceptions"
   ];
 
-  # test_keystoneauth_betamax_fixture is incompatible with urllib3 2.0.0
-  # https://bugs.launchpad.net/keystoneauth/+bug/2020112
-  checkPhase = ''
-    stestr run \
-      -E "keystoneauth1.tests.unit.test_betamax_fixture.TestBetamaxFixture.test_keystoneauth_betamax_fixture"
-  '';
-
-  pythonImportsCheck = [ "keystoneauth1" ];
-
-  meta = with lib; {
+  meta = {
     description = "Authentication Library for OpenStack Identity";
     homepage = "https://github.com/openstack/keystoneauth";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

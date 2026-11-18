@@ -4,8 +4,13 @@
   pythonAtLeast,
   fetchFromGitHub,
 
+  # build-system
+  setuptools,
+
   # propagates
+  distutils,
   pyyaml,
+  standard-pipes,
 
   # optionals
   boto3,
@@ -23,23 +28,29 @@
   warcio,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "mrjob";
   version = "0.7.4";
-
-  # https://github.com/Yelp/mrjob/issues/2222
-  disabled = pythonAtLeast "3.12";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "Yelp";
     repo = "mrjob";
-    rev = "refs/tags/v${version}";
+    tag = "v${finalAttrs.version}";
     hash = "sha256-Yp4yUx6tkyGB622I9y+AWK2AkIDVGKQPMM+LtB/M3uo=";
   };
 
-  propagatedBuildInputs = [ pyyaml ];
+  build-system = [
+    setuptools
+  ];
 
-  passthru.optional-dependencies = {
+  dependencies = [
+    distutils
+    pyyaml
+    standard-pipes
+  ];
+
+  optional-dependencies = {
     aws = [
       boto3
       botocore
@@ -60,15 +71,16 @@ buildPythonPackage rec {
     pyspark
     unittestCheckHook
     warcio
-  ] ++ lib.flatten (builtins.attrValues passthru.optional-dependencies);
+  ]
+  ++ lib.concatAttrValues finalAttrs.finalPackage.passthru.optional-dependencies;
 
-  unittestFlagsArray = [ "-v" ];
+  unittestFlags = [ "-v" ];
 
-  meta = with lib; {
-    changelog = "https://github.com/Yelp/mrjob/blob/v${version}/CHANGES.txt";
+  meta = {
+    changelog = "https://github.com/Yelp/mrjob/blob/v${finalAttrs.version}/CHANGES.txt";
     description = "Run MapReduce jobs on Hadoop or Amazon Web Services";
     homepage = "https://github.com/Yelp/mrjob";
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
     maintainers = [ ];
   };
-}
+})

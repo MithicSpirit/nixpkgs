@@ -1,32 +1,37 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   keystoneauth1,
   openssl,
   oslo-config,
   oslo-serialization,
   pbr,
-  pythonOlder,
   requests-mock,
-  stestr,
+  setuptools,
+  stestrCheckHook,
   testresources,
   testscenarios,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-keystoneclient";
-  version = "5.4.0";
-  format = "setuptools";
+  version = "6.0.0";
+  pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-srS9vp2vews1O4gHZy7u0B+H3QO0+LQtDQYbCbiTH0E=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "python-keystoneclient";
+    tag = finalAttrs.version;
+    hash = "sha256-sUul9gleUEO+0uRdogti9QgmrZY4W6w/BUkIiAr1uK4=";
   };
 
-  propagatedBuildInputs = [
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
+
+  build-system = [ setuptools ];
+
+  dependencies = [
     keystoneauth1
     oslo-config
     oslo-serialization
@@ -36,21 +41,17 @@ buildPythonPackage rec {
   nativeCheckInputs = [
     openssl
     requests-mock
-    stestr
+    stestrCheckHook
     testresources
     testscenarios
   ];
 
-  checkPhase = ''
-    stestr run
-  '';
-
   pythonImportsCheck = [ "keystoneclient" ];
 
-  meta = with lib; {
+  meta = {
     description = "Client Library for OpenStack Identity";
     homepage = "https://github.com/openstack/python-keystoneclient";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

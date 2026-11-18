@@ -1,8 +1,9 @@
-{ lib
-, stdenv
-, callPackage
-, autoPatchelfHook
-, src
+{
+  lib,
+  stdenv,
+  callPackage,
+  autoPatchelfHook,
+  src,
 }:
 
 (stdenv.mkDerivation {
@@ -11,16 +12,21 @@
 
   nativeBuildInputs = lib.optional stdenv.hostPlatform.isLinux autoPatchelfHook;
 
+  autoPatchelfFlags = [ "--preserve-origin" ];
+
   installPhase = ''
     runHook preInstall
 
-    mkdir -p "$out/bin"
-    cp -r . "$out/bin/cache"
+    mkdir --parents "$out/bin"
+    cp --recursive . "$out/bin/cache"
+    rm --force "$out/bin/cache/flutter.version.json"
 
     runHook postInstall
   '';
-}).overrideAttrs (
-  if builtins.pathExists (./overrides + "/${src.flutterPlatform}.nix")
-  then callPackage (./overrides + "/${src.flutterPlatform}.nix") { }
-  else ({ ... }: { })
-)
+}).overrideAttrs
+  (
+    if builtins.pathExists (./overrides + "/${src.flutterPlatform}.nix") then
+      callPackage (./overrides + "/${src.flutterPlatform}.nix") { }
+    else
+      ({ ... }: { })
+  )

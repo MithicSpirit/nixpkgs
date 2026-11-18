@@ -2,7 +2,9 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  isPy27,
+
+  # build system
+  setuptools,
 
   # propagates:
   requests,
@@ -17,30 +19,32 @@
   py3rijndael,
 
   # tests
+  aiointercept,
   aioresponses,
   pytest-asyncio,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "samsungtvws";
-  version = "2.6.0";
-  format = "setuptools";
-  disabled = isPy27;
+  version = "3.0.7";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "xchwarze";
     repo = "samsung-tv-ws-api";
-    rev = "v${version}";
-    hash = "sha256-mkjfimzu7paz+ZskartL052AfUBtL1xU0eOlrHgD1UE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-vME+XCju/4pQTczsxPgs0LJTa4ptWDQlc8jnIKnNMeA=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     requests
     websocket-client
   ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     async = [
       aiohttp
       websockets
@@ -52,18 +56,20 @@ buildPythonPackage rec {
   };
 
   nativeCheckInputs = [
+    aiointercept
     aioresponses
     pytest-asyncio
     pytestCheckHook
-  ] ++ passthru.optional-dependencies.async ++ passthru.optional-dependencies.encrypted;
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
   pythonImportsCheck = [ "samsungtvws" ];
 
-  meta = with lib; {
+  meta = {
     description = "Samsung Smart TV WS API wrapper";
     homepage = "https://github.com/xchwarze/samsung-tv-ws-api";
-    changelog = "https://github.com/xchwarze/samsung-tv-ws-api/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ hexa ];
+    changelog = "https://github.com/xchwarze/samsung-tv-ws-api/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.lgpl3Only;
+    maintainers = with lib.maintainers; [ hexa ];
   };
-}
+})

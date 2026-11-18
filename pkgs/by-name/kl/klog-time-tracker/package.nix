@@ -1,23 +1,27 @@
-{ lib, buildGoModule, fetchFromGitHub }:
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+}:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "klog-time-tracker";
-  version = "6.4";
+  version = "7.2";
 
   src = fetchFromGitHub {
     owner = "jotaen";
     repo = "klog";
-    rev = "v${version}";
-    hash = "sha256-ouWgmSSqGdbZRZRgCoxG4c4fFoJ4Djfmv0JvhBkEQU4=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-qRbANEJLmJplus0Pr7SGQY7cRVxHL5p3B89b0n9LoWE=";
   };
 
-  vendorHash = "sha256-L84eKm1wktClye01JeyF0LOV9A8ip6Fr+/h09VVZ56k=";
+  vendorHash = "sha256-NLlFBupa7Uy2sjIu/RZ3By2IxnekSRIMjJvGBFJB3Xs=";
 
-  meta = with lib; {
+  meta = {
     description = "Command line tool for time tracking in a human-readable, plain-text file format";
     homepage = "https://klog.jotaen.net";
-    license = licenses.mit;
-    maintainers = [ maintainers.blinry ];
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.blinry ];
     mainProgram = "klog";
   };
-}
+})

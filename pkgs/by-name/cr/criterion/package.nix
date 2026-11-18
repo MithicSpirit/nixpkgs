@@ -4,12 +4,12 @@
   fetchFromGitHub,
   boxfort,
   meson,
-  libcsptr,
   pkg-config,
   gettext,
   cmake,
   ninja,
   protobuf,
+  gitMinimal,
   libffi,
   libgit2,
   dyncall,
@@ -18,7 +18,7 @@
   python3Packages,
   testers,
   criterion,
-  callPackage
+  callPackage,
 }:
 
 let
@@ -33,20 +33,22 @@ let
   klib = fetchFromGitHub {
     owner = "attractivechaos";
     repo = "klib";
-    rev = "cdb7e9236dc47abf8da7ebd702cc6f7f21f0c502";
-    hash = "sha256-+GaI5nXz4jYI0rO17xDhNtFpLlGL2WzeSVLMfB6Cl6E=";
+    rev = "97a0fcb790b43b9e5da8994f4671021fec036f19";
+    hash = "sha256-YSN+Vo7Mzf55R2PodDgIwIzkt4BDUVdlet3Xtc21rDI=";
   };
 in
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "criterion";
-  version = "2.4.2";
+  version = "2.5.0";
+
+  __structuredAttrs = true;
+  strictDeps = true;
 
   src = fetchFromGitHub {
     owner = "Snaipe";
     repo = "Criterion";
-    rev = "v${version}";
-    fetchSubmodules = true;
-    hash = "sha256-5GH7AYjrnBnqiSmp28BoaM1Xmy8sPs1atfqJkGy3Yf0=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-vJ2b1bvwcdDgU23DrDfv73sg7nzrF7gF64gi6/4a1VQ=";
   };
 
   nativeBuildInputs = [
@@ -55,13 +57,13 @@ stdenv.mkDerivation rec {
     cmake
     pkg-config
     protobuf
+    gitMinimal
   ];
 
   buildInputs = [
     (lib.getDev boxfort)
     dyncall
     gettext
-    libcsptr
     nanomsg
     nanopbMalloc
     libgit2
@@ -93,19 +95,27 @@ stdenv.mkDerivation rec {
     "dev"
   ];
 
-  passthru.tests.version =
-    let
-      tester = callPackage ./tests/001-version.nix {};
-    in
-    testers.testVersion {
-      package = criterion;
-      command = "${lib.getExe tester} --version";
-      version = "v${version}";
+  passthru.tests = {
+    pkg-config = testers.hasPkgConfigModules {
+      package = finalAttrs.finalPackage;
     };
+    version =
+      let
+        tester = callPackage ./tests/001-version.nix {
+          criterion = finalAttrs.finalPackage;
+        };
+      in
+      testers.testVersion {
+        package = criterion;
+        command = "${lib.getExe tester} --version";
+        version = "v${finalAttrs.version}";
+      };
+  };
 
   meta = {
     description = "Cross-platform C and C++ unit testing framework for the 21th century";
     homepage = "https://github.com/Snaipe/Criterion";
+    pkgConfigModules = [ "criterion" ];
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [
       thesola10
@@ -114,4 +124,4 @@ stdenv.mkDerivation rec {
     ];
     platforms = lib.platforms.unix;
   };
-}
+})

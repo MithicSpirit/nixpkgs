@@ -1,51 +1,79 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, installShellFiles
-, rustPlatform
-, libiconv
-, buildPackages
-, darwin
-, nixosTests
+{
+  lib,
+  bashInteractive,
+  fetchFromGitHub,
+  gitMinimal,
+  installShellFiles,
+  ncurses,
+  nix-update-script,
+  nixosTests,
+  openssl,
+  zstd,
+  sqlite,
+  pkg-config,
+  python3,
+  rustPlatform,
+  stdenv,
+  writableTmpDirAsHomeHook,
+  writeShellScriptBin,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "atuin";
-  version = "18.3.0";
+  version = "18.24.8";
 
   src = fetchFromGitHub {
     owner = "atuinsh";
     repo = "atuin";
-    rev = "v${version}";
-    hash = "sha256-Q3UI1IUD5Jz2O4xj3mFM7DqY3lTy3WhWYPa8QjJHTKE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-JOJ/My4/IaAzSX6NJpFfcf9bAEutuRpbjWx7zS/uzRw=";
   };
 
-  # TODO: unify this to one hash because updater do not support this
-  cargoHash =
-    if stdenv.isLinux
-    then "sha256-K4Vw/d0ZOROWujWr76I3QvfKefLhXLeFufUrgStAyjQ="
-    else "sha256-8NAfE7cGFT64ntNXK9RT0D/MbDJweN7vvsG/KlrY4K4=";
+  cargoHash = "sha256-+ov43XTWhHJj+/c2XTu3GCXExdg3q+PC4AEqOf2Nun4=";
+
+  # crates/atuin-common/src/secrets.rs sets a `REDACT_BUDGET` of 250ms for release builds
+  # and 5s (which we increase to 30s here) for debug builds.
+  # 5s (let alone 250ms) is too short for the tests to pass sometimes, but increasing
+  # the timeout by patching it for release mode would make some things slower at runtime.
+  postPatch = ''
+    substituteInPlace crates/atuin-common/src/secrets.rs \
+      --replace-fail 'Duration::from_secs(5)' 'Duration::from_secs(30)'
+  '';
 
   # atuin's default features include 'check-updates', which do not make sense
   # for distribution builds. List all other default features.
+  # see https://github.com/atuinsh/atuin/blob/main/crates/atuin/Cargo.toml#L42
   buildNoDefaultFeatures = true;
   buildFeatures = [
-    "client" "sync" "server" "clipboard" "daemon"
+    "ai"
+    "client"
+    "clipboard"
+    "daemon"
+    "pty-proxy"
+    "sync"
   ];
 
-  nativeBuildInputs = [ installShellFiles ];
-
-  buildInputs = lib.optionals stdenv.isDarwin [
-    libiconv
-    darwin.apple_sdk_11_0.frameworks.AppKit
-    darwin.apple_sdk_11_0.frameworks.Security
-    darwin.apple_sdk_11_0.frameworks.SystemConfiguration
+  nativeBuildInputs = [
+    installShellFiles
+    pkg-config
   ];
 
-  preBuild = ''
-    export PROTOC=${buildPackages.protobuf}/bin/protoc
-    export PROTOC_INCLUDE="${buildPackages.protobuf}/include";
-  '';
+  buildInputs = [
+    openssl
+    zstd
+    sqlite
+  ];
+
+  # e2e_pty tests drive an interactive bash (needs readline), run `clear`,
+  # and create git repositories for workspace filtering
+  # e2e_ai_sessions tests run a fake hermes that imports sessions with a python3 script.
+  nativeCheckInputs = [
+    bashInteractive
+    gitMinimal
+    ncurses
+    python3
+    writableTmpDirAsHomeHook
+  ];
 
   postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd atuin \
@@ -54,28 +82,62 @@ rustPlatform.buildRustPackage rec {
       --zsh <($out/bin/atuin gen-completions -s zsh)
   '';
 
-  passthru.tests = {
-    inherit (nixosTests) atuin;
-  };
+  # Due to the REDACT_BUDGET issue mentioned above, we need to build the tests in debug mode.
+  checkType = "debug";
+
+  # Many tests are timing-sensitive on Darwin.
+  doCheck = !stdenv.hostPlatform.isDarwin;
 
   checkFlags = [
     # tries to make a network access
     "--skip=registration"
+    "--skip=api_client"
     # No such file or directory (os error 2)
     "--skip=sync"
     # PermissionDenied (Operation not permitted)
     "--skip=change_password"
     "--skip=multi_user_test"
-    "--skip=store::var::tests::build_vars"
-    # Tries to touch files
-    "--skip=build_aliases"
+    # needs a running Postgres server
+    "--skip=postgres_authenticates_with_the_password_file"
+    "--skip=deleting_an_account_needs_its_password"
+    "--skip=operator_creates_resets_and_deletes_a_user"
+    # timing-dependent: fails when the index reload is too fast to measure
+    "--skip=end_history_is_not_starved_by_an_index_reload"
   ];
 
-  meta = with lib; {
+  # The e2e tests start an interactive bash, which sources the host's
+  # /etc/bashrc when the build is not sandboxed (the darwin default).
+  # The nix-darwin config resets PATH, so if the user has atuin installed,
+  # the shell integration runs the system atuin instead of the one currently building
+  # and no output is captured.
+  # The test harness clears the environment before it starts the shell, so
+  # NOSYSBASHRC has to be set by the shell it is given. It must be named bash:
+  # the pty proxy picks the shell integration from the file name.
+  env.ATUIN_E2E_BASH = lib.getExe (
+    writeShellScriptBin "bash" ''
+      NOSYSBASHRC=1 exec ${lib.getExe bashInteractive} "$@"
+    ''
+  );
+
+  __darwinAllowLocalNetworking = true;
+
+  passthru = {
+    tests = {
+      inherit (nixosTests) atuin atuin-programs atuin-default-settings;
+    };
+    updateScript = nix-update-script { };
+  };
+
+  meta = {
     description = "Replacement for a shell history which records additional commands context with optional encrypted synchronization between machines";
     homepage = "https://github.com/atuinsh/atuin";
-    license = licenses.mit;
-    maintainers = with maintainers; [ SuperSandro2000 sciencentistguy _0x4A6F ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      SuperSandro2000
+      sciencentistguy
+      _0x4A6F
+      rvdp
+    ];
     mainProgram = "atuin";
   };
-}
+})

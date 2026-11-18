@@ -1,20 +1,24 @@
-{ build-idris-package
-, fetchFromGitHub
-, contrib
-, effects
-, lib
+{
+  build-idris-package,
+  fetchFromGitHub,
+  contrib,
+  effects,
+  lib,
 }:
-build-idris-package  {
+build-idris-package {
   pname = "hamt";
   version = "2016-11-15";
 
-  idrisDeps = [ contrib effects ];
+  idrisDeps = [
+    contrib
+    effects
+  ];
 
   src = fetchFromGitHub {
     owner = "bamboo";
     repo = "idris-hamt";
     rev = "e70f3eedddb5ccafea8e386762b8421ba63c495a";
-    sha256 = "0m2yjr20dxkfmn3nzc68l6vh0rdaw6b637yijwl4c83b5xiac1mi";
+    hash = "sha256-sQamYi9rIEYol9GfYZbhqmUAt6HIsG+HrW72BkSWXlQ=";
   };
 
   meta = {

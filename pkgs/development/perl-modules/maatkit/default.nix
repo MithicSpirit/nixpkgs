@@ -1,4 +1,9 @@
-{buildPerlPackage, lib, fetchurl, DBDmysql}:
+{
+  buildPerlPackage,
+  lib,
+  fetchurl,
+  DBDmysql,
+}:
 
 buildPerlPackage {
   pname = "maatkit";
@@ -6,12 +11,12 @@ buildPerlPackage {
 
   src = fetchurl {
     url = "https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/maatkit/maatkit-7540.tar.gz";
-    sha256 = "1a7rxrddkrsfxb2wj01ha91ld0vapfkqcy8j9p08l76zz2l8p2v1";
+    hash = "sha256-YYuLqPjfHIrATRJ5hqe7aoNGQ1IwAMnF6k7n2Vru+ag=";
   };
 
   outputs = [ "out" ];
 
-  buildInputs = [ DBDmysql ] ;
+  buildInputs = [ DBDmysql ];
 
   preConfigure = ''
     find . | while read fn; do
@@ -25,9 +30,9 @@ buildPerlPackage {
             fi
         fi
     done
-  '' ;
+  '';
 
-  meta = with lib; {
+  meta = {
     description = "Database toolkit";
     longDescription = ''
       You can use Maatkit to prove replication is working correctly, fix
@@ -37,7 +42,7 @@ buildPerlPackage {
       In addition to MySQL, there is support for PostgreSQL, Memcached, and a
       growing variety of other databases and technologies.
     '';
-    license = licenses.gpl2Plus;
-    homepage = "http://www.maatkit.org/";
+    license = lib.licenses.gpl2Plus;
+    homepage = "https://code.google.com/archive/p/maatkit/";
   };
 }

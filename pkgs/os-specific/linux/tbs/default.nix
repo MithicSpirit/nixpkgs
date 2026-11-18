@@ -1,28 +1,39 @@
-{ stdenv, lib, fetchFromGitHub, kernel, kmod, patchutils, perlPackages }:
+{
+  stdenv,
+  lib,
+  fetchFromGitHub,
+  kernel,
+  kmod,
+  patchutils,
+  perlPackages,
+}:
 let
 
   media = fetchFromGitHub rec {
     name = repo;
     owner = "tbsdtv";
     repo = "linux_media";
-    rev = "d8d1ff33c0c47e34fe3e860b52b4d6c457520866";
-    hash = "sha256-1Z9itZ5GFpfUeRtp5xTnS+I91LUZLDhsEcF2v8ThaCs=";
+    rev = "2ce787de9f6e81b4294692a45de15596ae2e1322";
+    hash = "sha256-mY+InJqBIdZYkPnHPiNQiGkpmxvfdJITsUpRe3+jfUQ=";
   };
 
   build = fetchFromGitHub rec {
     name = repo;
     owner = "tbsdtv";
     repo = "media_build";
-    rev = "8cd12a6e90999f3a341018812a5d66d7e6b30913";
-    hash = "sha256-+I0NrML54ni37qgDHbRUQiLmmw/UZgXmoFoiDNDeH5A=";
+    rev = "ff326ab69e786d447a0e0e967cb45acb5d5ca9ff";
+    hash = "sha256-wRmTVyBSHzVGUWYB//B7Q/ewtZJvP7+GlA6tPcACYjw=";
   };
 
 in
 stdenv.mkDerivation {
   pname = "tbs";
-  version = "20240506-${kernel.version}";
+  version = "20260724-${kernel.version}";
 
-  srcs = [ media build ];
+  srcs = [
+    media
+    build
+  ];
   sourceRoot = build.name;
 
   # https://github.com/tbsdtv/linux_media/wiki
@@ -53,19 +64,23 @@ stdenv.mkDerivation {
 
   hardeningDisable = [ "pic" ];
 
-  nativeBuildInputs = [ patchutils kmod perlPackages.ProcProcessTable ]
-    ++ kernel.moduleBuildDependencies;
+  nativeBuildInputs = [
+    patchutils
+    kmod
+    perlPackages.ProcProcessTable
+  ]
+  ++ kernel.moduleBuildDependencies;
 
   postInstall = ''
     find $out/lib/modules/${kernel.modDirVersion} -name "*.ko" -exec xz {} \;
   '';
 
-  meta = with lib; {
+  meta = {
     homepage = "https://www.tbsdtv.com/";
     description = "Linux driver for TBSDTV cards";
-    license = licenses.gpl2Only;
-    maintainers = with maintainers; [ ck3d ];
+    license = lib.licenses.gpl2Only;
+    maintainers = with lib.maintainers; [ ck3d ];
     priority = -1;
-    broken = kernel.kernelOlder "4.14" || kernel.kernelAtLeast "6.9";
+    broken = kernel.kernelOlder "4.19" || kernel.kernelAtLeast "6.15";
   };
 }

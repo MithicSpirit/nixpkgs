@@ -1,75 +1,106 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, pnpm_8
-, nodejs
-, makeBinaryWrapper
-, shellcheck
-, versionCheckHook
+{
+  lib,
+  stdenvNoCC,
+  fetchFromGitHub,
+  pnpm_12,
+  fetchPnpmDeps,
+  pnpmConfigHook,
+  nodejs-slim,
+  makeBinaryWrapper,
+  shellcheck,
+  versionCheckHook,
 }:
-
-stdenv.mkDerivation (finalAttrs: {
+stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "bash-language-server";
-  version = "5.4.0";
+  version = "5.8.1";
 
   src = fetchFromGitHub {
     owner = "bash-lsp";
     repo = "bash-language-server";
-    rev = "server-${finalAttrs.version}";
-    hash = "sha256-yJ81oGd9aNsWQMLvDSgMVVH1//Mw/SVFYFIPsJTQYzE=";
+    tag = "server-${finalAttrs.version}";
+    hash = "sha256-Rhdo+sew6xUzVy0S+upP5vvoIxL2NBA2j0euS6rdC7g=";
   };
 
-  pnpmWorkspace = "bash-language-server";
-  pnpmDeps = pnpm_8.fetchDeps {
-    inherit (finalAttrs) pname version src pnpmWorkspace;
-    hash = "sha256-W25xehcxncBs9QgQBt17F5YHK0b+GDEmt27XzTkyYWg=";
+  pnpmWorkspaces = [ "bash-language-server" ];
+  pnpmDeps = fetchPnpmDeps {
+    inherit (finalAttrs)
+      pname
+      version
+      src
+      pnpmWorkspaces
+      ;
+    pnpm = pnpm_12;
+    fetcherVersion = 4;
+    hash = "sha256-F5QfvN21SU4mJPZdc+Squ15yqdhvf6bvNueA4aZe06A=";
   };
 
   nativeBuildInputs = [
-    nodejs
-    pnpm_8.configHook
+    nodejs-slim
+    pnpmConfigHook
+    pnpm_12
     makeBinaryWrapper
     versionCheckHook
   ];
   buildPhase = ''
     runHook preBuild
 
-    pnpm compile server
+    # Upstream's "compile" script is `tsc -b && cp server/src/get-options.sh
+    # server/out/`. We can't just run `pnpm compile`, because `tsc -b` with
+    # no project argument builds the root tsconfig.json, which references
+    # both `server` and `vscode-client` - and the latter's dependencies
+    # aren't installed here. So build only the `server` project explicitly,
+    # and do the `cp` ourselves.
+    pnpm exec tsc -b server
+    cp server/src/get-options.sh server/out/
 
     runHook postBuild
+  '';
+
+  preInstall = ''
+    # `pnpm prune` doesn't support monorepos, and with pnpm 12 it also tries
+    # to verify the lockfile against supply-chain policies over the network.
+    # Reinstall production dependencies only instead, as `pnpm prune --help`
+    # recommends for monorepos.
+    rm -rf node_modules server/node_modules
+    pnpm install \
+      --offline \
+      --ignore-scripts \
+      --filter=bash-language-server \
+      --frozen-lockfile \
+      --prod
+    rm -r node_modules/.pnpm/@mixmark-io*/node_modules/@mixmark-io/domino/{test,.yarn}
+    find -type f \( -name "*.ts" -o -name "*.map" \) -exec rm -rf {} +
+    # https://github.com/pnpm/pnpm/issues/3645
+    find node_modules server/node_modules -xtype l -delete
   '';
 
   installPhase = ''
     runHook preInstall
 
-    pnpm --offline \
-      --frozen-lockfile --ignore-script \
-      --filter=bash-language-server \
-      deploy $out/lib/bash-language-server
-    # Cleanup directory a bit, to save space, and make fixup phase a bit faster
-    rm -r $out/lib/bash-language-server/src
-    find $out/lib/bash-language-server -name '*.ts' -delete
-    rm -r \
-      $out/lib/bash-language-server/node_modules/.bin \
-      $out/lib/bash-language-server/node_modules/*/bin
+    mkdir -p $out/{bin,lib/bash-language-server}
+    cp -r {node_modules,server} $out/lib/bash-language-server/
 
     # Create the executable, based upon what happens in npmHooks.npmInstallHook
-    makeWrapper ${lib.getExe nodejs} $out/bin/bash-language-server \
+    makeWrapper ${lib.getExe nodejs-slim} $out/bin/bash-language-server \
       --suffix PATH : ${lib.makeBinPath [ shellcheck ]} \
       --inherit-argv0 \
-      --add-flags $out/lib/bash-language-server/out/cli.js
+      --add-flags $out/lib/bash-language-server/server/out/cli.js
 
     runHook postInstall
   '';
 
   doInstallCheck = true;
 
-  meta = with lib; {
-    description = "A language server for Bash";
+  meta = {
+    description = "Language server for Bash";
     homepage = "https://github.com/bash-lsp/bash-language-server";
-    license = licenses.mit;
-    maintainers = with maintainers; [ doronbehar ];
+    changelog = "https://github.com/bash-lsp/bash-language-server/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      doronbehar
+      gepbird
+    ];
     mainProgram = "bash-language-server";
-    platforms = platforms.all;
+    platforms = lib.platforms.all;
   };
 })

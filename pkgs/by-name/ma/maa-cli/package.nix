@@ -7,21 +7,21 @@
   makeWrapper,
   pkg-config,
   openssl,
-  darwin,
+  libgit2,
   maa-assistant-arknights,
   android-tools,
   git,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "maa-cli";
-  version = "0.4.12";
+  version = "0.7.8";
 
   src = fetchFromGitHub {
     owner = "MaaAssistantArknights";
     repo = "maa-cli";
-    rev = "v${version}";
-    hash = "sha256-cq1FCsBHwcL8a51MswG/5TvyzSbtOvqw06OZfIXDVwg=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-5qfA37es0wgVV8c8RqLrG4dtqc4T12w1OXf220h+eio=";
   };
 
   nativeBuildInputs = [
@@ -30,57 +30,56 @@ rustPlatform.buildRustPackage rec {
     pkg-config
   ];
 
-  buildInputs =
-    [ openssl ]
-    ++ lib.optionals stdenv.isDarwin (
-      with darwin.apple_sdk.frameworks;
-      [
-        Security
-        SystemConfiguration
-      ]
-    );
+  buildInputs = [
+    openssl
+    libgit2
+  ];
+
+  nativeCheckInputs = [ git ];
 
   # https://github.com/MaaAssistantArknights/maa-cli/pull/126
   buildNoDefaultFeatures = true;
   buildFeatures = [ "git2" ];
 
-  cargoHash = "sha256-eXgZt8sLbHkVNWqFv8Zdq7xrFBi1YhKI8Js0OT2Npi8=";
+  cargoHash = "sha256-TQIW+1BiOcTSx9XjitE8nqPet2KKg2TMDbx0I5jasUw=";
 
-  # maa-cli would only seach libMaaCore.so and resources in itself's path
+  # maa-cli would only search libMaaCore.so and resources in itself's path
   # https://github.com/MaaAssistantArknights/maa-cli/issues/67
-  postInstall =
-    ''
-      mkdir -p $out/share/maa-assistant-arknights/
-      ln -s ${maa-assistant-arknights}/share/maa-assistant-arknights/* $out/share/maa-assistant-arknights/
-      ln -s ${maa-assistant-arknights}/lib/* $out/share/maa-assistant-arknights/
-      mv $out/bin/maa $out/share/maa-assistant-arknights/
+  postInstall = ''
+    mkdir -p $out/share/maa-assistant-arknights/
+    ln -s ${maa-assistant-arknights}/share/maa-assistant-arknights/* $out/share/maa-assistant-arknights/
+    ln -s ${maa-assistant-arknights}/lib/* $out/share/maa-assistant-arknights/
+    mv $out/bin/maa $out/share/maa-assistant-arknights/
 
-      makeWrapper $out/share/maa-assistant-arknights/maa $out/bin/maa \
-        --prefix PATH : "${
-          lib.makeBinPath [
-            android-tools
-            git
-          ]
-        }"
+    makeWrapper $out/share/maa-assistant-arknights/maa $out/bin/maa \
+      --prefix PATH : "${
+        lib.makeBinPath [
+          android-tools
+          git
+        ]
+      }"
 
-    ''
-    + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-      installShellCompletion --cmd maa \
-        --bash <($out/bin/maa complete bash) \
-        --fish <($out/bin/maa complete fish) \
-        --zsh <($out/bin/maa complete zsh)
+  ''
+  + lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd maa \
+      --bash <($out/bin/maa complete bash) \
+      --fish <($out/bin/maa complete fish) \
+      --zsh <($out/bin/maa complete zsh)
 
-      mkdir -p manpage
-      $out/bin/maa mangen --path manpage
-      installManPage manpage/*
-    '';
+    mkdir -p manpage
+    $out/bin/maa mangen --path manpage
+    installManPage manpage/*
+  '';
 
-  meta = with lib; {
+  meta = {
     description = "Simple CLI for MAA by Rust";
     homepage = "https://github.com/MaaAssistantArknights/maa-cli";
-    license = licenses.agpl3Only;
-    platforms = platforms.linux ++ platforms.darwin;
-    maintainers = with maintainers; [ Cryolitia ];
+    license = lib.licenses.agpl3Only;
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
+    maintainers = with lib.maintainers; [
+      Cryolitia
+      wangl-cc
+    ];
     mainProgram = "maa";
   };
-}
+})

@@ -1,30 +1,40 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   fixtures,
   pbr,
   six,
-  subunit,
+  python-subunit,
   callPackage,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "oslotest";
-  version = "5.0.0";
+  version = "6.1.1";
   format = "setuptools";
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-97skDGy+8voLq7lRP/PafQ8ozDja+Y70Oy6ISDZ/vSA=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "oslotest";
+    tag = finalAttrs.version;
+    hash = "sha256-r66NyNazyLkqzlORleWgHuJkotBt37cXcnZJBUjaEAo=";
   };
+
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
+
+  postPatch = ''
+    # pbr needs git to ship subpackages and package data
+    echo "recursive-include oslotest *" > MANIFEST.in
+  '';
 
   nativeBuildInputs = [ pbr ];
 
   propagatedBuildInputs = [
     fixtures
     six
-    subunit
+    python-subunit
   ];
 
   # check in passthru.tests.pytest to escape infinite recursion with other oslo components
@@ -34,12 +44,15 @@ buildPythonPackage rec {
     tests = callPackage ./tests.nix { };
   };
 
-  pythonImportsCheck = [ "oslotest" ];
+  pythonImportsCheck = [
+    "oslotest"
+    "oslotest.tools"
+  ];
 
-  meta = with lib; {
+  meta = {
     description = "Oslo test framework";
     homepage = "https://github.com/openstack/oslotest";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

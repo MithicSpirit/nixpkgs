@@ -1,99 +1,129 @@
 {
   lib,
+  bash,
   buildPythonPackage,
-  defusedxml,
-  fetchPypi,
-  pbr,
   cliff,
+  debtcollector,
+  defusedxml,
+  fetchFromGitHub,
+  fixtures,
+  hacking,
   jsonschema,
-  testtools,
-  paramiko,
   netaddr,
   oslo-concurrency,
   oslo-config,
   oslo-log,
-  stestr,
   oslo-serialization,
   oslo-utils,
-  fixtures,
-  pythonOlder,
-  pyyaml,
-  subunit,
-  stevedore,
-  prettytable,
-  urllib3,
-  debtcollector,
-  hacking,
   oslotest,
-  bash,
+  paramiko,
+  pbr,
+  prettytable,
   python,
+  pyyaml,
   setuptools,
+  stestr,
+  stestrCheckHook,
+  stevedore,
+  python-subunit,
+  testscenarios,
+  testtools,
+  urllib3,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "tempest";
-  version = "39.0.0";
+  version = "47.0.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-l4qKbTfQRWiRsoHN9fiAAiGMGP+q3gwRH1pMSXV/eSU=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "tempest";
+    tag = finalAttrs.version;
+    hash = "sha256-ovEVWiJs1tbdHv1y3l9lcHoPKBszpPfDtamz06RFfxY=";
   };
+
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
+
+  postPatch = ''
+    # pbr needs git to ship subpackages and package data
+    echo "recursive-include tempest *" > MANIFEST.in
+
+    substituteInPlace tempest/lib/common/http.py \
+      --replace-fail 'getheaders()' 'headers'
+  '';
 
   pythonRelaxDeps = [ "defusedxml" ];
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
-    pbr
+  dependencies = [
     cliff
+    debtcollector
     defusedxml
+    fixtures
     jsonschema
-    testtools
-    paramiko
     netaddr
     oslo-concurrency
     oslo-config
     oslo-log
-    stestr
     oslo-serialization
     oslo-utils
-    fixtures
-    pyyaml
-    subunit
-    stevedore
+    paramiko
+    pbr
     prettytable
+    pyyaml
+    stestr
+    stevedore
+    python-subunit
+    testscenarios
+    testtools
     urllib3
-    debtcollector
   ];
 
   nativeCheckInputs = [
-    stestr
     hacking
     oslotest
+    stestrCheckHook
   ];
 
-  checkPhase = ''
+  preCheck = ''
     # Tests expect these applications available as such.
     mkdir -p bin
     export PATH="$PWD/bin:$PATH"
     printf '#!${bash}/bin/bash\nexec ${python.interpreter} -m tempest.cmd.main "$@"\n' > bin/tempest
     printf '#!${bash}/bin/bash\nexec ${python.interpreter} -m tempest.cmd.subunit_describe_calls "$@"\n' > bin/subunit-describe-calls
     chmod +x bin/*
-
-    stestr --test-path tempest/tests run -e <(echo "
-      tempest.tests.lib.cli.test_execute.TestExecute.test_execute_with_prefix
-    ")
   '';
 
-  pythonImportsCheck = [ "tempest" ];
+  stestrFlags = [
+    "--test-path"
+    "tempest/tests"
+  ];
 
-  meta = with lib; {
+  disabledTests = [
+    "tempest.tests.common.test_concurrency.TestConcurrency.test_run_concurrent_tasks_dict_return_values"
+    "tempest.tests.common.test_concurrency.TestConcurrency.test_run_concurrent_tasks_multiple_workers"
+    "tempest.tests.common.test_concurrency.TestConcurrency.test_run_concurrent_tasks_single_process"
+    "tempest.tests.common.test_concurrency.TestConcurrency.test_run_concurrent_tasks_success"
+    "tempest.tests.common.test_concurrency.TestConcurrency.test_run_concurrent_tasks_with_exception"
+    "tempest.tests.lib.cli.test_execute.TestExecute.test_execute_with_prefix"
+    "tempest.tests.lib.common.test_rest_client.TestRestClientServiceToken.test_log_request_full_omits_service_token"
+    # requires network access
+    "tempest.tests.common.test_image.TestRandomDataServer.test_binds_non_loopback_host"
+  ];
+
+  pythonImportsCheck = [
+    "tempest"
+    "tempest.lib.services.compute"
+  ];
+
+  meta = {
     description = "OpenStack integration test suite that runs against live OpenStack cluster and validates an OpenStack deployment";
     homepage = "https://github.com/openstack/tempest";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    mainProgram = "tempest";
+    teams = [ lib.teams.openstack ];
   };
-}
+})

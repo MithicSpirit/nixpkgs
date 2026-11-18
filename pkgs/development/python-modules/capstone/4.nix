@@ -2,14 +2,16 @@
   lib,
   buildPythonPackage,
   capstone_4,
-  stdenv,
-  setuptools,
   fetchpatch,
+  pkg-resources-backport,
+  setuptools,
+  stdenv,
 }:
 
 buildPythonPackage {
   pname = "capstone";
   inherit (capstone_4) version src;
+  pyproject = true;
 
   sourceRoot = "${capstone_4.src.name}/bindings/python";
   patches = [
@@ -30,12 +32,17 @@ buildPythonPackage {
 
   # aarch64 only available from MacOS SDK 11 onwards, so fix the version tag.
   # otherwise, bdist_wheel may detect "macosx_10_6_arm64" which doesn't make sense.
-  setupPyBuildFlags = lib.optionals (stdenv.isDarwin && stdenv.isAarch64) [
+  setupPyBuildFlags = lib.optionals stdenv.hostPlatform.isDarwin [
     "--plat-name"
     "macosx_11_0"
   ];
 
-  propagatedBuildInputs = [ setuptools ];
+  build-system = [
+    setuptools
+    pkg-resources-backport
+  ];
+
+  dependencies = [ setuptools ];
 
   checkPhase = ''
     mv capstone capstone.hidden
@@ -43,11 +50,11 @@ buildPythonPackage {
     make check
   '';
 
-  meta = with lib; {
-    homepage = "http://www.capstone-engine.org/";
-    license = licenses.bsdOriginal;
+  meta = {
     description = "Python bindings for Capstone disassembly engine";
-    maintainers = with maintainers; [
+    homepage = "http://www.capstone-engine.org/";
+    license = lib.licenses.bsdOriginal;
+    maintainers = with lib.maintainers; [
       bennofs
       ris
     ];

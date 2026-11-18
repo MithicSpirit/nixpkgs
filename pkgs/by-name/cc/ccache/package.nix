@@ -2,30 +2,34 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  substituteAll,
+  replaceVars,
   binutils,
   asciidoctor,
   cmake,
   perl,
   fmt,
   hiredis,
-  xxHash,
+  xxhash,
   zstd,
   bashInteractive,
-  doctest,
+  ctestCheckHook,
+  elfutils,
+  versionCheckHook,
+  writableTmpDirAsHomeHook,
   xcodebuild,
+  doctest,
   makeWrapper,
   nix-update-script,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "ccache";
-  version = "4.10.2";
+  version = "4.14.3";
 
   src = fetchFromGitHub {
     owner = "ccache";
     repo = "ccache";
-    rev = "refs/tags/v${finalAttrs.version}";
+    tag = "v${finalAttrs.version}";
     # `git archive` replaces `$Format:%H %D$` in cmake/CcacheVersion.cmake
     # we need to replace it with something reproducible
     # see https://github.com/NixOS/nixpkgs/pull/316524
@@ -39,11 +43,12 @@ stdenv.mkDerivation (finalAttrs: {
         exit 1
       fi
     '';
-    hash = "sha256-j7Cjr5R/fN/1C6hR9400Y/hwgG++qjPvo9PYyetzrx0=";
+    hash = "sha256-Av+tpeJBnwZqqX4Ag6Kwpnby4mTgMH91+Y4WLLur/Iw=";
   };
 
   outputs = [
     "out"
+    "doc"
     "man"
   ];
 
@@ -54,11 +59,15 @@ stdenv.mkDerivation (finalAttrs: {
     # Darwin.
     # Additionally, when cross compiling, the correct target prefix
     # needs to be set.
-    (substituteAll {
-      src = ./fix-objdump-path.patch;
+    (replaceVars ./fix-objdump-path.patch {
       objdump = "${binutils.bintools}/bin/${binutils.targetPrefix}objdump";
     })
   ];
+
+  postPatch = ''
+    patchShebangs --build doc/scripts
+    patchShebangs --build test/fake-compilers
+  '';
 
   strictDeps = true;
 
@@ -71,7 +80,7 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     fmt
     hiredis
-    xxHash
+    xxhash
     zstd
   ];
 
@@ -83,31 +92,39 @@ stdenv.mkDerivation (finalAttrs: {
     # test/run requires the compgen function which is available in
     # bashInteractive, but not bash.
     bashInteractive
-  ] ++ lib.optional stdenv.isDarwin xcodebuild;
+    ctestCheckHook
+    versionCheckHook
+    writableTmpDirAsHomeHook
+  ]
+  ++ lib.optional stdenv.hostPlatform.isLinux elfutils # eu-elfcmp
+  ++ lib.optional stdenv.hostPlatform.isDarwin xcodebuild;
 
   checkInputs = [
     doctest
   ];
 
-  checkPhase =
-    let
-      badTests =
-        [
-          "test.trim_dir" # flaky on hydra (possibly filesystem-specific?)
-        ]
-        ++ lib.optionals stdenv.isDarwin [
-          "test.basedir"
-          "test.fileclone" # flaky on hydra (possibly filesystem-specific?)
-          "test.multi_arch"
-          "test.nocpp2"
-        ];
-    in
-    ''
-      runHook preCheck
-      export HOME=$(mktemp -d)
-      ctest --output-on-failure -E '^(${lib.concatStringsSep "|" badTests})$'
-      runHook postCheck
+  # Some tests require running $CC -march=native
+  # Test artifacts aren't installed to $out, so this shouldn't affect
+  # reproducibility
+  preCheck = ''
+    export NIX_ENFORCE_NO_NATIVE=0
+  ''
+  +
+    # Darwin wrapper flags trigger warnings, which the test suite
+    # treats as errors. Silence these warnings.
+    lib.optionalString stdenv.hostPlatform.isDarwin ''
+      export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE:-} -Wno-unused-command-line-argument"
     '';
+
+  disabledTests = [
+    "test.fileclone" # flaky on hydra, also seems to fail on zfs
+    "test.trim_dir" # flaky on hydra (possibly filesystem-specific?)
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    "test.basedir"
+    "test.multi_arch"
+    "test.nocpp2"
+  ];
 
   passthru = {
     # A derivation that provides gcc and g++ commands, but that
@@ -121,8 +138,12 @@ stdenv.mkDerivation (finalAttrs: {
           isClang = unwrappedCC.isClang or false;
           isGNU = unwrappedCC.isGNU or false;
           isCcache = true;
-        };
-        inherit (unwrappedCC) lib;
+        }
+        // builtins.intersectAttrs {
+          hardeningUnsupportedFlagsByTargetPlatform = null;
+          hardeningUnsupportedFlags = null;
+        } unwrappedCC;
+        lib = lib.getLib unwrappedCC;
         nativeBuildInputs = [ makeWrapper ];
         # Unwrapped clang does not have a targetPrefix because it is multi-target
         # target is decided with argv0.
@@ -164,24 +185,28 @@ stdenv.mkDerivation (finalAttrs: {
               ln -s ${unwrappedCC}/$file $out/$file
             done
           '';
+
+        meta = {
+          inherit (unwrappedCC.meta) mainProgram;
+        };
       };
 
     updateScript = nix-update-script { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Compiler cache for fast recompilation of C/C++ code";
     homepage = "https://ccache.dev";
     downloadPage = "https://ccache.dev/download.html";
     changelog = "https://ccache.dev/releasenotes.html#_ccache_${
       builtins.replaceStrings [ "." ] [ "_" ] finalAttrs.version
     }";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [
       kira-bruneau
       r-burns
     ];
-    platforms = platforms.unix;
+    platforms = lib.platforms.unix;
     mainProgram = "ccache";
   };
 })

@@ -1,7 +1,7 @@
 {
   lib,
   buildPythonPackage,
-  hostPlatform,
+  stdenv,
   fetchFromGitHub,
   # build dependencies
   hatchling,
@@ -27,21 +27,25 @@
 }:
 buildPythonPackage rec {
   pname = "conda";
-  version = "24.7.1";
+  version = "26.9.4";
   pyproject = true;
 
   src = fetchFromGitHub {
     inherit pname version;
     owner = "conda";
     repo = "conda";
-    rev = "refs/tags/${version}";
-    hash = "sha256-e+C+tSUdSGyotuZzkOuV0e0hOj+MZRuq1fHzsu3LERQ=";
+    tag = version;
+    hash = "sha256-Wc/hAhazJu8xfqp1p+wlpQXkFlybefbfom0Rkc7JV2M=";
   };
-
 
   build-system = [
     hatchling
     hatch-vcs
+  ];
+
+  pythonRelaxDeps = [
+    "certifi"
+    "ruamel-yaml"
   ];
 
   dependencies = [
@@ -64,15 +68,23 @@ buildPythonPackage rec {
   patches = [ ./0001-conda_exe.patch ];
 
   makeWrapperArgs = [
-    "--set CONDA_EXE ${placeholder "out"}/bin/conda"
-    ''--set-default CONDA_ENVS_PATH "${defaultEnvPath}"''
-    ''--set-default CONDA_PKGS_DIRS "${defaultPkgPath}"''
+    "--set"
+    "CONDA_EXE"
+    "${placeholder "out"}/bin/conda"
+
+    "--set-default"
+    "CONDA_ENVS_PATH"
+    defaultEnvPath
+
+    "--set-default"
+    "CONDA_PKGS_DIRS"
+    defaultPkgPath
   ];
 
   pythonImportsCheck = [ "conda" ];
 
   # menuinst is currently not packaged
-  pythonRemoveDeps = lib.optionals (!hostPlatform.isWindows) [ "menuinst" ];
+  pythonRemoveDeps = lib.optionals (!stdenv.hostPlatform.isWindows) [ "menuinst" ];
 
   meta = {
     description = "OS-agnostic, system-level binary package manager";

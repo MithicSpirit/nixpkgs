@@ -1,7 +1,8 @@
-{ buildOctavePackage
-, lib
-, fetchurl
-, nan # > 3.0.0
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
+  nan, # > 3.0.0
 }:
 
 buildOctavePackage rec {
@@ -10,17 +11,17 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "1pbxq77xc7pn0ki6rpijlq9v7inn0hn2adkx1skgwffl7pivrwsl";
+    hash = "sha256-VPO84z3UOf6mDn02JSwE1sazE6Yy3mziBPYe1s/Bfd0=";
   };
 
   requiredOctavePackages = [
     nan
   ];
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/tsa/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/tsa/";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Stochastic concepts and maximum entropy methods for time series analysis";
   };
 }

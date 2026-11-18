@@ -1,31 +1,41 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  pbr,
-  six,
   callPackage,
+  fetchFromGitHub,
+  pbr,
+  typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "os-service-types";
-  version = "1.7.0";
-  format = "setuptools";
+  version = "1.9.0";
+  pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    sha256 = "31800299a82239363995b91f1ebf9106ac7758542a1e4ef6dc737a5932878c6c";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "os-service-types";
+    tag = finalAttrs.version;
+    hash = "sha256-odTaEbu9ivcmcxR6KDiyv3TiooARSD8rE9xYZ9ww7lI=";
   };
+
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
 
   postPatch = ''
     # only a small portion of the listed packages are actually needed for running the tests
     # so instead of removing them one by one remove everything
     rm test-requirements.txt
+
+    # pbr needs git to ship subpackages and package data
+    echo "recursive-include os_service_types *" > MANIFEST.in
   '';
 
-  propagatedBuildInputs = [
+  build-system = [ pbr ];
+
+  dependencies = [
     pbr
-    six
+    typing-extensions
   ];
 
   # check in passthru.tests.pytest to escape infinite recursion with other oslo components
@@ -35,12 +45,16 @@ buildPythonPackage rec {
     tests = callPackage ./tests.nix { };
   };
 
-  pythonImportsCheck = [ "os_service_types" ];
+  pythonImportsCheck = [
+    "os_service_types"
+    "os_service_types.data"
+  ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library for consuming OpenStack service-types-authority data";
     homepage = "https://github.com/openstack/os-service-types";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    changelog = "https://github.com/openstack/os-service-types/releases/tag/${finalAttrs.version}";
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

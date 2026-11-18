@@ -1,35 +1,33 @@
 {
   lib,
   stdenv,
-  addDriverRunpath,
+  config,
   cudaPackages,
   buildPythonPackage,
   fetchurl,
-  isPy38,
-  isPy39,
-  isPy310,
-  isPy311,
+  runCommand,
   python,
   autoPatchelfHook,
-  filelock,
-  lit,
   zlib,
+  rocmPackages,
+
+  rocmSupport ? config.rocmSupport,
+  addDriverRunpath,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "triton";
-  version = "2.1.0";
+  version = "3.9.0";
   format = "wheel";
 
   src =
     let
       pyVerNoDot = lib.replaceStrings [ "." ] [ "" ] python.pythonVersion;
       unsupported = throw "Unsupported system";
-      srcs = (import ./binary-hashes.nix version)."${stdenv.system}-${pyVerNoDot}" or unsupported;
+      srcs =
+        (import ./binary-hashes.nix finalAttrs.version)."${stdenv.system}-${pyVerNoDot}" or unsupported;
     in
     fetchurl srcs;
-
-  disabled = !(isPy38 || isPy39 || isPy310 || isPy311);
 
   pythonRemoveDeps = [
     "cmake"
@@ -43,55 +41,66 @@ buildPythonPackage rec {
     autoPatchelfHook
   ];
 
-  propagatedBuildInputs = [
-    filelock
-    lit
-    zlib
-  ];
-
   dontStrip = true;
 
-  # If this breaks, consider replacing with "${cuda_nvcc}/bin/ptxas"
-  postFixup =
-    ''
-      chmod +x "$out/${python.sitePackages}/triton/third_party/cuda/bin/ptxas"
-    ''
-    + (
-      let
-        # Bash was getting weird without linting,
-        # but basically upstream contains [cc, ..., "-lcuda", ...]
-        # and we replace it with [..., "-lcuda", "-L/run/opengl-driver/lib", "-L$stubs", ...]
-        old = [ "-lcuda" ];
-        new = [
-          "-lcuda"
-          "-L${addDriverRunpath.driverLink}"
-          "-L${cudaPackages.cuda_cudart}/lib/stubs/"
-        ];
+  postFixup = ''
+    mkdir -p $out/${python.sitePackages}/triton/third_party/cuda/bin/
+    ln -s ${cudaPackages.cuda_nvcc}/bin/ptxas $out/${python.sitePackages}/triton/third_party/cuda/bin/
+  ''
+  # Use the NixOS driver directory as the fallback, preserving TRITON_LIBCUDA_PATH.
+  + ''
+    substituteInPlace "${placeholder "out"}/${python.sitePackages}/triton/backends/nvidia/driver.py" \
+      --replace-fail \
+        "if env_libcuda_path := knobs.nvidia.libcuda_path:" \
+        "if env_libcuda_path := knobs.nvidia.libcuda_path or '${addDriverRunpath.driverLink}/lib':"
+  ''
+  + lib.optionalString rocmSupport ''
+    substituteInPlace "${placeholder "out"}/${python.sitePackages}/triton/backends/amd/driver.py" \
+      --replace-fail \
+        "lib_name = "libamdhip64.so" \
+        "return '${rocmPackages.clr}/lib/libamdhip64.so'"
+  '';
 
-        quote = x: ''"${x}"'';
-        oldStr = lib.concatMapStringsSep ", " quote old;
-        newStr = lib.concatMapStringsSep ", " quote new;
-      in
+  passthru.tests.libcuda-dirs =
+    runCommand "triton-bin-libcuda-dirs"
+      {
+        nativeBuildInputs = [ (python.withPackages (_: [ finalAttrs.finalPackage ])) ];
+      }
       ''
-        substituteInPlace $out/${python.sitePackages}/triton/common/build.py \
-          --replace '${oldStr}' '${newStr}'
-      ''
-    );
+        check_libcuda_dirs() {
+          expected="$1" python - <<'PYTHON'
+        import os
+        from triton.backends.nvidia import driver
 
-  meta = with lib; {
+        expected = [os.environ["expected"]]
+        assert driver.libcuda_dirs() == expected, driver.libcuda_dirs()
+        assert driver.library_dirs() == [driver.libdevice_dir, *expected], driver.library_dirs()
+        PYTHON
+        }
+
+        unset TRITON_LIBCUDA_PATH
+        check_libcuda_dirs '${addDriverRunpath.driverLink}/lib'
+        TRITON_LIBCUDA_PATH= check_libcuda_dirs '${addDriverRunpath.driverLink}/lib'
+        TRITON_LIBCUDA_PATH="$TMPDIR/custom cuda/lib" check_libcuda_dirs "$TMPDIR/custom cuda/lib"
+        touch "$out"
+      '';
+
+  meta = {
     description = "Language and compiler for custom Deep Learning operations";
     homepage = "https://github.com/triton-lang/triton/";
-    changelog = "https://github.com/triton-lang/triton/releases/tag/v${version}";
+    changelog = "https://github.com/triton-lang/triton/releases/tag/v${finalAttrs.version}";
     # Includes NVIDIA's ptxas, but redistributions of the binary are not limited.
     # https://docs.nvidia.com/cuda/eula/index.html
     # triton's license is MIT.
     # triton-bin includes ptxas binary, therefore unfreeRedistributable is set.
-    license = with licenses; [
+    license = with lib.licenses; [
       unfreeRedistributable
       mit
     ];
-    sourceProvenance = with sourceTypes; [ binaryNativeCode ];
-    platforms = [ "x86_64-linux" ];
-    maintainers = with maintainers; [ junjihashimoto ];
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
+    maintainers = with lib.maintainers; [
+      GaetanLepage
+      junjihashimoto
+    ];
   };
-}
+})

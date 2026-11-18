@@ -1,13 +1,19 @@
-{ lib, rel, buildKodiAddon, fetchzip, addonUpdateScript }:
+{
+  lib,
+  rel,
+  buildKodiAddon,
+  fetchzip,
+  addonUpdateScript,
+}:
 
 buildKodiAddon rec {
   pname = "upnext";
   namespace = "service.upnext";
-  version = "1.1.9+matrix.1";
+  version = "1.3.4";
 
   src = fetchzip {
     url = "https://mirrors.kodi.tv/addons/${lib.toLower rel}/${namespace}/${namespace}-${version}.zip";
-    sha256 = "sha256-oNUk80MEzK6Qssn1KjT6psPTazISRoUif1IMo+BKJxo=";
+    hash = "sha256-ZEqrK8n6LIcew4416ZPvLZbMWy2qhuhkoHAWiJP15V0=";
   };
 
   passthru = {
@@ -17,10 +23,10 @@ buildKodiAddon rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/im85288/service.upnext";
     description = "Up Next - Proposes to play the next episode automatically";
-    license = licenses.gpl2Only;
-    maintainers = teams.kodi.members;
+    license = lib.licenses.gpl2Only;
+    teams = [ lib.teams.kodi ];
   };
 }

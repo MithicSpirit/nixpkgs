@@ -1,15 +1,24 @@
-{ lib, stdenv, fetchFromGitHub, makeWrapper, tmux }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  makeWrapper,
+  tmux,
+}:
 
 stdenv.mkDerivation {
   pname = "tmux-cssh";
-  version = "unstable-2015-10-15";
+  version = "0-unstable-2024-07-31";
 
   src = fetchFromGitHub {
-    owner = "dennishafemann";
+    owner = "zinic";
     repo = "tmux-cssh";
-    rev = "21750733c5b6fa2fe23b9e50ce69d8564f2f742a";
-    sha256 = "473e27f3b69864b905d1340d97917cd202705c761611eb3aec4c24521f69b52c";
+    rev = "2841d12a20e15a3a7778e3b0d9222889a12173b1";
+    hash = "sha256-4w4P4ss6ou6CfHDMsgVRiOF+/xLxINzS0Qu79LXW1X4=";
   };
+
+  strictDeps = true;
+  __structuredAttrs = true;
 
   nativeBuildInputs = [ makeWrapper ];
 
@@ -20,11 +29,10 @@ stdenv.mkDerivation {
   '';
 
   meta = {
-    homepage = "https://github.com/dennishafemann/tmux-cssh";
+    homepage = "https://github.com/zinic/tmux-cssh";
     description = "SSH to multiple hosts at the same time using tmux";
 
-    longDescription =
-      ''
+    longDescription = ''
       tmux is a terminal multiplexer, like e.g. screen, which gives you a
       possibility to use multiple virtual terminal session within one real
       terminal session. tmux-cssh (tmux-cluster-ssh) sets a comfortable and
@@ -32,7 +40,7 @@ stdenv.mkDerivation {
       tmux-sessions, on top of tmux. No need for a x-server or x-forwarding.
       tmux-cssh works just with tmux and in an low-level terminal-environment,
       like most server do.
-      '';
+    '';
 
     license = lib.licenses.asl20;
 

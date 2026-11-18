@@ -1,18 +1,19 @@
-{ lib
-, fetchPypi
-, python3Packages
-, latexminted
-, testers
+{
+  lib,
+  fetchPypi,
+  python3Packages,
+  latexminted,
+  testers,
 }:
 
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "latexminted";
-  version = "0.1.0b9";
+  version = "0.7.1";
   pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-QUFfoX1jv5pVQDEBGaVd1madfqbTWTJyXPh4gw7P5UE=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-1yQJbzRg8iD9vq4gfVqyvA4041lJfzPfmBT4uwJGQPo=";
   };
 
   build-system = with python3Packages; [
@@ -22,6 +23,7 @@ python3Packages.buildPythonApplication rec {
   dependencies = with python3Packages; [
     pygments
     latex2pydata
+    latexrestricted
   ];
 
   passthru = {
@@ -35,4 +37,4 @@ python3Packages.buildPythonApplication rec {
     mainProgram = "latexminted";
     maintainers = with lib.maintainers; [ romildo ];
   };
-}
+})

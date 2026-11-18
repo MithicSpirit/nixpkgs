@@ -2,39 +2,43 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+  setuptools,
   numpy,
   scipy,
   matplotlib,
   pytestCheckHook,
-  isPy3k,
+  stdenv, # for meta.broken
 }:
 
-buildPythonPackage {
+buildPythonPackage (finalAttrs: {
   pname = "filterpy";
-  version = "unstable-2022-08-23";
-  format = "setuptools";
-
-  disabled = !isPy3k;
+  version = "2.0.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "rlabbe";
     repo = "filterpy";
-    rev = "3b51149ebcff0401ff1e10bf08ffca7b6bbc4a33";
-    hash = "sha256-KuuVu0tqrmQuNKYmDmdy+TU6BnnhDxh4G8n9BGzjGag=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-IGK0luLLfISxCaOQAy04nLWAf+ZlVllaPoMuepL/Gk8=";
   };
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     numpy
     scipy
     matplotlib
   ];
 
-  meta = with lib; {
+  nativeCheckInputs = [ pytestCheckHook ];
+
+  meta = {
+    changelog = "https://github.com/rlabbe/filterpy/releases/tag/${finalAttrs.src.tag}";
     homepage = "https://github.com/rlabbe/filterpy";
     description = "Kalman filtering and optimal estimation library";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
+    # last successful hydra build on darwin was in 2025
+    broken = stdenv.hostPlatform.isDarwin;
   };
-}
+})

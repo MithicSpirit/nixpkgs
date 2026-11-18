@@ -1,33 +1,48 @@
-{ lib
-, stdenv
-, buildDotnetModule
-, dotnetCorePackages
-, fetchFromGitHub
-, gtk3
-, gdk-pixbuf
-, glib
-, sane-backends
-, libnotify
+{
+  lib,
+  stdenv,
+  buildDotnetModule,
+  dotnetCorePackages,
+  fetchFromGitHub,
+  wrapGAppsHook3,
+  gtk3,
+  gdk-pixbuf,
+  glib,
+  sane-backends,
+  libnotify,
+  libtiff,
 }:
 
 buildDotnetModule rec {
   pname = "naps2";
-  version = "7.4.3";
+  version = "8.6.0";
 
   src = fetchFromGitHub {
     owner = "cyanfish";
     repo = "naps2";
-    rev = "v${version}";
-    hash = "sha256-/qSfxGHcCSoNp516LFYWgEL4csf8EKgtSffBt1C02uE=";
+    tag = "v${version}";
+    hash = "sha256-FPWup4pvtIpbP1EyKdQzLAx1On3G7xB3yi+/ksRGrfM=";
   };
 
+  patches = [
+    ./01-donate-button.patch
+    ./02-button-dpi.patch
+  ];
+
   projectFile = "NAPS2.App.Gtk/NAPS2.App.Gtk.csproj";
-  nugetDeps = ./deps.nix;
+  nugetDeps = ./deps.json;
+
+  dotnetFlags = [
+    "-p:TargetFrameworks=net10.0"
+  ];
 
   executables = [ "naps2" ];
 
-  dotnet-sdk = with dotnetCorePackages; combinePackages [ sdk_6_0 sdk_8_0 ];
-  dotnet-runtime = dotnetCorePackages.runtime_8_0;
+  dotnet-sdk = dotnetCorePackages.sdk_10_0;
+  dotnet-runtime = dotnetCorePackages.runtime_10_0;
+
+  nativeBuildInputs = [ wrapGAppsHook3 ];
+
   selfContainedBuild = true;
   runtimeDeps = [
     gtk3
@@ -35,16 +50,24 @@ buildDotnetModule rec {
     glib
     sane-backends
     libnotify
+    libtiff
   ];
 
   postInstall = ''
     install -D NAPS2.Setup/config/linux/com.naps2.Naps2.desktop $out/share/applications/com.naps2.Naps2.desktop
-    install -D NAPS2.Lib/Icons/scanner-16-rev0.png $out/share/icons/hicolor/16x16/apps/com.naps2.Naps2.png
-    install -D NAPS2.Lib/Icons/scanner-32-rev2.png $out/share/icons/hicolor/32x32/apps/com.naps2.Naps2.png
-    install -D NAPS2.Lib/Icons/scanner-48-rev2.png $out/share/icons/hicolor/48x48/apps/com.naps2.Naps2.png
-    install -D NAPS2.Lib/Icons/scanner-64-rev2.png $out/share/icons/hicolor/64x64/apps/com.naps2.Naps2.png
-    install -D NAPS2.Lib/Icons/scanner-72-rev1.png $out/share/icons/hicolor/72x72/apps/com.naps2.Naps2.png
-    install -D NAPS2.Lib/Icons/scanner-128.png $out/share/icons/hicolor/128x128/apps/com.naps2.Naps2.png
+    for size in 16 32 48 128; do
+      install -D NAPS2.Lib/Icons/scanner_$size.png \
+        $out/share/icons/hicolor/"$size"x"$size"/apps/com.naps2.Naps2.png
+    done
+    install -D NAPS2.Lib/Icons/svg/scanner.svg $out/share/icons/hicolor/scalable/apps/com.naps2.Naps2.svg
+    case "${stdenv.hostPlatform.system}" in
+      x86_64-linux)
+        chmod a+x $out/lib/naps2/_linux/tesseract
+        ;;
+      aarch64-linux)
+        chmod a+x $out/lib/naps2/_linuxarm/tesseract
+        ;;
+    esac
   '';
 
   meta = {
@@ -52,10 +75,11 @@ buildDotnetModule rec {
     homepage = "https://www.naps2.com";
     changelog = "https://github.com/cyanfish/naps2/blob/master/CHANGELOG.md";
     license = lib.licenses.gpl2Plus;
-    maintainers = with lib.maintainers; [ eliandoran ];
+    maintainers = with lib.maintainers; [
+      eliandoran
+      magicquark
+    ];
     platforms = lib.platforms.linux;
     mainProgram = "naps2";
-    broken = stdenv.isAarch64;  # Google.Protobuf.Tools dependency fails to build.
   };
-
 }

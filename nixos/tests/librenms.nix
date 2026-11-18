@@ -1,4 +1,4 @@
-import ./make-test-python.nix ({ pkgs, lib, ... }:
+{ pkgs, lib, ... }:
 
 let
   api_token = "f87f42114e44b63ad1b9e3c3d33d6fbe"; # random md5 hash
@@ -6,7 +6,7 @@ let
 in
 {
   name = "librenms";
-  meta.maintainers = lib.teams.wdz.members;
+  meta.maintainers = with lib.maintainers; [ johannwagner ];
 
   nodes.librenms = {
     time.timeZone = "Europe/Berlin";
@@ -50,15 +50,12 @@ in
         API_USER_NAME=api
         API_TOKEN=${api_token} # random md5 hash
 
-        # seeding database to get the admin roles
-        ${pkgs.librenms}/artisan db:seed --force --no-interaction
-
         # we don't need to know the password, it just has to exist
         API_USER_PASS=$(${pkgs.pwgen}/bin/pwgen -s 64 1)
         ${pkgs.librenms}/artisan user:add $API_USER_NAME -r admin -p $API_USER_PASS
         API_USER_ID=$(${pkgs.mariadb}/bin/mysql -D librenms -N -B -e "SELECT user_id FROM users WHERE username = '$API_USER_NAME';")
 
-        ${pkgs.mariadb}/bin/mysql -D librenms -e "INSERT INTO api_tokens (user_id, token_hash, description) VALUES ($API_USER_ID, '$API_TOKEN', 'API User')"
+        ${pkgs.mariadb}/bin/mysql -D librenms -e "INSERT INTO personal_access_tokens (tokenable_type, tokenable_id, name, token, abilities) VALUES (CONCAT('App', CHAR(92), 'Models', CHAR(92), 'User'), $API_USER_ID, 'API User', SHA2('$API_TOKEN', 256), '[\"*\"]')"
       '';
     };
   };
@@ -99,6 +96,6 @@ in
     librenms.succeed("curl --fail -X POST -d '{\"hostname\":\"snmphost\",\"version\":\"v2c\",\"community\":\"public\"}' -H 'X-Auth-Token: ${api_token}' http://localhost/api/v0/devices")
 
     # wait until snmphost gets polled
-    librenms.wait_until_succeeds("test $(curl -H 'X-Auth-Token: ${api_token}' http://localhost/api/v0/devices/snmphost | jq -Mr .devices[0].last_polled) != 'null'")
+    librenms.wait_until_succeeds("curl -fsS -H 'X-Auth-Token: ${api_token}' http://localhost/api/v0/devices/snmphost | jq -e '.devices[0].last_polled != null'")
   '';
-})
+}

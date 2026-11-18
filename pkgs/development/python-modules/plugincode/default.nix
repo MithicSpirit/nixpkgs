@@ -8,7 +8,6 @@
   pluggy,
   pytestCheckHook,
   pytest-xdist,
-  pythonOlder,
 }:
 
 buildPythonPackage rec {
@@ -16,14 +15,20 @@ buildPythonPackage rec {
   version = "32.0.0";
   format = "setuptools";
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
     inherit pname version;
     hash = "sha256-QTLZOxdVJxxuImydouIET/YuvLhztelY1mqN3enzRfo=";
   };
 
   dontConfigure = true;
+
+  # pluggy 1.7 rejects the class-based hookspecs, which nothing ever calls: https://github.com/aboutcode-org/plugincode/issues/14
+  postPatch = ''
+    substituteInPlace src/plugincode/__init__.py \
+      --replace-fail "self.manager.add_hookspecs(sys.modules[module_qname])" ""
+    substituteInPlace src/plugincode/location_provider.py \
+      --replace-fail "self.manager.add_hookspecs(sys.modules[project_name])" ""
+  '';
 
   nativeBuildInputs = [ setuptools-scm ];
 
@@ -46,11 +51,11 @@ buildPythonPackage rec {
     "test_skeleton_codestyle"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Library that provides plugin functionality for ScanCode toolkit";
     homepage = "https://github.com/nexB/plugincode";
     changelog = "https://github.com/nexB/plugincode/blob/v${version}/CHANGELOG.rst";
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
     maintainers = [ ];
   };
 }

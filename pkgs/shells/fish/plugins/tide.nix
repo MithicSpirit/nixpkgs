@@ -1,16 +1,19 @@
-{ lib, buildFishPlugin, fetchFromGitHub }:
-
+{
+  lib,
+  buildFishPlugin,
+  fetchFromGitHub,
+}:
 # Due to a quirk in tide breaking wrapFish, we need to add additional commands in the config.fish
 # Refer to the following comment to get you setup: https://github.com/NixOS/nixpkgs/pull/201646#issuecomment-1320893716
-buildFishPlugin rec {
+buildFishPlugin (finalAttrs: {
   pname = "tide";
-  version = "6.1.1";
+  version = "6.2.1";
 
   src = fetchFromGitHub {
     owner = "IlanCosman";
     repo = "tide";
-    rev = "v${version}";
-    hash = "sha256-ZyEk/WoxdX5Fr2kXRERQS1U1QHH3oVSyBQvlwYnEYyc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-IK4xXwZOYq81NDWlxdPN+HJ8ixnrn2iIAtQYOM8ZMKQ=";
   };
 
   #buildFishplugin will only move the .fish files, but tide has a tide configure function
@@ -18,11 +21,10 @@ buildFishPlugin rec {
     cp -R functions/tide $out/share/fish/vendor_functions.d/
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Ultimate Fish prompt";
     homepage = "https://github.com/IlanCosman/tide";
-    license = licenses.mit;
-    maintainers = [ maintainers.jocelynthode ];
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.jocelynthode ];
   };
-}
-
+})

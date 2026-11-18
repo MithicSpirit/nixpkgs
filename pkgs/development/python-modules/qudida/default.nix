@@ -3,30 +3,27 @@
   buildPythonPackage,
   fetchPypi,
   numpy,
-  opencv4,
-  pythonOlder,
+  opencv-python,
   scikit-learn,
+  setuptools_80,
   typing-extensions,
 }:
 
 buildPythonPackage rec {
   pname = "qudida";
   version = "0.0.4";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.5";
+  pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
     hash = "sha256-2xmOKIerDJqgAj5WWvv/Qd+3azYfhf1eE/eA11uhjMg=";
   };
 
+  build-system = [ setuptools_80 ];
 
-  pythonRemoveDeps = [ "opencv-python" ];
-
-  propagatedBuildInputs = [
+  dependencies = [
     numpy
-    opencv4
+    opencv-python
     scikit-learn
     typing-extensions
   ];
@@ -36,10 +33,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "qudida" ];
 
-  meta = with lib; {
+  meta = {
     description = "QUick and DIrty Domain Adaptation";
     homepage = "https://github.com/arsenyinfo/qudida";
-    license = licenses.mit;
-    maintainers = with maintainers; [ natsukium ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ natsukium ];
   };
 }

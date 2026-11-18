@@ -1,49 +1,63 @@
 {
   lib,
+  aiohttp,
   buildPythonPackage,
   cryptography,
   fetchFromGitHub,
-  http-sfv,
+  hatch-vcs,
+  hatchling,
+  http-sf,
+  httpx2,
+  pytest-mypy,
   pytestCheckHook,
-  pythonOlder,
-  setuptools-scm,
   requests,
+  typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "http-message-signatures";
-  version = "0.5.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  version = "3.0.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "pyauth";
-    repo = pname;
-    rev = "v${version}";
-    hash = "sha256-Jsivw4lNA/2oqsOGGx8D4gUPftzuys877A9RXyapnSQ=";
+    repo = "http-message-signatures";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-3ADx7xaAVBStvFHFqffrIKO5SrgIROMs+yFt03IcP+A=";
   };
 
-  nativeBuildInputs = [ setuptools-scm ];
-
-  propagatedBuildInputs = [
-    cryptography
-    http-sfv
+  build-system = [
+    hatchling
+    hatch-vcs
   ];
+
+  dependencies = [
+    cryptography
+    http-sf
+  ];
+
+  optional-dependencies = {
+    aiohttp = [ aiohttp ];
+    httpx2 = [ httpx2 ];
+  };
 
   nativeCheckInputs = [
+    pytest-mypy
     pytestCheckHook
     requests
-  ];
+    typing-extensions
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
-  pytestFlagsArray = [ "test/test.py" ];
+  enabledTestPaths = [ "test/test.py" ];
 
   pythonImportsCheck = [ "http_message_signatures" ];
 
-  meta = with lib; {
+  meta = {
     description = "Requests authentication module for HTTP Signature";
     homepage = "https://github.com/pyauth/http-message-signatures";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/pyauth/http-message-signatures/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

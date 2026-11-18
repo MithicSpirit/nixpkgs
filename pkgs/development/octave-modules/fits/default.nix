@@ -1,9 +1,10 @@
-{ buildOctavePackage
-, lib
-, fetchurl
-, cfitsio
-, hdf5
-, pkg-config
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
+  cfitsio,
+  hdf5,
+  pkg-config,
 }:
 
 buildOctavePackage rec {
@@ -12,7 +13,7 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "0jab5wmrpifqphmrfkqcyrlpc0h4y4m735yc3avqqjajz1rl24lm";
+    hash = "sha256-lRJBc/hSSYy3GsyXcSrxBAJ2afYMT5crvNjFmysvS0k=";
   };
 
   # Found here: https://build.opensuse.org/package/view_file/science/octave-forge-fits/octave-forge-fits.spec?expand=1
@@ -32,10 +33,12 @@ buildOctavePackage rec {
     cfitsio
   ];
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/fits/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/fits/";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Functions for reading, and writing FITS (Flexible Image Transport System) files using cfitsio";
+    # Hasn't been updated since 2015, and fails to build with octave >= 10.1.0
+    broken = true;
   };
 }

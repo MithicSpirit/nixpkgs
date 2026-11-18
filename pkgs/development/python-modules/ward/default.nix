@@ -6,10 +6,10 @@
   click-default-group,
   cucumber-tag-expressions,
   fetchFromGitHub,
+  gitUpdater,
   pluggy,
   poetry-core,
   pprintpp,
-  pythonOlder,
   rich,
   tomli,
 }:
@@ -19,12 +19,10 @@ buildPythonPackage rec {
   version = "0.68.0b0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
   src = fetchFromGitHub {
     owner = "darrenburns";
     repo = "ward";
-    rev = "refs/tags/release%2F${version}";
+    tag = "release%2F${version}";
     hash = "sha256-4dEMEEPySezgw3dIcYMl56HrhyaYlql9JvtamOn7Y8g=";
   };
 
@@ -46,15 +44,17 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "ward" ];
 
-  meta = with lib; {
+  passthru.updateScript = gitUpdater { rev-prefix = "release/"; };
+
+  meta = {
     description = "Test framework for Python";
     homepage = "https://github.com/darrenburns/ward";
     changelog = "https://github.com/darrenburns/ward/releases/tag/release%2F${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "ward";
     # Old requirements (cucumber-tag-expressions and rich)
     # https://github.com/darrenburns/ward/issues/380
-    broken = versionAtLeast rich.version "13.0.0";
+    broken = lib.versionAtLeast rich.version "13.0.0";
   };
 }

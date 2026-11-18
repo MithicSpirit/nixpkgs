@@ -1,37 +1,58 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, rustPlatform
-, bashInteractive
-, coreutils
-, installShellFiles
-, libiconv
-, mdbook
-, nix-update-script
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  rustPlatform,
+  bashInteractive,
+  coreutils,
+  installAgentSkills,
+  installShellFiles,
+  libiconv,
+  mdbook,
+  nix-update-script,
+  # run the compiled `just` to build the completions
+  installShellCompletions ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
+  # run the compiled `just` to build the man pages
+  installManPages ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
+  # run the compiled `generate-book` utility to prepare the files for mdbook
+  withDocumentation ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "just";
-  version = "1.35.0";
-  outputs = [ "out" "man" "doc" ];
+  version = "1.59.0";
+  outputs = [
+    "out"
+  ]
+  ++ lib.optionals installManPages [
+    "man"
+  ]
+  ++ lib.optionals withDocumentation [ "doc" ];
+
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "casey";
-    repo = pname;
-    rev = "refs/tags/${version}";
-    hash = "sha256-/5UzieioBzltFhzUoPOm6B4QKHFEquXCKo/2SPHkp2M=";
+    repo = "just";
+    tag = finalAttrs.version;
+    hash = "sha256-3VMa1BhVIstQNg9Vl0WsVwWe9OKoqGywWZvmdWJOiBM=";
   };
 
-  cargoHash = "sha256-X3noVDRnnrR6xuOBfoH4JPdcPLOBHbGQb6opNvzK/TE=";
+  cargoHash = "sha256-eFHruoEJXQdyryoQMH88vfqo3gXfjdFqlcqq2usNPC8=";
 
-  nativeBuildInputs = [ installShellFiles mdbook ];
-  buildInputs = lib.optionals stdenv.isDarwin [ libiconv ];
+  nativeBuildInputs = [
+    installAgentSkills
+  ]
+  ++ lib.optionals (installShellCompletions || installManPages) [ installShellFiles ]
+  ++ lib.optionals withDocumentation [ mdbook ];
+  buildInputs = lib.optionals stdenv.hostPlatform.isDarwin [ libiconv ];
 
   preCheck = ''
     # USER must not be empty
     export USER=just-user
     export USERNAME=just-user
     export JUST_CHOOSER="${coreutils}/bin/cat"
+    export XDG_RUNTIME_DIR=$(mktemp -d)
 
     # Prevent string.rs from being changed
     cp tests/string.rs $TMPDIR/string.rs
@@ -49,26 +70,10 @@ rustPlatform.buildRustPackage rec {
     patchShebangs tests
   '';
 
-  patches = [
-    ./fix-just-path-in-tests.patch
-  ];
-
-  postBuild = ''
-    cargo run --package generate-book
-
-    mkdir -p completions man
-
-    cargo run -- --man > man/just.1
-
-    for shell in bash fish zsh; do
-        cargo run -- --completions $shell > completions/just.$shell
-    done
-
-    # No linkcheck in sandbox
-    echo 'optional = true' >> book/en/book.toml
-    mdbook build book/en
-    find .
-  '';
+  cargoBuildFlags = [
+    "--package=just"
+  ]
+  ++ (lib.optionals withDocumentation [ "--package=generate-book" ]);
 
   checkFlags = [
     "--skip=backticks::trailing_newlines_are_stripped" # Wants to use python3 as alternate shell
@@ -77,29 +82,44 @@ rustPlatform.buildRustPackage rec {
     "--skip=config::tests::show_arguments" # interferes with JUST_CHOOSER being set
     "--skip=edit::editor_precedence" # trying to run "vim" fails as there's no /usr/bin/env or which in the sandbox to find vim and the dependency is not easily patched
     "--skip=shebang::run_shebang" # test case very rarely fails with "Text file busy"
+    "--skip=shebang::powershell_shebang_on_unix_has_no_bom" # requires powershell
   ];
 
-  postInstall = ''
-    mkdir -p $doc/share/doc/$name
-    mv ./book/en/build/html $doc/share/doc/$name
-    installManPage man/just.1
-
-    installShellCompletion --cmd just \
-      --bash completions/just.bash \
-      --fish completions/just.fish \
-      --zsh completions/just.zsh
-  '';
+  postInstall =
+    lib.optionalString withDocumentation ''
+      $out/bin/generate-book
+      rm $out/bin/generate-book
+      # No linkcheck in sandbox
+      echo 'optional = true' >> book/en/book.toml
+      mdbook build book/en
+      mkdir -p $doc/share/doc/$name/html
+      mv ./book/en/build/* $doc/share/doc/$name/html
+    ''
+    + lib.optionalString installManPages ''
+      $out/bin/just --man > ./just.1
+      installManPage ./just.1
+    ''
+    + lib.optionalString installShellCompletions ''
+      installShellCompletion --cmd just \
+        --bash <($out/bin/just --completions bash) \
+        --fish <($out/bin/just --completions fish) \
+        --zsh <($out/bin/just --completions zsh)
+    '';
 
   setupHook = ./setup-hook.sh;
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/casey/just";
-    changelog = "https://github.com/casey/just/blob/${version}/CHANGELOG.md";
+    changelog = "https://github.com/casey/just/blob/${finalAttrs.version}/CHANGELOG.md";
     description = "Handy way to save and run project-specific commands";
-    license = licenses.cc0;
-    maintainers = with maintainers; [ xrelkd jk ];
+    license = lib.licenses.cc0;
+    maintainers = with lib.maintainers; [
+      jk
+      ryan4yin
+      xrelkd
+    ];
     mainProgram = "just";
   };
-}
+})

@@ -2,7 +2,6 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  pythonOlder,
   rustPlatform,
   cargo,
   rustc,
@@ -12,6 +11,7 @@
   setuptools-rust,
   pytestCheckHook,
   pytest-mypy-plugins,
+  pytest-order,
   hypothesis,
   freezegun,
   time-machine,
@@ -20,21 +20,19 @@
 
 buildPythonPackage rec {
   pname = "whenever";
-  version = "0.6.7";
+  version = "0.11.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "ariebovenberg";
     repo = "whenever";
-    rev = "refs/tags/${version}";
-    hash = "sha256-aQ6mE9UZg/wa+N2kErDo3edXVvjL/4Bhjmi6//CCmJw=";
+    tag = version;
+    hash = "sha256-oSrHu2DicPWg1x1hpq1vHhVQ/3Fsc17zNMuwsGAYo/E=";
   };
 
-  cargoDeps = rustPlatform.fetchCargoTarball {
+  cargoDeps = rustPlatform.fetchCargoVendor {
     inherit src;
-    hash = "sha256-B1weEmW+Q7VxwnLxv9QH75I6IgEICTd70ci/I14ehLY=";
+    hash = "sha256-ZJhHIY9oFGGfK0XdZtzH7uSqbg3y3aDEh5q4ba5W0tI=";
   };
 
   build-system = [
@@ -45,13 +43,14 @@ buildPythonPackage rec {
     rustc
   ];
 
-  buildInputs = lib.optionals stdenv.isDarwin [
+  buildInputs = lib.optionals stdenv.hostPlatform.isDarwin [
     libiconv
   ];
 
   nativeCheckInputs = [
     pytestCheckHook
     pytest-mypy-plugins
+    pytest-order
     # pytest-benchmark # developer sanity check, should not block distribution
     hypothesis
     freezegun
@@ -59,26 +58,25 @@ buildPythonPackage rec {
   ];
 
   disabledTestPaths = [
-    # benchmarks
-    "benchmarks/python/test_date.py"
-    "benchmarks/python/test_instant.py"
-    "benchmarks/python/test_local_datetime.py"
-    "benchmarks/python/test_zoned_datetime.py"
+    # benchmarks need pytest-benchmark, a developer sanity check only
+    "benchmarks"
+  ];
+
+  disabledTests = [
+    # runs `python -I`, which ignores the test PYTHONPATH, so `whenever` is not
+    # importable in the sandbox
+    "test_import_does_not_load_typing_extensions"
   ];
 
   pythonImportsCheck = [ "whenever" ];
 
-  # a bunch of failures, including an assumption of what the timezone on the host is
-  # TODO: try enabling on bump
-  doCheck = false;
-
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     description = "Strict, predictable, and typed datetimes";
     homepage = "https://github.com/ariebovenberg/whenever";
-    changelog = "https://github.com/ariebovenberg/whenever/blob/${src.rev}/CHANGELOG.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ pbsds ];
+    changelog = "https://github.com/ariebovenberg/whenever/blob/${src.rev}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ pbsds ];
   };
 }

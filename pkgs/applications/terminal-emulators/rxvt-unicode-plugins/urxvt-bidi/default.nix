@@ -1,4 +1,10 @@
-{ lib, fetchurl, perlPackages, pkg-config, fribidi }:
+{
+  lib,
+  fetchurl,
+  perlPackages,
+  pkg-config,
+  fribidi,
+}:
 
 perlPackages.buildPerlPackage rec {
   pname = "urxvt-bidi";
@@ -6,10 +12,13 @@ perlPackages.buildPerlPackage rec {
 
   src = fetchurl {
     url = "mirror://cpan/authors/id/K/KA/KAMENSKY/Text-Bidi-${version}.tar.gz";
-    sha256 = "1w65xbi4mw5acsrpv3phyzv82ghb29kpbb3b1b1gcinlfxl6f61m";
+    hash = "sha256-NRhnaHfURvbCCmusdWcSCz6B9vfwjn2zZqrwSuLqxfA=";
   };
 
-  nativeBuildInputs = [ pkg-config perlPackages.ExtUtilsPkgConfig ];
+  nativeBuildInputs = [
+    pkg-config
+    perlPackages.ExtUtilsPkgConfig
+  ];
   buildInputs = [ fribidi ];
 
   postInstall = ''
@@ -18,10 +27,13 @@ perlPackages.buildPerlPackage rec {
 
   passthru.perlPackages = [ "self" ];
 
-  meta = with lib; {
+  meta = {
     description = "Text::Bidi Perl package using fribidi, providing a urxvt plugin";
     homepage = "https://github.com/mkamensky/Text-Bidi";
-    maintainers = with maintainers; [ doronbehar ];
-    platforms = with platforms; unix;
+    maintainers = with lib.maintainers; [ doronbehar ];
+    platforms = with lib.platforms; unix;
+    # Quote from the README:
+    # same terms as the Perl 5 programming language system itself
+    license = perlPackages.perl.meta.license;
   };
 }

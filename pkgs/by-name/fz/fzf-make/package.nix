@@ -1,40 +1,62 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
-, makeBinaryWrapper
-, runtimeShell
-, bat
-, gnugrep
-, gnumake
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  makeBinaryWrapper,
+  pkg-config,
+  oniguruma,
+  versionCheckHook,
+  runtimeShell,
+  bat,
+  gnugrep,
+  gnumake,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "fzf-make";
-  version = "0.36.0";
+  version = "0.76.0";
+
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "kyu08";
     repo = "fzf-make";
-    rev = "v${version}";
-    hash = "sha256-IlPkJK4pYszrJ43HSTq9Xwpz3K9XnUpoF0Ry7ox85KE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-7PchjXqrN8N2uLnxxl9weHE9Q7xNo+6+FAr9iTW+63A=";
   };
 
-  cargoHash = "sha256-mMDPpiIWhGMl0a4v1msNfcQqmq5ziB+ppw7RxYNAPaI=";
+  cargoHash = "sha256-W0DAhQC9Fe4Tk+9mMZrIBQRyVhHSUHWg51LHSJ/h2HA=";
 
-  nativeBuildInputs = [ makeBinaryWrapper ];
+  nativeBuildInputs = [
+    makeBinaryWrapper
+    pkg-config
+  ];
+
+  buildInputs = [ oniguruma ];
 
   postInstall = ''
     wrapProgram $out/bin/fzf-make \
       --set SHELL ${runtimeShell} \
-      --suffix PATH : ${lib.makeBinPath [ bat gnugrep gnumake ]}
+      --suffix PATH : ${
+        lib.makeBinPath [
+          bat
+          gnugrep
+          gnumake
+        ]
+      }
   '';
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
 
   meta = {
     description = "Fuzzy finder for Makefile";
     homepage = "https://github.com/kyu08/fzf-make";
-    changelog = "https://github.com/kyu08/fzf-make/releases/tag/${src.rev}";
+    changelog = "https://github.com/kyu08/fzf-make/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ figsoda sigmanificient ];
+    maintainers = with lib.maintainers; [
+      sigmanificient
+    ];
     mainProgram = "fzf-make";
   };
-}
+})

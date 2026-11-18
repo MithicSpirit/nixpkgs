@@ -1,14 +1,17 @@
-{ lib, stdenv, fetchFromGitHub, fetchpatch, kernel, runtimeShell }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  fetchpatch,
+  kernel,
+  kernelModuleMakeFlags,
+  runtimeShell,
+}:
 
-let
-  baseName = "bbswitch";
+stdenv.mkDerivation (finalAttrs: {
+  name = "${finalAttrs.pname}-${finalAttrs.version}-${kernel.version}";
+  pname = "bbswitch";
   version = "unstable-2021-11-29";
-  name = "${baseName}-${version}-${kernel.version}";
-
-in
-
-stdenv.mkDerivation {
-  inherit name;
 
   src = fetchFromGitHub {
     owner = "Bumblebee-Project";
@@ -31,15 +34,17 @@ stdenv.mkDerivation {
 
   preBuild = ''
     substituteInPlace Makefile \
-      --replace "/lib/modules" "${kernel.dev}/lib/modules"
+      --replace-fail "/lib/modules" "${kernel.dev}/lib/modules"
   '';
 
-  makeFlags = kernel.makeFlags;
+  makeFlags = kernelModuleMakeFlags ++ [
+    "INSTALL_MOD_PATH=${placeholder "out"}"
+    "INSTALL_MOD_DIR=kernel/misc"
+    "INSTALL_MOD_STRIP=1"
+    "DEPMOD=true"
+  ];
 
-  installPhase = ''
-    mkdir -p $out/lib/modules/${kernel.modDirVersion}/misc
-    cp bbswitch.ko $out/lib/modules/${kernel.modDirVersion}/misc
-
+  postInstall = ''
     mkdir -p $out/bin
     tee $out/bin/discrete_vga_poweroff << EOF
     #!${runtimeShell}
@@ -54,11 +59,21 @@ stdenv.mkDerivation {
     chmod +x $out/bin/discrete_vga_poweroff $out/bin/discrete_vga_poweron
   '';
 
-  meta = with lib; {
+  installFlags = [
+    "-C ${kernel.dev}/lib/modules/${kernel.modDirVersion}/build"
+    "M=$(PWD)"
+  ];
+
+  installTargets = [ "modules_install" ];
+
+  meta = {
     description = "Module for powering off hybrid GPUs";
-    platforms = [ "x86_64-linux" "i686-linux" ];
+    platforms = [
+      "x86_64-linux"
+      "i686-linux"
+    ];
     homepage = "https://github.com/Bumblebee-Project/bbswitch";
-    maintainers = with maintainers; [ abbradar ];
-    license = licenses.gpl2Plus;
+    maintainers = [ ];
+    license = lib.licenses.gpl2Plus;
   };
-}
+})

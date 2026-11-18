@@ -6,7 +6,8 @@ use std::hash::Hash;
 use std::iter::FromIterator;
 use std::os::unix;
 use std::path::{Component, Path, PathBuf};
-use std::process::Command;
+
+use libc::umask;
 
 use eyre::Context;
 use goblin::{elf::Elf, Object};
@@ -108,7 +109,7 @@ fn add_dependencies<P: AsRef<Path> + AsRef<OsStr> + std::fmt::Debug>(
                 .position(|x| *x == 0)
                 .unwrap_or(note.desc.len())];
             let parsed = serde_json::from_slice::<Vec<DLOpenNote>>(payload)?;
-            for mut parsed_note in parsed {
+            for parsed_note in parsed {
                 if dlopen.use_priority
                     >= parsed_note.priority.unwrap_or(DLOpenPriority::Recommended)
                     || parsed_note
@@ -116,7 +117,9 @@ fn add_dependencies<P: AsRef<Path> + AsRef<OsStr> + std::fmt::Debug>(
                         .map(|f| dlopen.features.contains(&f))
                         .unwrap_or(false)
                 {
-                    dlopen_libraries.append(&mut parsed_note.soname);
+                    // SONAMEs in one note are ordered alternatives, not
+                    // independent dependencies.
+                    dlopen_libraries.push(parsed_note.soname);
                 }
             }
         }
@@ -136,33 +139,41 @@ fn add_dependencies<P: AsRef<Path> + AsRef<OsStr> + std::fmt::Debug>(
         .map(|p| Box::<Path>::from(Path::new(p)))
         .collect::<Vec<_>>();
 
-    for line in elf
+    for sonames in elf
         .libraries
         .into_iter()
-        .map(|s| s.to_string())
+        .map(|s| vec![s.to_string()])
         .chain(dlopen_libraries)
     {
-        let mut found = false;
-        for path in &rpaths_as_path {
-            let lib = path.join(&line);
-            if lib.exists() {
-                // No need to recurse. The queue will bring it back round.
-                queue.push_back(StorePath {
-                    path: Box::from(lib.as_path()),
-                    dlopen: dlopen.clone(),
-                });
-                found = true;
-                break;
-            }
-        }
-        if !found {
-            // glibc makes it tricky to make this an error because
-            // none of the files have a useful rpath.
-            println!(
-                "Warning: Couldn't satisfy dependency {} for {:?}",
-                line,
-                OsStr::new(&source)
+        let library = sonames
+            .iter()
+            .flat_map(|soname| rpaths_as_path.iter().map(move |path| path.join(soname)))
+            .find(|lib| lib.exists());
+        if let Some(lib) = library {
+            // No need to recurse. The queue will bring it back round.
+            queue.push_back(StorePath {
+                path: lib.into_boxed_path(),
+                dlopen: dlopen.clone(),
+            });
+        } else {
+            // In Nix, glibc's own libraries lack rpath entries pointing to
+            // themselves, so the dynamic linker (ld-linux-*.so.*) and libc.so.*
+            // can never be resolved through rpath alone. They are always present
+            // in the initrd: the linker via elf.interpreter above, and libc via
+            // at least one binary's rpath. Suppress these known-benign cases.
+            // See also: the ld*.so.? skip in stage-1.nix findLibs.
+            let is_glibc_runtime = matches!(
+                sonames.as_slice(),
+                [s] if (s.starts_with("ld-") && s.contains(".so")) || s.starts_with("libc.so")
             );
+
+            if !is_glibc_runtime {
+                eprintln!(
+                    "Warning: Couldn't satisfy dependency {} for {:?}",
+                    sonames.join(" or "),
+                    OsStr::new(&source)
+                );
+            }
         }
     }
 
@@ -186,27 +197,6 @@ fn copy_file<
 
     if let Ok(Object::Elf(e)) = Object::parse(&contents) {
         add_dependencies(source, e, &contents, &dlopen, queue)?;
-
-        // Make file writable to strip it
-        let mut permissions = fs::metadata(&target)
-            .wrap_err_with(|| format!("failed to get metadata for {:?}", target))?
-            .permissions();
-        permissions.set_readonly(false);
-        fs::set_permissions(&target, permissions)
-            .wrap_err_with(|| format!("failed to set readonly flag to false for {:?}", target))?;
-
-        // Strip further than normal
-        if let Ok(strip) = env::var("STRIP") {
-            if !Command::new(strip)
-                .arg("--strip-all")
-                .arg(OsStr::new(&target))
-                .output()?
-                .status
-                .success()
-            {
-                println!("{:?} was not successfully stripped.", OsStr::new(&target));
-            }
-        }
     };
 
     Ok(())
@@ -325,15 +315,15 @@ fn main() -> eyre::Result<()> {
     let args: Vec<String> = env::args().collect();
     let contents =
         fs::read(&args[1]).wrap_err_with(|| format!("failed to open file {:?}", &args[1]))?;
-    let input = serde_json::from_slice::<Vec<StoreInput>>(&contents)
-        .wrap_err_with(|| {
-            let text = String::from_utf8_lossy(&contents);
-            format!("failed to parse JSON '{}' in {:?}",
-                text,
-                &args[1])
-        })?;
+    let input = serde_json::from_slice::<Vec<StoreInput>>(&contents).wrap_err_with(|| {
+        let text = String::from_utf8_lossy(&contents);
+        format!("failed to parse JSON '{}' in {:?}", text, &args[1])
+    })?;
     let output = &args[2];
     let out_path = Path::new(output);
+
+    // The files we create should not be writable.
+    unsafe { umask(0o022) };
 
     let mut queue = NonRepeatingQueue::<StorePath>::new();
 

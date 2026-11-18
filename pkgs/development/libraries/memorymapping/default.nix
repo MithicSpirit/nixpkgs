@@ -1,4 +1,8 @@
-{ lib, stdenv, fetchFromGitHub }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+}:
 
 stdenv.mkDerivation {
   pname = "memorymapping";
@@ -8,7 +12,7 @@ stdenv.mkDerivation {
     owner = "NimbusKit";
     repo = "memorymapping";
     rev = "fc285afe13cb9d56a40c647b8ed6d6bd40636af7";
-    sha256 = "sha256-9u/QvK9TDsKxcubINH2OAbx5fXXkKF0+YT7LoLDaF0M=";
+    hash = "sha256-9u/QvK9TDsKxcubINH2OAbx5fXXkKF0+YT7LoLDaF0M=";
   };
 
   dontConfigure = true;
@@ -32,14 +36,14 @@ stdenv.mkDerivation {
     runHook postInstall
   '';
 
-  meta = with lib; {
+  meta = {
     homepage = "https://nimbuskit.github.io/memorymapping/";
     description = "fmemopen for Mac OS and iOS";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ veprbl ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ veprbl ];
     # Uses BSD-style funopen() to implement glibc-style fmemopen().
     # Add more BSDs if you need to.
-    platforms = platforms.darwin;
-    broken = stdenv.isAarch64;
+    platforms = lib.platforms.darwin;
+    broken = stdenv.hostPlatform.isAarch64;
   };
 }

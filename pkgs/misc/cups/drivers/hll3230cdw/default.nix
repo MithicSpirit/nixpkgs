@@ -1,16 +1,34 @@
-{ stdenv, lib, fetchurl, perl, gnused, dpkg, makeWrapper, autoPatchelfHook, libredirect }:
+{
+  stdenv,
+  lib,
+  fetchurl,
+  perl,
+  gnused,
+  dpkg,
+  makeWrapper,
+  autoPatchelfHook,
+  libredirect,
+}:
 
 stdenv.mkDerivation rec {
   pname = "cups-brother-hll3230cdw";
   version = "1.0.2";
   src = fetchurl {
     url = "https://download.brother.com/welcome/dlf103925/hll3230cdwpdrv-${version}-0.i386.deb";
-    sha256 = "9d49abc584bf22bc381510618a34107ead6ab14562b51831fefd6009947aa5a9";
+    hash = "sha256-nUmrxYS/Irw4FRBhijQQfq1qsUVitRgx/v1gCZR6pak=";
   };
 
-  nativeBuildInputs = [ dpkg makeWrapper autoPatchelfHook ];
+  nativeBuildInputs = [
+    dpkg
+    makeWrapper
+    autoPatchelfHook
+  ];
 
-  buildInputs = [ perl gnused libredirect ];
+  buildInputs = [
+    perl
+    gnused
+    libredirect
+  ];
 
   unpackPhase = "dpkg-deb -x $src .";
 
@@ -64,12 +82,15 @@ stdenv.mkDerivation rec {
       --replace \"\$"@"\" \"\$"@\" | LD_PRELOAD= ${gnused}/bin/sed -E '/^(function list :|resource file :).*/{s#/opt#$out/opt#}'"
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Brother HL-L3230CDW printer driver";
-    license = licenses.unfree;
-    sourceProvenance = with sourceTypes; [ binaryNativeCode ];
-    maintainers = with maintainers; [ aplund ];
-    platforms = [ "x86_64-linux" "i686-linux" ];
+    license = lib.licenses.unfree;
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
+    maintainers = with lib.maintainers; [ aplund ];
+    platforms = [
+      "x86_64-linux"
+      "i686-linux"
+    ];
     homepage = "http://www.brother.com/";
     downloadPage = "https://support.brother.com/g/b/downloadend.aspx?c=us&lang=en&prod=hll3230cdw_us_eu_as&os=128&dlid=dlf103925_000&flang=4&type3=10283";
   };

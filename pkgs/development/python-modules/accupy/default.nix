@@ -3,14 +3,12 @@
   stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
   setuptools,
   mpmath,
   numpy,
   pybind11,
   pyfma,
   eigen,
-  importlib-metadata,
   pytestCheckHook,
   matplotlib,
   dufte,
@@ -22,10 +20,8 @@ buildPythonPackage rec {
   version = "0.3.6";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchFromGitHub {
-    owner = "nschloe";
+    owner = "sigma-py";
     repo = "accupy";
     rev = version;
     hash = "sha256-xxwLmL/rFgDFQNr8mRBFG1/NArQk9wanelL4Lu7ls2s=";
@@ -42,7 +38,7 @@ buildPythonPackage rec {
     mpmath
     numpy
     pyfma
-  ] ++ lib.optional (pythonOlder "3.8") importlib-metadata;
+  ];
 
   nativeCheckInputs = [
     perfplot
@@ -62,7 +58,7 @@ buildPythonPackage rec {
 
   # This variable is needed to suppress the "Trace/BPT trap: 5" error in Darwin's checkPhase.
   # Not sure of the details, but we can avoid it by changing the matplotlib backend during testing.
-  env.MPLBACKEND = lib.optionalString stdenv.isDarwin "Agg";
+  env.MPLBACKEND = lib.optionalString stdenv.hostPlatform.isDarwin "Agg";
 
   # performance tests aren't useful to us and disabling them allows us to
   # decouple ourselves from an unnecessary build dep
@@ -79,10 +75,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "accupy" ];
 
-  meta = with lib; {
+  meta = {
     description = "Accurate sums and dot products for Python";
-    homepage = "https://github.com/nschloe/accupy";
-    license = licenses.mit;
+    homepage = "https://github.com/sigma-py/accupy";
+    license = lib.licenses.gpl3Plus;
     maintainers = [ ];
   };
 }

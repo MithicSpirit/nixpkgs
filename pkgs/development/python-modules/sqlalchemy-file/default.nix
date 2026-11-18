@@ -14,15 +14,19 @@
 
 buildPythonPackage rec {
   pname = "sqlalchemy-file";
-  version = "0.6.0";
+  version = "0.7.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "jowilf";
     repo = "sqlalchemy-file";
     rev = version;
-    hash = "sha256-gtW7YA/rQ48tnqPdypMnSqqtwb90nhAkiQNhgEr1M3I=";
+    hash = "sha256-xnd1Y7gyh8Kz9Ns5BQTfWUUnlwC9xWqvGntLFUTdsOs=";
   };
+
+  patches = [
+    ./disable-container-tests.patch
+  ];
 
   build-system = [ hatchling ];
 
@@ -45,7 +49,7 @@ buildPythonPackage rec {
     export LOCAL_PATH="$PWD/.storage"
   '';
 
-  disabledTestPaths = lib.optionals stdenv.isDarwin [
+  disabledTestPaths = lib.optionals stdenv.hostPlatform.isDarwin [
     # very flaky, sandbox issues?
     # libcloud.storage.types.ContainerDoesNotExistError
     # sqlite3.OperationalError: attempt to write a readonly database
@@ -68,11 +72,11 @@ buildPythonPackage rec {
     "sqlalchemy_file.helpers"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "SQLAlchemy extension for attaching files to SQLAlchemy model and uploading them to various storage with Apache Libcloud";
     homepage = "https://github.com/jowilf/sqlalchemy-file";
     changelog = "https://github.com/jowilf/sqlalchemy-file/blob/${src.rev}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ pbsds ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ pbsds ];
   };
 }

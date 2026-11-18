@@ -1,8 +1,7 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  debtcollector,
+  fetchFromGitHub,
   netaddr,
   oslo-i18n,
   pbr,
@@ -14,18 +13,25 @@
   callPackage,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "oslo-config";
-  version = "9.5.0";
+  version = "10.8.0";
   pyproject = true;
 
-  src = fetchPypi {
-    pname = "oslo.config";
-    inherit version;
-    hash = "sha256-qlAARIhrbFX3ZXfLWpNJKkWWxfkoM3Z2DqeFLMScmaM=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "oslo.config";
+    tag = finalAttrs.version;
+    hash = "sha256-D4QmMDen9RHWUEFMlZ6kZF+DZSslptE0aLRv2A6afkI=";
   };
 
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
+
   postPatch = ''
+    # pbr needs git to ship subpackages and package data
+    echo "recursive-include oslo_config *" > MANIFEST.in
+
     # only a small portion of the listed packages are actually needed for running the tests
     # so instead of removing them one by one remove everything
     rm test-requirements.txt
@@ -34,7 +40,6 @@ buildPythonPackage rec {
   build-system = [ setuptools ];
 
   dependencies = [
-    debtcollector
     netaddr
     oslo-i18n
     pbr
@@ -51,12 +56,15 @@ buildPythonPackage rec {
     tests = callPackage ./tests.nix { };
   };
 
-  pythonImportsCheck = [ "oslo_config" ];
+  pythonImportsCheck = [
+    "oslo_config"
+    "oslo_config.sources"
+  ];
 
-  meta = with lib; {
+  meta = {
     description = "Oslo Configuration API";
     homepage = "https://github.com/openstack/oslo.config";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

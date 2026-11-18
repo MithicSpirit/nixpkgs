@@ -6,16 +6,19 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "jwasm";
-  version = "2.18";
+  version = "2.21";
 
   src = fetchFromGitHub {
     owner = "Baron-von-Riedesel";
-    repo  = "JWasm";
+    repo = "JWasm";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-xbiyGBTzIkAfUy45JdAl77gbvArzVUQNPOxa+H2uGFo=";
+    hash = "sha256-a91A2AXNYaZQ7Q1/C8ghD49POqA5vn9bJuXu7E1W8Jg=";
   };
 
-  outputs = [ "out" "doc" ];
+  outputs = [
+    "out"
+    "doc"
+  ];
 
   dontConfigure = true;
 
@@ -23,6 +26,10 @@ stdenv.mkDerivation (finalAttrs: {
     cp ${if stdenv.cc.isClang then "CLUnix.mak" else "GccUnix.mak"} Makefile
     substituteInPlace Makefile \
       --replace "/usr/local/bin" "${placeholder "out"}/bin"
+  '';
+
+  preInstall = ''
+    mkdir -p ${placeholder "out"}/bin
   '';
 
   postInstall = ''
@@ -36,10 +43,11 @@ stdenv.mkDerivation (finalAttrs: {
     homepage = "https://github.com/Baron-von-Riedesel/JWasm/";
     description = "MASM-compatible x86 assembler";
     changelog = "https://github.com/Baron-von-Riedesel/JWasm/releases/tag/${finalAttrs.src.rev}";
-    license = lib.licenses.gpl2Plus;
-    maintainers = with lib.maintainers; [ AndersonTorres ];
+    mainProgram = "jwasm";
+    license = lib.licenses.watcom;
+    maintainers = [ ];
     platforms = lib.platforms.unix;
-    broken = stdenv.isDarwin;
+    broken = stdenv.hostPlatform.isDarwin;
   };
 })
 # TODO: generalize for Windows builds

@@ -4,22 +4,22 @@
   callPackage,
   fetchPypi,
   setuptools,
-  swig4,
+  swig,
 }:
 
 buildPythonPackage rec {
   pname = "pykcs11";
-  version = "1.5.16";
+  version = "1.5.18";
   pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-Q9dGsGd/Q8xjS598Tastm6axqDuTHiWYJHBi+P9kHgc=";
+    hash = "sha256-Ev2HizaYIdgMG+ihQMheig+xNY/Kq6ZspmhpITaS8ic=";
   };
 
   build-system = [ setuptools ];
 
-  nativeBuildInputs = [ swig4 ];
+  nativeBuildInputs = [ swig ];
 
   pypaBuildFlags = [ "--skip-dependency-check" ];
 
@@ -42,11 +42,11 @@ buildPythonPackage rec {
     pytest = callPackage ./tests.nix { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "PKCS#11 wrapper for Python";
     homepage = "https://github.com/LudovicRousseau/PyKCS11";
     changelog = "https://github.com/LudovicRousseau/PyKCS11/releases/tag/${version}";
-    license = licenses.gpl2Plus;
-    maintainers = with maintainers; [ hulr ];
+    license = lib.licenses.gpl2Plus;
+    maintainers = with lib.maintainers; [ hulr ];
   };
 }

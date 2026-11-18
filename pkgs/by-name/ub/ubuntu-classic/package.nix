@@ -3,6 +3,7 @@
   stdenvNoCC,
   fetchgit,
   gitUpdater,
+  installFonts,
 }:
 
 stdenvNoCC.mkDerivation (finalAttrs: {
@@ -15,17 +16,16 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     hash = "sha256-GrpBVgisVu7NklFYqkEqYi0hui/pCHlsM3Ky4mEUq90=";
   };
 
-  installPhase = ''
-    runHook preInstall
+  nativeBuildInputs = [ installFonts ];
 
-    install -m444 -Dt $out/share/fonts/truetype/ubuntu *.ttf
-
-    runHook postInstall
+  # Hinting sources such as sources/VTT/Ubuntu-B-hinting.ttf are not fonts to install
+  preInstall = ''
+    rm -r sources
   '';
 
   passthru.updateScript = gitUpdater { rev-prefix = "import/"; };
 
-  meta = with lib; {
+  meta = {
     description = "Ubuntu Classic font";
     longDescription = "The Ubuntu typeface has been specially
     created to complement the Ubuntu tone of voice. It has a
@@ -33,8 +33,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     the Ubuntu brand that convey a precise, reliable and free attitude.";
     homepage = "https://design.ubuntu.com/font";
     changelog = "https://git.launchpad.net/ubuntu/+source/fonts-ubuntu-classic/tree/FONTLOG.txt?h=${finalAttrs.src.rev}";
-    license = licenses.ufl;
-    platforms = platforms.all;
-    maintainers = with maintainers; [ bobby285271 ];
+    license = lib.licenses.ufl;
+    platforms = lib.platforms.all;
+    maintainers = with lib.maintainers; [ bobby285271 ];
   };
 })

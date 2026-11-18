@@ -1,49 +1,46 @@
 {
   lib,
-  buildPythonPackage,
-  pythonOlder,
-  fetchFromGitHub,
-  fetchpatch,
+  awscli2,
   azure-common,
   azure-core,
   azure-storage-blob,
+  backports-zstd,
   boto3,
+  buildPythonPackage,
+  fetchFromGitHub,
   google-cloud-storage,
-  requests,
+  lz4,
   moto,
+  numpy,
   paramiko,
+  pyopenssl,
+  pytest-cov-stub,
+  pytest-timeout,
+  pytest-xdist,
   pytestCheckHook,
+  requests,
   responses,
+  setuptools-scm,
   setuptools,
   wrapt,
-  zstandard,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "smart-open";
-  version = "7.0.4";
+  version = "9.0.3";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchFromGitHub {
-    owner = "RaRe-Technologies";
+    owner = "piskvorky";
     repo = "smart_open";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-4HOTaF6AKXGlVCvSGKnnaH73aa4IO0aRxz03XQ4gSd8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-aKXinZFw3tr4VXK/f9iPPa8N6WE4rr13GCw17rVAu0o=";
   };
 
-  patches = [
-    # https://github.com/RaRe-Technologies/smart_open/pull/822
-    # fix test_smart_open.py on python 3.12
-    (fetchpatch {
-      name = "fix-smart-open-test.patch";
-      url = "https://github.com/RaRe-Technologies/smart_open/commit/3d29564ca034a56d343c9d14b178aaa0ff4c937c.patch";
-      hash = "sha256-CrAeqaIMM8bctWiFnq9uamnIlkaslDyjaWL6k9wUjT8=";
-    })
+  build-system = [
+    setuptools
+    setuptools-scm
   ];
-
-  build-system = [ setuptools ];
 
   dependencies = [ wrapt ];
 
@@ -56,34 +53,43 @@ buildPythonPackage rec {
       azure-core
     ];
     http = [ requests ];
+    lz4 = [ lz4 ];
     webhdfs = [ requests ];
     ssh = [ paramiko ];
-    zst = [ zstandard ];
+    zst = [ backports-zstd ];
   };
 
   pythonImportsCheck = [ "smart_open" ];
 
   nativeCheckInputs = [
+    awscli2
     moto
+    numpy
+    pytest-cov-stub
+    pytest-timeout
+    pytest-xdist
     pytestCheckHook
+    pyopenssl
     responses
-  ] ++ lib.flatten (builtins.attrValues optional-dependencies);
+  ]
+  ++ moto.optional-dependencies.server
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
-  pytestFlagsArray = [ "smart_open" ];
+  enabledTestPaths = [ "tests" ];
 
   disabledTests = [
-    # https://github.com/RaRe-Technologies/smart_open/issues/784
+    # https://github.com/piskvorky/smart_open/issues/784
     "test_https_seek_forward"
     "test_seek_from_current"
     "test_seek_from_end"
     "test_seek_from_start"
   ];
 
-  meta = with lib; {
-    changelog = "https://github.com/piskvorky/smart_open/releases/tag/v${version}";
+  meta = {
     description = "Library for efficient streaming of very large file";
-    homepage = "https://github.com/RaRe-Technologies/smart_open";
-    license = licenses.mit;
-    maintainers = with maintainers; [ jyp ];
+    homepage = "https://github.com/piskvorky/smart_open";
+    changelog = "https://github.com/piskvorky/smart_open/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = [ ];
   };
-}
+})

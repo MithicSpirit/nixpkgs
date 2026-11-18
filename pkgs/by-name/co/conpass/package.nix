@@ -4,26 +4,25 @@
   fetchFromGitHub,
 }:
 
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication (finalAttrs: {
   pname = "conpass";
-  version = "0.1.2";
+  version = "0.3.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "login-securite";
     repo = "conpass";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-7o4aQ6qpaWimWqgFO35Wht7mQsdVezoPTm7hp54FWR8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-EXmmLL2z/jG3ThIyOXnJbYoorOg40HRhJ/74hN44NO4=";
   };
 
-  build-system = with python3.pkgs; [
-    setuptools
-  ];
+  build-system = with python3.pkgs; [ hatchling ];
 
   dependencies = with python3.pkgs; [
     impacket
     python-ldap
     rich
+    typer
   ];
 
   # Project has no tests
@@ -31,12 +30,12 @@ python3.pkgs.buildPythonApplication rec {
 
   pythonImportsCheck = [ "conpass" ];
 
-  meta = with lib; {
+  meta = {
     description = "Continuous password spraying tool";
     homepage = "https://github.com/login-securite/conpass";
-    changelog = "https://github.com/login-securite/conpass/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/login-securite/conpass/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "conpass";
   };
-}
+})

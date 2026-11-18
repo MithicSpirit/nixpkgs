@@ -1,13 +1,11 @@
 { grafanaPlugin, lib }:
 
-grafanaPlugin rec {
+grafanaPlugin {
   pname = "grafana-clock-panel";
-  version = "2.1.3";
-  zipHash = "sha256-ZedeV/SQsBu55jAxFyyXQefir4hEl1/TQDmaTJN9bag=";
-  meta = with lib; {
+  inherit (lib.importTOML ./sources.toml) version packages;
+  meta = {
     description = "Clock panel for Grafana";
-    license = licenses.mit;
-    maintainers = with maintainers; [ lukegb ];
-    platforms = platforms.unix;
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ lukegb ];
   };
 }

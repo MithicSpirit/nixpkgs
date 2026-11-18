@@ -8,25 +8,43 @@
   ldap3,
   ldapdomaindump,
   pyasn1,
+  pyasn1-modules,
   pycryptodomex,
   pyopenssl,
-  pythonOlder,
   setuptools,
   pytestCheckHook,
   six,
+  writeText,
 }:
+let
+  opensslConf = writeText "openssl.conf" ''
+    openssl_conf = openssl_init
 
-buildPythonPackage rec {
+    [openssl_init]
+    providers = provider_sect
+
+    [provider_sect]
+    default = default_sect
+    legacy = legacy_sect
+
+    [default_sect]
+    activate = 1
+
+    [legacy_sect]
+    activate = 1
+  '';
+in
+buildPythonPackage (finalAttrs: {
   pname = "impacket";
-  version = "0.11.0";
+  version = "0.13.1";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-7kA5tNKu3o9fZEeLxZ+qyGA2eWviTeqNwY8An7CQXko=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-7ZHIAra+/2VGr9ImKUK8GhiLRnH7kex1HUah1m0ows8=";
   };
+
+  pythonRelaxDeps = [ "pyopenssl" ];
 
   build-system = [ setuptools ];
 
@@ -37,6 +55,7 @@ buildPythonPackage rec {
     ldap3
     ldapdomaindump
     pyasn1
+    pyasn1-modules
     pycryptodomex
     pyopenssl
     setuptools
@@ -45,7 +64,16 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [ pytestCheckHook ];
 
-  pythonImportsCheck = [ "impacket" ];
+  makeWrapperArgs = [
+    "--set-default"
+    "OPENSSL_CONF"
+    "${opensslConf}"
+  ];
+
+  pythonImportsCheck = [
+    "impacket"
+    "impacket.msada_guids"
+  ];
 
   disabledTestPaths = [
     # Skip all RPC related tests
@@ -53,14 +81,14 @@ buildPythonPackage rec {
     "tests/SMB_RPC/"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Network protocols Constructors and Dissectors";
     homepage = "https://github.com/SecureAuthCorp/impacket";
     changelog =
       "https://github.com/fortra/impacket/releases/tag/impacket_"
-      + replaceStrings [ "." ] [ "_" ] version;
+      + lib.replaceStrings [ "." ] [ "_" ] finalAttrs.version;
     # Modified Apache Software License, Version 1.1
-    license = licenses.free;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.free;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

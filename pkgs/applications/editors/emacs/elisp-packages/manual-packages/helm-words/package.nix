@@ -1,6 +1,5 @@
 {
   lib,
-  dictionary,
   fetchFromGitHub,
   helm,
   melpaBuild,
@@ -18,11 +17,8 @@ melpaBuild {
   };
 
   packageRequires = [
-    dictionary
     helm
   ];
-
-  ignoreCompilationError = false;
 
   meta = {
     homepage = "https://github.com/emacsmirror/helm-words";

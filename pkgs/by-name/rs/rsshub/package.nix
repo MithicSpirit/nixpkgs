@@ -2,70 +2,74 @@
   lib,
   fetchFromGitHub,
   makeBinaryWrapper,
+  nix-update-script,
   nodejs,
-  pnpm,
+  pnpm_12,
+  fetchPnpmDeps,
+  pnpmConfigHook,
+  replaceVars,
   stdenv,
-  substitute,
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "rsshub";
-  version = "0-unstable-2024-07-08";
+  version = "2026.11.15-8657.a747f0e";
 
   src = fetchFromGitHub {
     owner = "DIYgod";
     repo = "RSSHub";
-    rev = "6a29ca395191e745f991b9a0643a2fa9a66c8730";
-    hash = "sha256-K7qNPF1vdqhNEjWcysnj20Qaltu3rnhi1bVnIEOTiuk=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-XG4E3oWN/vD2rWamKLdk3gzUhGUB3qI/tZBbREl3UJg=";
   };
 
   patches = [
-    (substitute {
-      src = ./0001-fix-git-hash.patch;
-      substitutions = [
-        "--subst-var-by"
-        "GIT_HASH"
-        finalAttrs.src.rev
-      ];
+    (replaceVars ./0001-fix-git-hash.patch {
+      GIT_HASH = lib.last (lib.splitString "." finalAttrs.version);
     })
   ];
 
-  pnpmDeps = pnpm.fetchDeps {
+  pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
-    hash = "sha256-1Djef4QRLiEKr6ERtL0/IQSYp9dMq3cOCHPW4QnfaZU=";
+    fetcherVersion = 5;
+    hash = "sha256-QunJ0EG6/RRBN7bmmyf8fUomWWOxhY2jD3U5wtKjJYA=";
+    pnpm = pnpm_12;
   };
 
   nativeBuildInputs = [
     makeBinaryWrapper
     nodejs
-    pnpm.configHook
+    pnpmConfigHook
+    pnpm_12
   ];
 
   buildPhase = ''
     runHook preBuild
-
-    pnpm build
-
+    pnpm run build
     runHook postBuild
+  '';
+
+  preInstall = ''
+    CI=true pnpm prune --prod --ignore-scripts
+    # Clean up broken symlinks left behind by `pnpm prune`
+    # https://github.com/pnpm/pnpm/issues/3645
+    find node_modules -xtype l -delete
   '';
 
   installPhase = ''
     runHook preInstall
-
-    mkdir -p $out/bin $out/lib/rsshub
-    cp -r lib node_modules assets api package.json tsconfig.json $out/lib/rsshub
-
+    mkdir -p $out/bin $out/lib/rsshub/lib
+    cp -r dist node_modules $out/lib/rsshub
+    cp -r lib/assets $out/lib/rsshub/lib
     runHook postInstall
   '';
 
   preFixup = ''
     makeWrapper ${lib.getExe nodejs} $out/bin/rsshub \
-      --chdir "$out/lib/rsshub" \
       --set "NODE_ENV" "production" \
       --set "NO_LOGFILES" "true" \
-      --set "TSX_TSCONFIG_PATH" "$out/lib/rsshub/tsconfig.json" \
-      --append-flags "$out/lib/rsshub/node_modules/tsx/dist/cli.mjs" \
-      --append-flags "$out/lib/rsshub/lib/index.ts"
+      --add-flags "$out/lib/rsshub/dist/index.mjs"
   '';
+
+  passthru.updateScript = nix-update-script { extraArgs = [ "--use-github-releases" ]; };
 
   meta = {
     description = "RSS feed generator";
@@ -78,8 +82,11 @@ stdenv.mkDerivation (finalAttrs: {
       new features and bug fixes.
     '';
     homepage = "https://docs.rsshub.app";
-    license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ Guanran928 ];
+    license = lib.licenses.agpl3Only;
+    maintainers = with lib.maintainers; [
+      xinyangli
+      davinci42
+    ];
     mainProgram = "rsshub";
     platforms = lib.platforms.all;
   };

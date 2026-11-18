@@ -1,24 +1,28 @@
-{ lib, fetchFromGitHub, buildDunePackage }:
+{
+  lib,
+  fetchFromGitHub,
+  buildDunePackage,
+}:
 
-buildDunePackage rec {
+buildDunePackage (finalAttrs: {
   pname = "octavius";
   version = "1.2.2";
 
   src = fetchFromGitHub {
     owner = "ocaml-doc";
     repo = "octavius";
-    rev = "v${version}";
-    sha256 = "sha256-/S6WpIo1c5J9uM3xgtAM/elhnsl0XimnIFsKy3ootbA=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-/S6WpIo1c5J9uM3xgtAM/elhnsl0XimnIFsKy3ootbA=";
   };
 
   minimalOCamlVersion = "4.03";
 
   doCheck = true;
 
-  meta = with lib; {
+  meta = {
     description = "Ocamldoc comment syntax parser";
     homepage = "https://github.com/ocaml-doc/octavius";
-    license = licenses.isc;
-    maintainers = with maintainers; [ vbgl ];
+    license = lib.licenses.isc;
+    maintainers = with lib.maintainers; [ vbgl ];
   };
-}
+})

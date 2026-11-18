@@ -4,25 +4,25 @@
   fetchFromGitHub,
   poetry-core,
   pytestCheckHook,
-  fetchpatch
+  fetchpatch,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "sigparse";
   version = "3.0.0";
   pyproject = true;
 
   src = fetchFromGitHub {
-    owner = "Lunarmagpie";
+    owner = "zunda-arrow";
     repo = "sigparse";
-    rev = "refs/tags/v${version}";
+    tag = "v${finalAttrs.version}";
     hash = "sha256-VzWDqplYgwrJXXd5IUzEIp0YRuofybqmGrNKPaGqQFM=";
   };
 
   patches = [
     # pyproject.toml version file is set as 1.0.0
     (fetchpatch {
-      url = "https://github.com/Lunarmagpie/sigparse/pull/14/commits/44780382410bc6913bdd8ff7e92948078adb736c.patch";
+      url = "https://github.com/zunda-arrow/sigparse/pull/14/commits/44780382410bc6913bdd8ff7e92948078adb736c.patch";
       hash = "sha256-3EOkdBQDBodMBp4ENdvquJlRvAAywQhdWAX4dWFmhL0=";
     })
   ];
@@ -35,7 +35,7 @@ buildPythonPackage rec {
   meta = {
     description = "Backports python 3.10 typing features into 3.7, 3.8, and 3.9";
     license = lib.licenses.mit;
-    homepage = "https://github.com/Lunarmagpie/sigparse";
+    homepage = "https://github.com/zunda-arrow/sigparse";
     maintainers = with lib.maintainers; [ sigmanificient ];
   };
-}
+})

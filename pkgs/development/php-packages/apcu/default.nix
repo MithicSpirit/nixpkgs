@@ -1,13 +1,13 @@
 {
   buildPecl,
   lib,
-  fetchpatch,
   pcre2,
   fetchFromGitHub,
+  fetchpatch,
 }:
 
 let
-  version = "5.1.23";
+  version = "5.1.28";
 in
 buildPecl {
   inherit version;
@@ -16,23 +16,27 @@ buildPecl {
   src = fetchFromGitHub {
     owner = "krakjoe";
     repo = "apcu";
-    rev = "v${version}";
-    sha256 = "sha256-UDKLLCCnYJj/lCD8ZkkDf2WYZMoIbcP75+0/IXo4vdQ=";
+    tag = "v${version}";
+    hash = "sha256-L8bGSPUuBsZXsJdeY6cVA0DvI2+0wEbNHH6IcfT+cFU=";
   };
 
+  # PHP 8.6 compatibility, backported from upstream master
   patches = [
-    # Fix broken test (apc_entry_002) with PHP 8.4 alpha1
-    # See https://github.com/krakjoe/apcu/issues/510
     (fetchpatch {
-      url = "https://github.com/krakjoe/apcu/commit/9dad016db50cc46321afec592ea9b49520c1cf13.patch";
-      hash = "sha256-8CPUNhEGCVVSXWYridN1+4N4JzCfXZbmUIsPYs/9jfk=";
+      name = "php86-empty-switch-default-case.patch";
+      url = "https://github.com/krakjoe/apcu/commit/d29e907791502af89a7996930f8dce5fd8efe4a1.patch";
+      excludes = [ ".github/*" ];
+      hash = "sha256-Xd6v7MZ9/Ur2lQHS2xCjcgskenNCWmXhoH+2v/7O1bw=";
     })
-
-    # Fix ZTS detection in tests with PHP 8.4
-    # https://github.com/krakjoe/apcu/pull/511
     (fetchpatch {
-      url = "https://github.com/krakjoe/apcu/commit/15766e615264620427c2db37061ca9614d3b7319.patch";
-      hash = "sha256-gbSkx47Uo9E28CfJJj4+3ydcw8cXW9NNN/3FuYYTVPY=";
+      name = "php86-xtoffsetof.patch";
+      url = "https://github.com/krakjoe/apcu/commit/95f9ab828f95c6ca5877e584ead109189d0cec61.patch";
+      hash = "sha256-hED/qZayZJ3NVM5e/eDtrKtykMEhxjmWgI++T+oTL1c=";
+    })
+    (fetchpatch {
+      name = "php86-php-verror.patch";
+      url = "https://github.com/krakjoe/apcu/commit/90899684be91c4f750512c2f840f487286ecb807.patch";
+      hash = "sha256-uSOZP6Qlw3WylqJI34yFP3l8z0nsIL1bHhfEyJmIimw=";
     })
   ];
 
@@ -44,11 +48,14 @@ buildPecl {
     "dev"
   ];
 
-  meta = with lib; {
+  # Tests launch the builtin webserver.
+  __darwinAllowLocalNetworking = true;
+
+  meta = {
     changelog = "https://github.com/krakjoe/apcu/releases/tag/v${version}";
     description = "Userland cache for PHP";
     homepage = "https://pecl.php.net/package/APCu";
-    license = licenses.php301;
-    maintainers = teams.php.members;
+    license = lib.licenses.php301;
+    teams = [ lib.teams.php ];
   };
 }

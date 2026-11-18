@@ -1,83 +1,74 @@
 {
   lib,
-  stdenv,
-  attrs,
   buildPythonPackage,
-  colorama,
-  fetchPypi,
+  fetchFromGitHub,
   glibcLocales,
-  importlib-metadata,
+  prompt-toolkit,
   pyperclip,
+  pytest-cov-stub,
   pytest-mock,
   pytestCheckHook,
-  pythonOlder,
+  rich,
+  rich-argparse,
   setuptools-scm,
-  typing-extensions,
-  wcwidth,
+  stdenv,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "cmd2";
-  version = "2.4.3";
-  format = "setuptools";
+  version = "4.2.4";
+  pyproject = true;
 
-  disabled = pythonOlder "3.6";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-cYc8Efcr0Z4rHbV4IUcW8NT3yPolAJPGASZamnF97lI=";
+  src = fetchFromGitHub {
+    owner = "python-cmd2";
+    repo = "cmd2";
+    tag = finalAttrs.version;
+    hash = "sha256-htU0/cFg157tOWBdLwNvnHwvoXizJUIBcp2jgzFqQrQ=";
   };
 
-  LC_ALL = "en_US.UTF-8";
+  pythonRelaxDeps = [ "prompt-toolkit" ];
 
-  buildInputs = [ setuptools-scm ];
+  build-system = [ setuptools-scm ];
 
-  propagatedBuildInputs =
-    [
-      attrs
-      colorama
-      pyperclip
-      wcwidth
-    ]
-    ++ lib.optionals (pythonOlder "3.8") [
-      typing-extensions
-      importlib-metadata
-    ];
+  dependencies = [
+    prompt-toolkit
+    pyperclip
+    rich
+    rich-argparse
+  ];
+
+  __darwinAllowLocalNetworking = true;
 
   nativeCheckInputs = [
-    pytestCheckHook
     glibcLocales
+    pytestCheckHook
+    pytest-cov-stub
     pytest-mock
   ];
 
   disabledTests = [
-    # Don't require vim for tests, it causes lots of rebuilds
+    # Don't require an editor just to be able to discover it
     "test_find_editor_not_specified"
-    "test_transcript"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # does not work under darwin sandbox
+    "test_history_file_bad_compression"
+    "test_history_file_bad_json"
+    "test_path_completion_complete_user"
   ];
-
-  postPatch =
-    ''
-      sed -i "/--cov/d" setup.cfg
-    ''
-    + lib.optionalString stdenv.isDarwin ''
-      # Fake the impure dependencies pbpaste and pbcopy
-      mkdir bin
-      echo '#!${stdenv.shell}' > bin/pbpaste
-      echo '#!${stdenv.shell}' > bin/pbcopy
-      chmod +x bin/{pbcopy,pbpaste}
-      export PATH=$(realpath bin):$PATH
-    '';
-
-  doCheck = !stdenv.isDarwin;
 
   pythonImportsCheck = [ "cmd2" ];
 
-  meta = with lib; {
+  passthru = {
+    # bulk updater uses wrong tag
+    skipBulkUpdate = true;
+  };
+
+  meta = {
     description = "Enhancements for standard library's cmd module";
     homepage = "https://github.com/python-cmd2/cmd2";
-    changelog = "https://github.com/python-cmd2/cmd2/releases/tag/${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ teto ];
+    changelog = "https://github.com/python-cmd2/cmd2/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ teto ];
   };
-}
+})

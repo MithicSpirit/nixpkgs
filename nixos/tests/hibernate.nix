@@ -1,9 +1,9 @@
 # Test whether hibernation from partition works.
 
-{ system ? builtins.currentSystem
-, config ? {}
-, pkgs ? import ../.. { inherit system config; }
-, systemdStage1 ? false
+{
+  system ? builtins.currentSystem,
+  config ? { },
+  pkgs ? import ../.. { inherit system config; },
 }:
 
 with import ../lib/testing-python.nix { inherit system pkgs; };
@@ -12,21 +12,30 @@ makeTest {
   name = "hibernate";
 
   nodes = {
-    machine = { config, lib, pkgs, ... }: {
-      imports = [
-        ./common/auto-format-root-device.nix
-      ];
+    machine =
+      {
+        config,
+        lib,
+        pkgs,
+        ...
+      }:
+      {
+        powerManagement.powerDownCommands = "systemctl --no-block stop backdoor.service";
+        powerManagement.resumeCommands = "systemctl --no-block restart backdoor.service";
 
-      systemd.services.backdoor.conflicts = [ "sleep.target" ];
-      powerManagement.resumeCommands = "systemctl --no-block restart backdoor.service";
+        virtualisation.emptyDiskImages = [ (2 * config.virtualisation.memorySize) ];
+        # virtiofs doesn't support hibernation
+        virtualisation.useNixStoreImage = true;
+        virtualisation.sharedDirectories = lib.mkForce { };
 
-      virtualisation.emptyDiskImages = [ (2 * config.virtualisation.memorySize) ];
-      virtualisation.useNixStoreImage = true;
-
-      swapDevices = lib.mkOverride 0 [ { device = "/dev/vdc"; options = [ "x-systemd.makefs" ]; } ];
-      boot.initrd.systemd.enable = systemdStage1;
-      virtualisation.useEFIBoot = true;
-    };
+        swapDevices = lib.mkOverride 0 [
+          {
+            device = "/dev/vdc";
+            options = [ "x-systemd.makefs" ];
+          }
+        ];
+        virtualisation.useEFIBoot = true;
+      };
   };
 
   testScript = ''

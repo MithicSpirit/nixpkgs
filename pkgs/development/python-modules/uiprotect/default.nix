@@ -2,7 +2,6 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
 
   # build-system
   poetry-core,
@@ -10,91 +9,95 @@
   # dependencies
   aiofiles,
   aiohttp,
-  aioshutil,
-  async-timeout,
+  av,
   convertertools,
-  dateparser,
   orjson,
   packaging,
   pillow,
   platformdirs,
+  propcache,
   pydantic,
-  pyjwt,
   rich,
   typer,
   yarl,
 
   # tests
-  aiosqlite,
-  asttokens,
   ffmpeg,
+  jsonschema,
   pytest-asyncio,
   pytest-benchmark,
+  pytest-cov-stub,
   pytest-timeout,
   pytest-xdist,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "uiprotect";
-  version = "6.0.1";
+  version = "25.0.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "uilibs";
     repo = "uiprotect";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-2rkXaFzdIOCGF60k7TpqAqTSxFFhmqhY8yKm7cEvgkE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-2WRAVqhkAw5uX+icjT9fOD0hFe/zEjomk7qZmdXiKDY=";
   };
-
-  postPatch = ''
-    sed -i "/addopts =/d" pyproject.toml
-  '';
 
   build-system = [ poetry-core ];
 
-  pythonRelaxDeps = [ "pydantic" ];
+  pythonRelaxDeps = [
+    "orjson"
+    "packaging"
+    "platformdirs"
+    "propcache"
+    "pydantic"
+    "pyjwt"
+    "rich"
+    "typer"
+  ];
 
   dependencies = [
     aiofiles
     aiohttp
-    aioshutil
-    async-timeout
+    av
     convertertools
-    dateparser
     orjson
     packaging
     pillow
     platformdirs
+    propcache
     pydantic
-    pyjwt
     rich
     typer
     yarl
   ];
 
   nativeCheckInputs = [
-    aiosqlite
-    asttokens
     ffmpeg # Required for command ffprobe
+    jsonschema
     pytest-asyncio
     pytest-benchmark
+    pytest-cov-stub
     pytest-timeout
     pytest-xdist
     pytestCheckHook
   ];
 
-  pytestFlagsArray = [ "--benchmark-disable" ];
+  pytestFlags = [ "--benchmark-disable" ];
+
+  disabledTests = [
+    # not useful in nix packaging
+    "test_import_skips_optional_test_util_dependencies"
+  ];
 
   pythonImportsCheck = [ "uiprotect" ];
 
-  meta = with lib; {
-    description = "Python API for UniFi Protect (Unofficial";
+  meta = {
+    description = "Python API for UniFi Protect (Unofficial)";
     homepage = "https://github.com/uilibs/uiprotect";
-    changelog = "https://github.com/uilibs/uiprotect/blob/${src.rev}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ hexa ];
+    changelog = "https://github.com/uilibs/uiprotect/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ hexa ];
   };
-}
+})

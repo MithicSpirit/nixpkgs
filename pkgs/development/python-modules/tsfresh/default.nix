@@ -2,73 +2,98 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
-  requests,
-  numpy,
-  pandas,
-  scipy,
-  statsmodels,
-  patsy,
-  scikit-learn,
-  tqdm,
+  stdenv,
+
+  # build-system
+  setuptools,
+
+  # dependencies
+  cloudpickle,
   dask,
   distributed,
+  numpy,
+  pandas,
+  patsy,
+  pywavelets,
+  requests,
+  scikit-learn,
+  scipy,
+  statsmodels,
   stumpy,
-  cloudpickle,
-  pytestCheckHook,
-  pytest-xdist,
-  mock,
-  matplotlib,
-  seaborn,
+  tqdm,
+
+  # testing
   ipython,
+  matplotlib,
+  mock,
   notebook,
   pandas-datareader,
+  pytest-cov-stub,
+  pytest-xdist,
+  pytestCheckHook,
+  seaborn,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "tsfresh";
-  version = "0.20.2";
+  version = "0.21.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "blue-yonder";
     repo = "tsfresh";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-UTra+RAQnrv61NQ86xGYrUVYiycUAWhN/45F6/0ZvPI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-rOEzcAQ2kiskHsFezPee+GNI0IuuZomqtMB6ev0uop8=";
   };
 
   patches = [
     # The pyscaffold is not a build dependency but just a python project bootstrapping tool, so we do not need it
     ./remove-pyscaffold.patch
-    ./remove-pytest-coverage-flags.patch
   ];
 
-  propagatedBuildInputs = [
-    requests
-    numpy
-    pandas
-    scipy
-    statsmodels
-    patsy
-    scikit-learn
-    tqdm
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "requires = [\"setuptools<70\", \"wheel\", \"pyscaffold>=3.3a0,<4\"]" \
+      "requires = [\"setuptools\", \"wheel\"]" \
+  '';
+
+  build-system = [
+    setuptools
+  ];
+
+  # Upstream doesn't supply a version field anywhere, so patching it is out of the question.
+  dontCheckPythonMetadata = true;
+
+  dependencies = [
+    cloudpickle
     dask
     distributed
+    numpy
+    pandas
+    patsy
+    pywavelets
+    requests
+    scikit-learn
+    scipy
+    statsmodels
     stumpy
-    cloudpickle
-  ] ++ dask.optional-dependencies.dataframe;
+    tqdm
+  ]
+  ++ dask.optional-dependencies.dataframe;
+
+  # python-datareader is disabled on Python 3.12+ and is require only for checks.
+  doCheck = !pandas-datareader.disabled;
 
   nativeCheckInputs = [
-    pytestCheckHook
-    pytest-xdist
-    mock
-    matplotlib
-    seaborn
     ipython
+    matplotlib
+    mock
     notebook
     pandas-datareader
+    pytest-cov-stub
+    pytest-xdist
+    pytestCheckHook
+    seaborn
   ];
 
   disabledTests = [
@@ -80,16 +105,24 @@ buildPythonPackage rec {
     "test_characteristics_downloaded_robot_execution_failures"
     "test_extraction_runs_through"
     "test_multilabel_target_on_request"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # RuntimeError: Cluster failed to start: [Errno 1] Operation not permitted
+    # may require extra privileges on darwin
+    "test_local_dask_cluster_extraction_one_worker"
+    "test_local_dask_cluster_extraction_two_worker"
+    "test_dask_cluster_extraction_one_worker"
+    "test_dask_cluster_extraction_two_workers"
   ];
 
   pythonImportsCheck = [ "tsfresh" ];
 
-  meta = with lib; {
+  meta = {
     description = "Automatic extraction of relevant features from time series";
     mainProgram = "run_tsfresh";
     homepage = "https://github.com/blue-yonder/tsfresh";
-    changelog = "https://github.com/blue-yonder/tsfresh/blob/${src.rev}/CHANGES.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ mbalatsko ];
+    changelog = "https://github.com/blue-yonder/tsfresh/blob/${finalAttrs.src.tag}/CHANGES.rst";
+    license = lib.licenses.mit;
+    maintainers = [ ];
   };
-}
+})

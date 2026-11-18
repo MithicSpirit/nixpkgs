@@ -18,20 +18,20 @@ let
   testFiles = fetchFromGitHub {
     owner = "openpreserve";
     repo = "jpylyzer-test-files";
-    rev = "0290e98bae9c5480c995954d3f14b4cf0a0395ff";
-    hash = "sha256-dr3hC6dGd3HNSE4nRj1xrfFSW9cepQ1mdVH8S3YQdtw=";
+    rev = "b168336b8da57e1c422f8aaba2e5ad37236f2adc";
+    hash = "sha256-cg6Y3i2p9VQK3gDfNEyuvC8Ou01YuqItnu82V0+N2z4=";
   };
 in
 buildPythonPackage rec {
   pname = "jpylyzer";
-  version = "2.2.1";
+  version = "2.3.0b2";
   format = "setuptools";
 
   src = fetchFromGitHub {
     owner = "openpreserve";
-    repo = pname;
+    repo = "jpylyzer";
     rev = version;
-    hash = "sha256-P42qAks8suI/Xknwd8WAkymbGE7RApRa/a11J/V4LA0=";
+    hash = "sha256-FTkkti7NSw/pF9BH1sAKcwDbA5M8oX4Ii4+oFTUsQiE=";
   };
 
   propagatedBuildInputs = [ six ];
@@ -57,11 +57,11 @@ buildPythonPackage rec {
     withFullCheck = jpylyzer.override { doFullCheck = true; };
   };
 
-  meta = with lib; {
+  meta = {
     description = "JP2 (JPEG 2000 Part 1) image validator and properties extractor";
     mainProgram = "jpylyzer";
     homepage = "https://jpylyzer.openpreservation.org/";
-    license = licenses.lgpl3;
-    maintainers = with maintainers; [ ris ];
+    license = lib.licenses.lgpl3;
+    maintainers = with lib.maintainers; [ ris ];
   };
 }

@@ -1,7 +1,7 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   cliff,
   dogpile-cache,
   jsonschema,
@@ -19,18 +19,20 @@
   setuptools,
   sphinxcontrib-apidoc,
   sphinxHook,
-  stestr,
+  stestrCheckHook,
   stevedore,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-ironicclient";
-  version = "5.8.0";
+  version = "6.3.0";
   pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-hv7cI1hIZijKhoJxfrxp7hApcfEX2jUmudPilVLslC4=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "python-ironicclient";
+    tag = finalAttrs.version;
+    hash = "sha256-IOLHS8orP9Rm/25+6T9dded1UKsoYzSo8U5K6OXZjmQ=";
   };
 
   build-system = [
@@ -58,24 +60,21 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [
-    stestr
+    stestrCheckHook
     requests-mock
     oslotest
   ];
 
-  checkPhase = ''
-    runHook preCheck
-    stestr run
-    runHook postCheck
-  '';
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
 
   pythonImportsCheck = [ "ironicclient" ];
 
-  meta = with lib; {
+  meta = {
     description = "Client for OpenStack bare metal provisioning API, includes a Python module (ironicclient) and CLI (baremetal)";
     mainProgram = "baremetal";
     homepage = "https://github.com/openstack/python-ironicclient";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

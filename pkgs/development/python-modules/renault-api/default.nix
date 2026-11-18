@@ -1,37 +1,43 @@
 {
   lib,
   aiohttp,
-  aioresponses,
+  aiointercept,
   buildPythonPackage,
   click,
   cryptography,
   dateparser,
   fetchFromGitHub,
   marshmallow-dataclass,
-  poetry-core,
   pyjwt,
-  pythonOlder,
+  pyprojectVersionPatchHook,
   pytest-asyncio,
   pytestCheckHook,
+  syrupy,
   tabulate,
   typeguard,
+  uv-build,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "renault-api";
-  version = "0.2.6";
+  version = "0.6.3";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "hacf-fr";
     repo = "renault-api";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-opxEQIpZkaSWglPh4gwLJIi89B/ooHlwc9nKZRIS/j8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-GymSyI5/nDFQ2Mrh//Q9B77aIR0lfgrTYWWcmdFRnfE=";
   };
 
-  build-system = [ poetry-core ];
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "uv_build>=0.13,<0.14" "uv_build"
+  '';
+
+  build-system = [ uv-build ];
+
+  nativeBuildInputs = [ pyprojectVersionPatchHook ];
 
   dependencies = [
     aiohttp
@@ -49,20 +55,22 @@ buildPythonPackage rec {
   };
 
   nativeCheckInputs = [
-    aioresponses
+    aiointercept
     pytest-asyncio
     pytestCheckHook
+    syrupy
     typeguard
-  ] ++ lib.flatten (lib.attrValues optional-dependencies);
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
   pythonImportsCheck = [ "renault_api" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library to interact with the Renault API";
     homepage = "https://github.com/hacf-fr/renault-api";
-    changelog = "https://github.com/hacf-fr/renault-api/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/hacf-fr/renault-api/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "renault-api";
   };
-}
+})

@@ -1,86 +1,158 @@
-{ lib
-, fetchFromGitHub
-, writeShellScript
-, dash
-, php
-, phpCfg ? null
-, withPgsql ? true # “strongly recommended” according to docs
-, withMysql ? false
-, minifyStaticFiles ? false # default files are often not minified
-, esbuild
-, lightningcss
-, scour
-, nixosTests
+{
+  lib,
+  fetchFromGitHub,
+  fetchpatch2,
+  writers,
+  dash,
+  shellcheck-minimal,
+  makeBinaryWrapper,
+  gitMinimal,
+  php,
+  phpCfg ? null,
+  withPostgreSQL ? true, # “strongly recommended” according to docs
+  withMariaDB ? false,
+  minifyStaticFiles ? false, # default files are often not minified
+  esbuild,
+  lightningcss,
+  scour,
+  nixosTests,
 }:
 
 let
   defaultMinifyOpts = {
     script = {
       enable = false;
-      target = "es2021";
+      target = "es2022";
     };
     style = {
       enable = false;
-      browserslist = "defaults, Firefox ESR, last 20 Firefox major versions, last 20 Chrome major versions, last 3 Safari major versions, last 1 KaiOS version, and supports css-variables";
+      browserslist = "defaults, Firefox ESR, Firefox 141, last 20 Firefox major versions, last 20 Chrome major versions, last 3 Safari major versions, last 1 KaiOS version, and supports css-variables";
     };
     svg = {
       enable = false;
     };
   };
 
-  minify = lib.recursiveUpdate defaultMinifyOpts
-    (if lib.isBool minifyStaticFiles && minifyStaticFiles then
-      { script.enable = true; style.enable = true; svg.enable = true; }
+  minify = lib.recursiveUpdate defaultMinifyOpts (
+    if lib.isBool minifyStaticFiles && minifyStaticFiles then
+      {
+        script.enable = true;
+        style.enable = true;
+        svg.enable = true;
+      }
     else if lib.isAttrs minifyStaticFiles then
       lib.filterAttrsRecursive (_: v: v != null) minifyStaticFiles
     else
-      { });
+      { }
+  );
+
+  writeDash =
+    name: text:
+    writers.writeDash name {
+      check =
+        /* sh */ ''
+          target="$out"
+          ${lib.getExe dash} -n "$target"
+        ''
+        + lib.optionalString shellcheck-minimal.compiler.bootstrapAvailable /* sh */ ''
+          ${lib.getExe shellcheck-minimal} --norc --shell=dash --severity=info \
+             --exclude=SC1090,SC1091,SC2016,SC2034,SC2154,SC2164 "$target"
+        ''
+        + ":";
+    } text;
 in
-php.buildComposerProject (finalAttrs: {
+php.buildComposerProject2 (finalAttrs: {
   pname = "movim";
-  version = "0.27.1";
+  version = "0.35.5";
 
   src = fetchFromGitHub {
     owner = "movim";
     repo = "movim";
-    rev = "refs/tags/v${finalAttrs.version}";
-    hash = "sha256-7/8d+GU/hLaiFqo4Rl0ardhOwEpSeJ3GfJMNpGbNlnU=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-YDXEdhtubI0ZGUwiRoCe+Wh4ieHOMmUODs3waE7xb0U=";
   };
 
-  php = php.buildEnv ({
-    extensions = ({ all, enabled }:
-      enabled
-        ++ (with all; [ curl dom gd imagick mbstring pdo simplexml ])
-        ++ lib.optionals withPgsql (with all; [ pdo_pgsql pgsql ])
-        ++ lib.optionals withMysql (with all; [ mysqli mysqlnd pdo_mysql ])
-    );
-  } // lib.optionalAttrs (phpCfg != null) {
-    extraConfig = phpCfg;
-  });
+  patches = [
+    # > Remove the cached post display before retrieving it from the XMPP
+    # > network, the whole flow will be refactored later
+    #
+    # fixes CVE-2026-125379
+    (fetchpatch2 {
+      url = "https://github.com/movim/movim/commit/378e0368368d0dd9cb090b78e68a63064d47d512.patch";
+      hash = "sha256-f+rcgwbbNaXNcQ8w4bfBNTkRkcnCNu0/Pvsyv7dK6c0=";
+    })
+  ];
 
-  nativeBuildInputs =
-    lib.optional minify.script.enable esbuild
-    ++ lib.optional minify.style.enable lightningcss
-    ++ lib.optional minify.svg.enable scour;
+  php = php.buildEnv (
+    {
+      extensions = (
+        { all, enabled }:
+        enabled
+        ++ [
+          all.curl
+          all.dom
+          all.gd
+          all.imagick
+          all.mbstring
+          all.pdo
+          all.simplexml
+        ]
+        ++ lib.optionals withPostgreSQL [
+          all.pdo_pgsql
+          all.pgsql
+        ]
+        ++ lib.optionals withMariaDB [
+          all.mysqli
+          all.mysqlnd
+          all.pdo_mysql
+        ]
+      );
+    }
+    // lib.optionalAttrs (phpCfg != null) {
+      extraConfig = phpCfg;
+    }
+  );
 
-  # no listed license
-  # pinned commonmark
-  composerStrictValidation = false;
+  nativeBuildInputs = [
+    makeBinaryWrapper
+  ]
+  ++ lib.optional minify.script.enable esbuild
+  ++ lib.optional minify.style.enable lightningcss
+  ++ lib.optional minify.svg.enable scour;
 
-  vendorHash = "sha256-wDnOh1CdJOovqmr4k45ksycuylYwL0Dm/UTl4EETf1k=";
+  # Composer ≥2.8 defaults preferred-install to
+  # dist only (not auto), which prevents fallback
+  # to git clone when dist downloads fail (such as
+  # MS GitHub’s codeload.* in the build sandbox).
+  composerVendor = php.mkComposerVendor {
+    inherit (finalAttrs)
+      pname
+      src
+      version
+      vendorHash
+      php
+      ;
+
+    postPatch = ''
+      composer config preferred-install auto
+    '';
+    nativeBuildInputs = [ gitMinimal ];
+  };
+
+  vendorHash = "sha256-kExcDTbez7xmnGZQIwcul47JFwiU7A/RjwUj2G4nfwk=";
 
   postPatch = ''
     # Our modules are already wrapped, removes missing *.so warnings;
     # replacing `$configuration` with actually-used flags.
-    substituteInPlace src/Movim/Daemon/Session.php \
+    substituteInPlace src/Movim/Daemon/SessionsWorker.php \
       --replace-fail \
         "'exec ' . PHP_BINARY . ' ' . \$configuration . '" \
         "'exec ' . PHP_BINARY . ' -dopcache.enable=1 -dopcache.enable_cli=1 ' . '"
 
     # Point to PHP + PHP INI in the Nix store
     substituteInPlace src/Movim/Console/DaemonCommand.php \
-      --replace-fail "<info>php vendor/bin/phinx migrate</info>" \
-        "<info>${lib.getBin finalAttrs.php} vendor/bin/phinx migrate</info>" \
+      --replace-fail "<info>composer movim:migrate</info>" \
+        "<info>${lib.getBin finalAttrs.php.packages.composer} movim:migrate</info>" \
       --replace-fail "<info>php daemon.php setAdmin {jid}</info>" \
         "<info>${finalAttrs.meta.mainProgram} setAdmin {jid}</info>"
 
@@ -91,44 +163,55 @@ php.buildComposerProject (finalAttrs: {
       --replace-fail "Imagick::ALPHACHANNEL_ACTIVATE" "Imagick::ALPHACHANNEL_ON"
   '';
 
-  preBuild = lib.optionalString minify.script.enable ''
-    find ./public -type f -iname "*.js" -print0 \
-      | xargs -0 -n 1 -P $NIX_BUILD_CORES ${writeShellScript "movim_script_minify" ''
+  preBuild =
+    lib.optionalString minify.script.enable /* bash */ ''
+      find ./public -type f -iname "*.js" -print0 \
+        | xargs -0 -n 1 -P "$NIX_BUILD_CORES" ${writeDash "movim_script_minify" ''
           file="$1"
           tmp="$(mktemp)"
-          esbuild $file --minify --target=${lib.escapeShellArg minify.script.target} --outfile=$tmp
-          [[ "$(stat -c %s $tmp)" -lt "$(stat -c %s $file)" ]] && mv $tmp $file
+          esbuild "$file" --minify --target=${lib.escapeShellArg minify.script.target} --outfile="$tmp"
+          mv "$tmp" "$file"
         ''}
-  '' + lib.optionalString minify.style.enable ''
-    find ./public -type f -iname "*.css" -print0 \
-      | xargs -0 -n 1 -P $NIX_BUILD_CORES ${writeShellScript "movim_style_minify" ''
+    ''
+    + lib.optionalString minify.style.enable /* bash */ ''
+      find ./public -type f -iname "*.css" -print0 \
+        | xargs -0 -n 1 -P "$NIX_BUILD_CORES" ${writeDash "movim_style_minify" ''
           export BROWSERLIST="${lib.escapeShellArg minify.style.browserslist}"
           file="$1"
           tmp="$(mktemp)"
-          lightningcss $file --minify --browserslist --output-file=$tmp
-          [[ "$(stat -c %s $tmp)" -lt "$(stat -c %s $file)" ]] && mv $tmp $file
+          lightningcss "$file" --minify --browserslist --output-file="$tmp"
+          mv "$tmp" "$file"
         ''}
-  '' + lib.optionalString minify.svg.enable ''
-    find ./public -type f -iname "*.svg" -a -not -path "*/emojis/*" -print0 \
-      | xargs -0 -n 1 -P $NIX_BUILD_CORES ${writeShellScript "movim_svg_minify" ''
+    ''
+    + lib.optionalString minify.svg.enable /* bash */ ''
+      find ./public -type f -iname "*.svg" -a -not -path "*/emojis/*" -print0 \
+        | xargs -0 -n 1 -P "$NIX_BUILD_CORES" ${writeDash "movim_svg_minify" ''
           file="$1"
           tmp="$(mktemp)"
-          scour -i $file -o $tmp --disable-style-to-xml --enable-comment-stripping --enable-viewboxing --indent=tab
-          [[ "$(stat -c %s $tmp)" -lt "$(stat -c %s $file)" ]] && mv $tmp $file
+          scour -i "$file" -o "$tmp" --disable-style-to-xml --enable-comment-stripping --enable-viewboxing --indent=tab
+          if [ "$(stat -c %s "$tmp")" -lt "$(stat -c %s "$file")" ]; then
+            mv "$tmp" "$file"
+          fi
         ''}
-  '';
+    '';
 
   postInstall = ''
     mkdir -p $out/bin
-    echo "#!${lib.getExe dash}" > $out/bin/movim
-    echo "${lib.getExe finalAttrs.php} $out/share/php/${finalAttrs.pname}/daemon.php \"\$@\"" >> $out/bin/movim
-    chmod +x $out/bin/movim
+    makeBinaryWrapper "${lib.getExe finalAttrs.php}" "$out/bin/movim" \
+      --add-flag "$out/share/php/movim/daemon.php"
 
-    mkdir -p $out/share/{bash-completion/completion,fish/vendor_completions.d,zsh/site-functions}
+    mkdir -p \
+      $out/share/bash-completion/completion \
+      $out/share/fish/vendor_completions.d \
+      $out/share/zsh/site-functions
     $out/bin/movim completion bash | sed "s/daemon.php/movim/g" > $out/share/bash-completion/completion/movim.bash
     $out/bin/movim completion fish | sed "s/daemon.php/movim/g" > $out/share/fish/vendor_completions.d/movim.fish
     $out/bin/movim completion zsh | sed "s/daemon.php/movim/g" > $out/share/zsh/site-functions/_movim
-    chmod +x $out/share/{bash-completion/completion/movim.bash,fish/vendor_completions.d/movim.fish,zsh/site-functions/_movim}
+
+    chmod +x \
+      $out/share/bash-completion/completion/movim.bash \
+      $out/share/fish/vendor_completions.d/movim.fish \
+      $out/share/zsh/site-functions/_movim
   '';
 
   passthru = {

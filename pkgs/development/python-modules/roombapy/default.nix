@@ -1,32 +1,34 @@
 {
   lib,
-  amqtt,
+  aiomqtt,
   buildPythonPackage,
   click,
   fetchFromGitHub,
   mashumaro,
   orjson,
-  paho-mqtt,
   poetry-core,
   pytest-asyncio,
   pytestCheckHook,
-  pythonOlder,
   tabulate,
+  uv-build,
 }:
 
 buildPythonPackage rec {
   pname = "roombapy";
-  version = "1.8.1";
+  version = "2.0.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "pschmitt";
     repo = "roombapy";
-    rev = "refs/tags/${version}";
-    hash = "sha256-1yfmaTzZ7cZW2+Yb3Zbo8+5TfD+H1sA0+SzC1c9MdsQ=";
+    tag = version;
+    hash = "sha256-7E68w7BDmERCCQjdB79vw60Xy/nAQKH2ym8qzPOAU2I=";
   };
+
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "uv_build>=0.12.5,<0.13.0" "uv_build"
+  '';
 
   nativeBuildInputs = [
     poetry-core
@@ -34,10 +36,14 @@ buildPythonPackage rec {
 
   pythonRelaxDeps = [ "orjson" ];
 
-  propagatedBuildInputs = [
+  build-system = [
+    uv-build
+  ];
+
+  dependencies = [
+    aiomqtt
     mashumaro
     orjson
-    paho-mqtt
   ];
 
   optional-dependencies.cli = [
@@ -46,14 +52,18 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [
-    amqtt
     pytest-asyncio
     pytestCheckHook
   ];
 
   disabledTestPaths = [
     # Requires network access
+    "tests/test_client.py"
+    "tests/test_commands.py"
     "tests/test_discovery.py"
+    "tests/test_robustness.py"
+    "tests/test_supervisor.py"
+    "tests/test_watch.py"
   ];
 
   disabledTests = [
@@ -63,12 +73,12 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "roombapy" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python program and library to control Wi-Fi enabled iRobot Roombas";
     mainProgram = "roombapy";
     homepage = "https://github.com/pschmitt/roombapy";
-    changelog = "https://github.com/pschmitt/roombapy/releases/tag/${version}";
-    license = licenses.mit;
+    changelog = "https://github.com/pschmitt/roombapy/releases/tag/${src.tag}";
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
 }

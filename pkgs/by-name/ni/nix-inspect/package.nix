@@ -9,52 +9,68 @@
   meson,
   ninja,
   stdenv,
-}: let
+}:
+let
+  nixComponents = nixVersions.nixComponents_2_35;
+
+  # Maintained fork of the original project from bluskript/nix-inspect
   src = fetchFromGitHub {
-    owner = "bluskript";
+    owner = "rszyma";
     repo = "nix-inspect";
-    rev = "86f636b1e01579b3a63b2c778c21a818b00c3d1e";
-    hash = "sha256-G5Md4ghux4LBRkPE8vzLTUWxzlQ7s1xKxZ8i3ICWZU8=";
+    rev = "975d2a97ccca17f2890820d47d34b436a723233d";
+    hash = "sha256-r8BqSevdYFm5RfbFAaHbXzWaj8YvoLZYmhfbhTDlCdA=";
   };
+
+  version = "0.1.2-unstable-2026-09-12";
 
   workerPackage = stdenv.mkDerivation {
     inherit src;
 
     pname = "nix-inspect-worker";
-    version = "0.1.2";
-    sourceRoot = "${src.name}/worker";
+    inherit version;
+    postPatch = ''
+      cd worker
+    '';
 
-    nativeBuildInputs = [meson ninja pkg-config];
+    nativeBuildInputs = [
+      meson
+      ninja
+      pkg-config
+    ];
 
     buildInputs = [
       boost
       nlohmann_json
-      nixVersions.nix_2_19.dev
+      nixComponents.nix-main
+      nixComponents.nix-store
+      nixComponents.nix-expr
+      nixComponents.nix-cmd
+      nixComponents.nix-flake
     ];
 
     mesonBuildType = "release";
   };
 in
-  rustPlatform.buildRustPackage {
-    inherit src;
-    pname = "nix-inspect";
-    version = "0.1.2";
+rustPlatform.buildRustPackage {
+  inherit src;
+  pname = "nix-inspect";
+  inherit version;
 
-    cargoHash = "sha256-/0CrHqOL4B0Rx0ZbUpW54FiisfpW6UU4uk6wctfCX5c=";
+  cargoHash = "sha256-3FTlbWSA0SKCfunQDdXu9g2aQAdAIfOTq5qJbzrRPjc=";
 
-    buildInputs = [workerPackage];
+  buildInputs = [ workerPackage ];
 
-    postPatch = ''
-      substituteInPlace src/workers.rs \
-        --replace-fail 'env!("WORKER_BINARY_PATH")' '"${workerPackage}/bin/nix-inspect"'
-    '';
+  postPatch = ''
+    substituteInPlace src/workers.rs \
+      --replace-fail 'env!("WORKER_BINARY_PATH")' '"${workerPackage}/bin/nix-inspect-worker"'
+  '';
 
-    meta = with lib; {
-      description = "Interactive TUI for inspecting nix configs and other expressions";
-      homepage = "https://github.com/bluskript/nix-inspect";
-      license = licenses.mit;
-      maintainers = with maintainers; [blusk];
-      platforms = platforms.unix;
-      mainProgram = "nix-inspect";
-    };
-  }
+  meta = {
+    description = "Interactive TUI for inspecting nix configs and other expressions";
+    homepage = "https://github.com/rszyma/nix-inspect";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ blusk ];
+    platforms = lib.platforms.unix;
+    mainProgram = "nix-inspect";
+  };
+}

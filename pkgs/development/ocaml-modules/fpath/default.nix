@@ -1,8 +1,13 @@
-{ stdenv, lib, fetchurl, ocaml, findlib, ocamlbuild, topkg, astring }:
-
-if lib.versionOlder ocaml.version "4.03"
-then throw "fpath is not available for OCaml ${ocaml.version}"
-else
+{
+  stdenv,
+  lib,
+  fetchurl,
+  ocaml,
+  findlib,
+  ocamlbuild,
+  topkg,
+  astring,
+}:
 
 stdenv.mkDerivation rec {
   pname = "ocaml${ocaml.version}-fpath";
@@ -10,10 +15,15 @@ stdenv.mkDerivation rec {
 
   src = fetchurl {
     url = "https://erratique.ch/software/fpath/releases/fpath-${version}.tbz";
-    sha256 = "03z7mj0sqdz465rc4drj1gr88l9q3nfs374yssvdjdyhjbqqzc0j";
+    hash = "sha256-ErCP8ZLQN9m21p6coZ0dOFGE8gsyN8JyMeQ3rIGs5w8=";
   };
 
-  nativeBuildInputs = [ ocaml findlib ocamlbuild topkg ];
+  nativeBuildInputs = [
+    ocaml
+    findlib
+    ocamlbuild
+    topkg
+  ];
   buildInputs = [ topkg ];
 
   propagatedBuildInputs = [ astring ];
@@ -28,5 +38,6 @@ stdenv.mkDerivation rec {
     license = lib.licenses.isc;
     maintainers = [ lib.maintainers.vbgl ];
     inherit (ocaml.meta) platforms;
+    broken = lib.versionOlder ocaml.version "4.03";
   };
 }

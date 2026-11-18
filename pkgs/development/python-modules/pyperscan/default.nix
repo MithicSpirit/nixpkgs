@@ -11,20 +11,19 @@
 
 buildPythonPackage rec {
   pname = "pyperscan";
-  version = "0.3.0";
-  format = "pyproject";
+  version = "0.4.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "vlaci";
     repo = "pyperscan";
     rev = "v${version}";
-    hash = "sha256-uGZ0XFxnZHSLEWcwoHVd+xMulDRqEIrQ5Lf7886GdlM=";
+    hash = "sha256-8a7x6eF91grUNyZWBWsz/WL5WVrynElE5zLPHCaTp08=";
   };
 
-  cargoDeps = rustPlatform.fetchCargoTarball {
-    inherit src;
-    name = "${pname}-${version}";
-    hash = "sha256-a4jNofPIHoKwsD82y2hG2QPu+eM5D7FSGCm2nDo2cLA=";
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit pname version src;
+    hash = "sha256-37EMRHp6X3CqZ/nIewUxWyJCSWXkT1lCyopzCn6M38w=";
   };
 
   nativeBuildInputs = with rustPlatform; [
@@ -35,20 +34,22 @@ buildPythonPackage rec {
 
   checkInputs = [ pytestCheckHook ];
 
-  buildInputs = [ vectorscan ] ++ lib.optional stdenv.isDarwin libiconv;
+  buildInputs = [ vectorscan ] ++ lib.optional stdenv.hostPlatform.isDarwin libiconv;
 
   pythonImportsCheck = [ "pyperscan" ];
 
-  meta = with lib; {
+  meta = {
     description = "Hyperscan binding for Python, which supports vectorscan";
     homepage = "https://vlaci.github.io/pyperscan/";
     changelog = "https://github.com/vlaci/pyperscan/releases/tag/${src.rev}";
-    platforms = platforms.unix;
-    license = with licenses; [
-      asl20 # or
-      mit
-    ];
-    maintainers = with maintainers; [
+    platforms = lib.platforms.unix;
+    license =
+      with lib.licenses;
+      OR [
+        asl20
+        mit
+      ];
+    maintainers = with lib.maintainers; [
       tnias
       vlaci
     ];

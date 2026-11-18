@@ -1,46 +1,47 @@
-{ stdenv
-, lib
-, fetchFromGitLab
-, fetchpatch
-, gitUpdater
-, cmake
-, dbus
-, libqtdbustest
-, lomiri-api
-, pkg-config
-, qtbase
-, qtdeclarative
+{
+  stdenv,
+  lib,
+  fetchFromGitLab,
+  gitUpdater,
+  testers,
+  cmake,
+  dbus,
+  libqtdbustest,
+  lomiri,
+  lomiri-api,
+  pkg-config,
+  qtbase,
+  qtdeclarative,
 }:
 
+let
+  withQt6 = lib.versions.major qtbase.version == "6";
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "lomiri-notifications";
-  version = "1.3.0";
+  version = "1.4.0";
 
   src = fetchFromGitLab {
     owner = "ubports";
     repo = "development/core/lomiri-notifications";
-    rev = finalAttrs.version;
-    hash = "sha256-EGslfTgfADrmVGhNLG7HWqcDKhu52H/r41j7fxoliko=";
+    tag = finalAttrs.version;
+    hash = "sha256-T9Diebp91kZrIt6o9acRQyn+9Hhu20YUYxf6iTntpsc=";
   };
-
-  patches = [
-    # Drop use of deprecated qt5_use_modules
-    # Remove when https://gitlab.com/ubports/development/core/lomiri-notifications/-/merge_requests/11 merged & in release
-    (fetchpatch {
-      url = "https://gitlab.com/OPNA2608/lomiri-notifications/-/commit/5d164d6d8d68efe1d14154eca4d0d736ce2a1265.patch";
-      hash = "sha256-nUg0zUft1n4AlotOaZgDqWbiVDvWvMizdlClavwygoI=";
-    })
-  ];
 
   postPatch = ''
     substituteInPlace CMakeLists.txt \
-      --replace "\''${CMAKE_INSTALL_LIBDIR}/qt5/qml" "\''${CMAKE_INSTALL_PREFIX}/${qtbase.qtQmlPrefix}"
-
-    # Need to replace prefix to not try to install into lomiri-api prefix
+      --replace-fail "\''${CMAKE_INSTALL_LIBDIR}/qt\''${QT_VERSION_MAJOR}/qml" "\''${CMAKE_INSTALL_PREFIX}/${qtbase.qtQmlPrefix}"
+  ''
+  # Agreed-upon location between multiple components
+  # Qt6 one is already correct as-is
+  + ''
     substituteInPlace src/CMakeLists.txt \
-      --replace '--variable=plugindir' '--define-variable=prefix=''${CMAKE_INSTALL_PREFIX} --variable=plugindir'
-  '' + lib.optionalString (!finalAttrs.finalPackage.doCheck) ''
-    sed -i CMakeLists.txt -e '/add_subdirectory(test)/d'
+      --replace-fail 'SHELL_PLUGINDIR_SUFFIX lomiri/qml' 'SHELL_PLUGINDIR_SUFFIX ${lomiri.passthru.shellPlugindirSuffix}' \
+      --replace-fail 'string(APPEND SHELL_PLUGINDIR_SUFFIX "6")' '# string(APPEND SHELL_PLUGINDIR_SUFFIX "6")'
+  ''
+  + lib.optionalString (!finalAttrs.finalPackage.doCheck) ''
+    substituteInPlace CMakeLists.txt \
+      --replace-fail 'add_subdirectory(test)' ""
   '';
 
   strictDeps = true;
@@ -67,8 +68,9 @@ stdenv.mkDerivation (finalAttrs: {
   dontWrapQtApps = true;
 
   cmakeFlags = [
+    (lib.strings.cmakeBool "ENABLE_QT6" withQt6)
     # In case anything still depends on deprecated hints
-    "-DENABLE_UBUNTU_COMPAT=ON"
+    (lib.strings.cmakeBool "ENABLE_UBUNTU_COMPAT" (!withQt6))
   ];
 
   doCheck = stdenv.buildPlatform.canExecute stdenv.hostPlatform;
@@ -80,13 +82,20 @@ stdenv.mkDerivation (finalAttrs: {
     export QT_PLUGIN_PATH=${lib.getBin qtbase}/${qtbase.qtPluginPrefix}
   '';
 
-  passthru.updateScript = gitUpdater { };
+  passthru = {
+    tests.pkg-config = testers.testMetaPkgConfig finalAttrs.finalPackage;
+    updateScript = gitUpdater { };
+  };
 
-  meta = with lib; {
+  meta = {
     description = "Free Desktop Notification server QML implementation for Lomiri";
     homepage = "https://gitlab.com/ubports/development/core/lomiri-notifications";
-    license = licenses.gpl3Only;
-    maintainers = teams.lomiri.members;
-    platforms = platforms.linux;
+    changelog = "https://gitlab.com/ubports/development/core/lomiri-notifications/-/blob/${finalAttrs.version}/ChangeLog";
+    license = lib.licenses.gpl3Only;
+    teams = [ lib.teams.lomiri ];
+    pkgConfigModules = [
+      "lomiri-shell-notifications${lib.optionalString withQt6 "-qt6"}"
+    ];
+    platforms = lib.platforms.linux;
   };
 })

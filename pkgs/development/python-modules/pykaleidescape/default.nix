@@ -4,57 +4,60 @@
   buildPythonPackage,
   dnspython,
   fetchFromGitHub,
-  pytest-asyncio,
+  pytest-asyncio_0,
   pytestCheckHook,
   pythonAtLeast,
-  pythonOlder,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pykaleidescape";
-  version = "1.0.1";
+  version = "1.2.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "SteveEasley";
     repo = "pykaleidescape";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-KM/gtpsQ27QZz2uI1t/yVN5no0zp9LZag1duAJzK55g=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-hVjxbmacnv3Ky0WYT2QGWMk/DPUiO151EE1l06GXiNU=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "setuptools==84.0.0" "setuptools"
+  '';
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     aiohttp
     dnspython
   ];
 
   nativeCheckInputs = [
-    pytest-asyncio
+    pytest-asyncio_0
     pytestCheckHook
   ];
 
   pythonImportsCheck = [ "kaleidescape" ];
 
-  disabledTests =
-    [
-      # Test requires network access
-      "test_resolve_succeeds"
-    ]
-    ++ lib.optionals (pythonAtLeast "3.12") [
-      # stuck in EpollSelector.poll()
-      "test_manual_disconnect"
-      "test_concurrency"
-    ];
+  disabledTests = [
+    # Test requires network access
+    "test_resolve_succeeds"
+  ]
+  ++ lib.optionals (pythonAtLeast "3.12") [
+    # stuck in EpollSelector.poll()
+    "test_manual_disconnect"
+    "test_concurrency"
+    "test_reconnect_calls_on_reconnect"
+    "test_refresh_after_reconnect"
+  ];
 
-  meta = with lib; {
+  meta = {
     description = "Module for controlling Kaleidescape devices";
     homepage = "https://github.com/SteveEasley/pykaleidescape";
-    changelog = "https://github.com/SteveEasley/pykaleidescape/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/SteveEasley/pykaleidescape/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

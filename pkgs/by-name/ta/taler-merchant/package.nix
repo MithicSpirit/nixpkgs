@@ -5,32 +5,27 @@
   gnunet,
   qrencode,
   taler-exchange,
+  taler-wallet-core,
   libtool,
   pkg-config,
   autoreconfHook,
   makeWrapper,
   jq,
+  libgcrypt,
+  texinfo,
+  curl,
+  nixosTests,
 }:
 
-let
-  version = "0.12.0";
-
-  taler-wallet-core = fetchgit {
-    url = "https://git.taler.net/wallet-core.git";
-    # https://taler.net/en/news/2024-23.html
-    rev = "v0.12.7";
-    hash = "sha256-5fyPPrRCKvHTgipIpKqHX3iH5f+wTuyfsAKgKmvl1nI=";
-  };
-in
-stdenv.mkDerivation {
+stdenv.mkDerivation (finalAttrs: {
   pname = "taler-merchant";
-  inherit version;
+  version = "1.3.0";
 
   src = fetchgit {
-    url = "https://git.taler.net/merchant.git";
-    rev = "v${version}";
+    url = "https://git-www.taler.net/merchant.git";
+    tag = "v${finalAttrs.version}";
     fetchSubmodules = true;
-    hash = "sha256-BNIVlL+YPqqRZUhHOR/eH38dSHn/kNyCbMyz0ICxAMk=";
+    hash = "sha256-nrXokwZ0IFXAH3B12/FDAhhyE6JAiiJ59cuWLwLM684=";
   };
 
   postUnpack = ''
@@ -41,16 +36,19 @@ stdenv.mkDerivation {
   # path to the `taler-exchange` package is used.
   postPatch = ''
     substituteInPlace src/backend/taler-merchant-httpd.c \
-      --replace-fail 'TALER_TEMPLATING_init ("merchant");' "TALER_TEMPLATING_init_path (\"merchant\", \"$out/share/taler\");"
+      --replace-fail 'TALER_TEMPLATING_init (TALER_MERCHANT_project_data ())' "TALER_TEMPLATING_init_path (\"merchant\", \"$out/share/taler\")"
 
     substituteInPlace src/backend/taler-merchant-httpd_spa.c \
-      --replace-fail 'GNUNET_DISK_directory_scan (dn,' "GNUNET_DISK_directory_scan (\"$out/share/taler/merchant/spa/\","
+      --replace-fail 'TALER_MHD_spa_load (TALER_MERCHANT_project_data (),' "TALER_MHD_spa_load_dir (\"$out/share/taler/merchant/spa/\");" \
+      --replace-fail '"spa/");' ""
   '';
 
   nativeBuildInputs = [
     pkg-config
     autoreconfHook
     makeWrapper
+    libgcrypt # AM_PATH_LIBGCRYPT
+    texinfo # makeinfo
   ];
 
   buildInputs = taler-exchange.buildInputs ++ [
@@ -59,6 +57,8 @@ stdenv.mkDerivation {
     # for ltdl.h
     libtool
   ];
+
+  strictDeps = true;
 
   propagatedBuildInputs = [ gnunet ];
 
@@ -71,13 +71,25 @@ stdenv.mkDerivation {
     popd
   '';
 
+  configureFlags = [
+    "ac_cv_path__libcurl_config=${lib.getDev curl}/bin/curl-config"
+  ];
+
   # NOTE: The executables that need database access fail to detect the
   # postgresql library in `$out/lib/taler`, so we need to wrap them.
   postInstall = ''
-    for exec in dbinit httpd webhook wirewatch depositcheck exchange; do
+    for exec in dbinit httpd webhook wirewatch depositcheck exchangekeyupdate; do
       wrapProgram $out/bin/taler-merchant-$exec \
         --prefix LD_LIBRARY_PATH : "$out/lib/taler"
     done
+  '';
+
+  postFixup = ''
+    # - taler-merchant-dbinit expects `versioning.sql` under `share/taler/sql`
+    # - taler-merchant-httpd expects `share/taler/merchant/templates`
+    mkdir -p $out/share/taler/sql
+    ln -s $out/share/taler-merchant $out/share/taler/merchant
+    ln -s $out/share/taler-merchant/sql $out/share/taler/sql/merchant
   '';
 
   enableParallelBuilding = true;
@@ -88,8 +100,11 @@ stdenv.mkDerivation {
 
   checkTarget = "check";
 
-  meta = with lib; {
-    description = ''
+  passthru.tests = nixosTests.taler.basic;
+
+  meta = {
+    description = "Merchant component for the GNU Taler electronic payment system";
+    longDescription = ''
       This is the GNU Taler merchant backend. It provides the logic that should run
       at every GNU Taler merchant.  The GNU Taler merchant is a RESTful backend that
       can be used to setup orders and process payments.  This component allows
@@ -97,10 +112,11 @@ stdenv.mkDerivation {
       course, this applies mostly for digital goods, as the merchant does not need
       to know the customer's physical address.
     '';
-    homepage = "https://taler.net/";
-    changelog = "https://git.taler.net/merchant.git/tree/ChangeLog";
-    license = licenses.agpl3Plus;
-    maintainers = with maintainers; [ astro ];
-    platforms = platforms.linux;
+    homepage = "https://www.taler.net/en/";
+    changelog = "https://git-www.taler.net/merchant.git/tree/ChangeLog?h=v${finalAttrs.version}";
+    license = lib.licenses.agpl3Plus;
+    maintainers = with lib.maintainers; [ astro ];
+    teams = with lib.teams; [ ngi ];
+    platforms = lib.platforms.linux;
   };
-}
+})

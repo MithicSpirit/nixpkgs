@@ -4,14 +4,15 @@
   alsa-lib,
   cmake,
   fetchFromGitHub,
+  fetchpatch,
   gtkmm3,
-  libGL,
-  libX11,
-  libXdmcp,
-  libXext,
-  libXinerama,
-  libXrandr,
-  libXv,
+  libGLX,
+  libx11,
+  libxdmcp,
+  libxext,
+  libxinerama,
+  libxrandr,
+  libxv,
   libepoxy,
   libpng,
   libselinux,
@@ -37,10 +38,19 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "snes9xgit";
     repo = "snes9x";
-    rev = finalAttrs.version;
+    tag = finalAttrs.version;
     fetchSubmodules = true;
     hash = "sha256-INMVyB3alwmsApO7ToAaUWgh7jlg2MeLxqHCEnUO88U=";
   };
+
+  patches = [
+    ./glslang-include-cstdint.patch
+    (fetchpatch {
+      name = "CVE-2026-39199.patch";
+      url = "https://github.com/snes9xgit/snes9x/commit/96b366100172723f6314c40e237b370f4f7b59f4.patch";
+      hash = "sha256-oYj0vqAeChlXNnuQOAmrg7x9SU0qH18r7+1wLe981oc=";
+    })
+  ];
 
   nativeBuildInputs = [
     pkg-config
@@ -53,12 +63,12 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
-    libX11
-    libXv
+    libx11
+    libxv
     minizip
     zlib
   ]
-  ++ lib.optionals stdenv.isLinux [
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
     alsa-lib
     pulseaudio
     libselinux
@@ -66,14 +76,14 @@ stdenv.mkDerivation (finalAttrs: {
   ]
   ++ lib.optionals (!withGtk) [
     libpng
-    libXext
-    libXinerama
+    libxext
+    libxinerama
   ]
   ++ lib.optionals withGtk [
     gtkmm3
     libepoxy
-    libXdmcp
-    libXrandr
+    libxdmcp
+    libxrandr
     pcre2
     portaudio
     SDL2
@@ -81,18 +91,29 @@ stdenv.mkDerivation (finalAttrs: {
 
   hardeningDisable = [ "format" ];
 
-  configureFlags = lib.optionals stdenv.hostPlatform.sse4_1Support [
-    "--enable-sse41"
-  ]
-  ++ lib.optionals stdenv.hostPlatform.avx2Support [
-    "--enable-avx2"
-  ];
+  configureFlags =
+    lib.optionals stdenv.hostPlatform.sse4_1Support [
+      "--enable-sse41"
+    ]
+    ++ lib.optionals stdenv.hostPlatform.avx2Support [
+      "--enable-avx2"
+    ];
 
-  postPatch = ''
+  postPatch = lib.optionalString withGtk ''
+    # Give jma SYSTEM_ZIP so it includes the system minizip headers.
+    substituteInPlace gtk/CMakeLists.txt \
+      --replace-fail 'target_include_directories(jma PRIVATE' 'target_compile_definitions(jma PRIVATE ''${DEFINES})
+    target_include_directories(jma PRIVATE'
+
+    # Please remove after snes9x > 1.63.  Fixed by upstream:
+    # https://github.com/snes9xgit/snes9x/commit/a4b4b98fffbde417ad550480021db89f18f11a5d.patch
+    substituteInPlace external/SPIRV-Cross/CMakeLists.txt \
+      --replace-fail 'cmake_minimum_required(VERSION 3.0)' 'cmake_minimum_required(VERSION 3.5)'
+
     substituteInPlace external/glad/src/egl.c \
-      --replace-fail libEGL.so.1 "${lib.getLib libGL}/lib/libEGL.so.1"
+      --replace-fail libEGL.so.1 "${lib.getLib libGLX}/lib/libEGL.so.1"
     substituteInPlace external/glad/src/glx.c \
-      --replace-fail libGL.so.1 ${lib.getLib libGL}/lib/libGL.so.1
+      --replace-fail libGL.so.1 ${lib.getLib libGLX}/lib/libGL.so.1
   '';
 
   preConfigure = ''
@@ -103,18 +124,19 @@ stdenv.mkDerivation (finalAttrs: {
     runHook preInstall
 
     install -Dm755 snes9x -t "$out/bin/"
-    install -Dm644 snes9x.conf.default -t "$out/share/doc/${finalAttrs.pname}/"
+    install -Dm644 snes9x.conf.default -t "$out/share/doc/snes9x/"
     install -Dm644 ../docs/{control-inputs,controls,snapshots}.txt -t \
-      "$out/share/doc/${finalAttrs.pname}/"
+      "$out/share/doc/snes9x/"
 
     runHook postInstall
   '';
 
   enableParallelBuilding = true;
 
-  meta = let
-    interface = if withGtk then "GTK" else "X11";
-  in
+  meta =
+    let
+      interface = if withGtk then "GTK" else "X11";
+    in
     {
       homepage = "https://www.snes9x.com";
       description = "Super Nintendo Entertainment System (SNES) emulator, ${interface} version";
@@ -127,16 +149,15 @@ stdenv.mkDerivation (finalAttrs: {
         Version build with ${interface} interface.
       '';
       license = lib.licenses.unfreeRedistributable // {
-        url = "https://github.com/snes9xgit/snes9x/blob/${finalAttrs.src.rev}/LICENSE";
+        url = "https://github.com/snes9xgit/snes9x/blob/${finalAttrs.src.tag}/LICENSE";
       };
       mainProgram = "snes9x";
       maintainers = with lib.maintainers; [
-        AndersonTorres
         qknight
         thiagokokada
         sugar700
       ];
       platforms = lib.platforms.unix;
-      broken = (withGtk && stdenv.isDarwin);
+      broken = (withGtk && stdenv.hostPlatform.isDarwin);
     };
 })

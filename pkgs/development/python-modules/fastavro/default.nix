@@ -2,47 +2,50 @@
   buildPythonPackage,
   cython,
   fetchFromGitHub,
-  isPy38,
   lib,
   lz4,
   numpy,
   pandas,
   pytestCheckHook,
   python-dateutil,
-  python-snappy,
   pythonOlder,
+  backports-zstd,
+  cramjam,
+  setuptools,
   zlib-ng,
-  zstandard,
 }:
 
 buildPythonPackage rec {
   pname = "fastavro";
-  version = "1.9.5";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.6";
+  version = "1.12.2";
+  pyproject = true;
 
   src = fetchFromGitHub {
-    owner = pname;
-    repo = pname;
-    rev = "refs/tags/${version}";
-    hash = "sha256-rw0kTSROCFthjo8SrLevBiACNaKpKWcZfIYoc89Q3eM=";
+    owner = "fastavro";
+    repo = "fastavro";
+    tag = version;
+    hash = "sha256-UeOfYM03Htqrh+lpBKWiAPgZTv63jpO/FZZRMSgW5Ug=";
   };
 
   preBuild = ''
     export FASTAVRO_USE_CYTHON=1
   '';
 
-  nativeBuildInputs = [ cython ];
+  build-system = [
+    cython
+    setuptools
+  ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     codecs = [
+      cramjam
       lz4
-      python-snappy
-      zstandard
+    ]
+    ++ lib.optionals (pythonOlder "3.14") [
+      backports-zstd
     ];
-    snappy = [ python-snappy ];
-    zstandard = [ zstandard ];
+    snappy = [ cramjam ];
+    zstandard = lib.optionals (pythonOlder "3.,14") [ backports-zstd ];
     lz4 = [ lz4 ];
   };
 
@@ -52,23 +55,21 @@ buildPythonPackage rec {
     pytestCheckHook
     python-dateutil
     zlib-ng
-  ] ++ lib.flatten (lib.attrValues passthru.optional-dependencies);
+  ]
+  ++ lib.concatAttrValues optional-dependencies;
 
   # Fails with "AttributeError: module 'fastavro._read_py' has no attribute
   # 'CYTHON_MODULE'." Doesn't appear to be serious. See https://github.com/fastavro/fastavro/issues/112#issuecomment-387638676.
   disabledTests = [ "test_cython_python" ];
 
-  # CLI tests are broken on Python 3.8. See https://github.com/fastavro/fastavro/issues/558.
-  disabledTestPaths = lib.optionals isPy38 [ "tests/test_main_cli.py" ];
-
   pythonImportsCheck = [ "fastavro" ];
 
-  meta = with lib; {
+  meta = {
     description = "Fast read/write of AVRO files";
     mainProgram = "fastavro";
     homepage = "https://github.com/fastavro/fastavro";
-    changelog = "https://github.com/fastavro/fastavro/blob/${version}/ChangeLog";
-    license = licenses.mit;
-    maintainers = with maintainers; [ samuela ];
+    changelog = "https://github.com/fastavro/fastavro/blob/${src.tag}/ChangeLog";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ samuela ];
   };
 }

@@ -1,43 +1,53 @@
-{ buildGoModule
-, fetchurl
-, lib
-, zstd
-, sharness
-, python3
-, perl
+{
+  stdenv,
+  buildGoModule,
+  fetchurl,
+  lib,
+  zstd,
+  sharness,
+  python3,
+  perl,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "goredo";
-  version = "2.6.0";
+  version = "2.11.0";
 
   src = fetchurl {
-    url = "http://www.goredo.cypherpunks.ru/download/goredo-${version}.tar.zst";
-    hash = "sha256-XTL/otfCKC55TsUBBVors2kgFpOFh+6oekOOafOhcUs=";
+    url = "http://www.goredo.stargrave.org/download/goredo-${finalAttrs.version}.tar.zst";
+    hash = "sha256-U/2NSP+AqTa2l9rlFZJKWcgP6XCdutWpUrp5MDlRNZs=";
   };
-
-  patches = [
-    # Adapt tests to Linux/nix-build requirements:
-    ./fix-tests.diff
-  ];
 
   nativeBuildInputs = [ zstd ];
 
-  nativeCheckInputs = lib.optionals doCheck [ python3 perl ];
+  nativeCheckInputs = [
+    python3
+    perl
+  ];
 
-  inherit (sharness) SHARNESS_TEST_SRCDIR;
+  env = {
+    inherit (sharness) SHARNESS_TEST_SRCDIR;
+  };
 
   vendorHash = null;
 
   modRoot = "./src";
   subPackages = [ "." ];
 
+  postPatch = ''
+    substituteInPlace t/goredo-executable-rel.t \
+      --replace-fail "#!/usr/bin/env perl" "#!${lib.getExe perl}"
+  '';
+
   postBuild = ''
     ( cd $GOPATH/bin; ./goredo -symlinks )
     cd ..
   '';
 
-  doCheck = true;
+  doCheck = stdenv.buildPlatform.canExecute stdenv.hostPlatform;
+  preCheck = lib.optionalString stdenv.hostPlatform.isDarwin ''
+    rm t/apenwarr-105-sympath.t
+  '';
   checkPhase = ''
     runHook preCheck
     export PATH=$GOPATH/bin:$PATH
@@ -50,13 +60,16 @@ buildGoModule rec {
     cp goredo.info "$out/share/info"
   '';
 
-  outputs = [ "out" "info" ];
+  outputs = [
+    "out"
+    "info"
+  ];
 
-  meta = with lib; {
+  meta = {
     outputsToInstall = [ "out" ];
-    description = "djb's redo, a system for building files from source files. Written in Go";
-    homepage = "https://www.goredo.cypherpunks.ru";
-    license = licenses.gpl3;
-    maintainers = [ maintainers.spacefrogg ];
+    description = "Makefile replacement that sucks less";
+    homepage = "http://www.goredo.stargrave.org/";
+    license = lib.licenses.gpl3Only;
+    maintainers = [ lib.maintainers.spacefrogg ];
   };
-}
+})

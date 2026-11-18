@@ -4,6 +4,7 @@
   fetchFromGitHub,
   mbstrdecoder,
   setuptools,
+  setuptools-scm,
   simplesqlite,
   sqliteschema,
   tabledata,
@@ -11,21 +12,26 @@
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "sqliteschema";
-  version = "1.4.0";
+  version = "2.0.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "thombashi";
     repo = "sqliteschema";
-    rev = "v${version}";
-    hash = "sha256-IzHdYBnh6udVsanWTPSsX4p4PG934YCdzs9Ow/NW86E=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-ZGDzGfj78v8o0GvAHcP26JiJCOWPaIr2h1Lqzh5AuSg=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  pythonRelaxDeps = [ "typepy" ];
 
-  propagatedBuildInputs = [
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
+
+  dependencies = [
     mbstrdecoder
     tabledata
     typepy
@@ -47,10 +53,10 @@ buildPythonPackage rec {
     doCheck = true;
   });
 
-  meta = with lib; {
+  meta = {
     description = "Python library to dump table schema of a SQLite database file";
     homepage = "https://github.com/thombashi/sqliteschema";
-    license = licenses.mit;
-    maintainers = with maintainers; [ henrirosten ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ henrirosten ];
   };
-}
+})

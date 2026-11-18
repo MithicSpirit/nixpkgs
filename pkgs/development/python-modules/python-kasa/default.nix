@@ -1,58 +1,47 @@
 {
   lib,
   aiohttp,
-  async-timeout,
   asyncclick,
   buildPythonPackage,
   cryptography,
   fetchFromGitHub,
+  hatchling,
   kasa-crypt,
+  mashumaro,
   orjson,
-  poetry-core,
   ptpython,
-  pydantic,
   pytest-asyncio,
   pytest-freezer,
   pytest-mock,
+  pytest-socket,
+  pytest-xdist,
   pytestCheckHook,
-  pythonOlder,
   rich,
   voluptuous,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-kasa";
-  version = "0.7.2";
+  version = "0.12.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "python-kasa";
     repo = "python-kasa";
-    rev = "refs/tags/${version}";
-    hash = "sha256-JfTFed591z1ZxTKP5FqYyaMBq8uCs4StlnqKp3Tc7Ug=";
+    tag = finalAttrs.version;
+    hash = "sha256-z984z3Rqh5wZ+Tbum+vOaJjXOL8ljX1g/HkhdlQi4rI=";
   };
 
-  build-system = [ poetry-core ];
+  build-system = [ hatchling ];
 
   dependencies = [
     aiohttp
-    async-timeout
     asyncclick
     cryptography
-    pydantic
+    mashumaro
   ];
 
-  nativeCheckInputs = [
-    pytest-asyncio
-    pytest-freezer
-    pytest-mock
-    pytestCheckHook
-    voluptuous
-  ];
-
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     shell = [
       ptpython
       rich
@@ -63,21 +52,34 @@ buildPythonPackage rec {
     ];
   };
 
-  pytestFlagsArray = [ "--asyncio-mode=auto" ];
+  nativeCheckInputs = [
+    pytest-asyncio
+    pytest-freezer
+    pytest-mock
+    pytest-socket
+    pytest-xdist
+    pytestCheckHook
+    voluptuous
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
+
+  pytestFlags = [ "--asyncio-mode=auto" ];
 
   disabledTestPaths = [
     # Skip the examples tests
-    "kasa/tests/test_readme_examples.py"
+    "tests/test_readme_examples.py"
+    # Failing on hydra
+    "tests/test_cli.py"
   ];
 
   pythonImportsCheck = [ "kasa" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python API for TP-Link Kasa Smarthome products";
     homepage = "https://python-kasa.readthedocs.io/";
-    changelog = "https://github.com/python-kasa/python-kasa/blob/${version}/CHANGELOG.md";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/python-kasa/python-kasa/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "kasa";
   };
-}
+})

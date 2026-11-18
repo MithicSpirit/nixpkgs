@@ -1,26 +1,30 @@
-{ lib, buildGoModule, fetchFromGitHub }:
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+}:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "fanbox-dl";
-  version = "0.23.1";
+  version = "0.29.2";
 
   src = fetchFromGitHub {
     owner = "hareku";
     repo = "fanbox-dl";
-    rev = "v${version}";
-    hash = "sha256-EO1J90uH2J8EI51qGzIQyl4BbSwijkEi5ZQENgSMEm8=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-E10X8MJoZFDG9hepPJ8uqxIycpHDqYyIJWCiCW8K3mY=";
   };
 
-  vendorHash = "sha256-GD5uxa5XWhlHHBztTpDKCTSym2pdkr/or6aGl9qF29U=";
+  vendorHash = "sha256-kcD4YuI9bh2ipRKRTULOvjqaVZnc4OLpVHX5PtpgO0g=";
 
   # pings websites during testing
   doCheck = false;
 
-  meta = with lib; {
+  meta = {
     description = "Pixiv FANBOX Downloader";
     mainProgram = "fanbox-dl";
     homepage = "https://github.com/hareku/fanbox-dl";
-    license = licenses.mit;
-    maintainers = [ maintainers.moni ];
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.moni ];
   };
-}
+})

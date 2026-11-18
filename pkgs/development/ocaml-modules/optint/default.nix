@@ -1,12 +1,16 @@
-{ lib, buildDunePackage, fetchurl }:
+{
+  lib,
+  buildDunePackage,
+  fetchurl,
+}:
 
-buildDunePackage rec {
+buildDunePackage (finalAttrs: {
   minimalOCamlVersion = "4.07";
-  version = "0.3.0";
+  version = "0.3.1";
   pname = "optint";
   src = fetchurl {
-    url = "https://github.com/mirage/optint/releases/download/v${version}/optint-${version}.tbz";
-    sha256 = "sha256-KVz/LBNLA4WxO6gdUAXZ+EG6QNSlAq7RDJl/I57xFHs=";
+    url = "https://github.com/mirage/optint/releases/download/v${finalAttrs.version}/optint-${finalAttrs.version}.tbz";
+    hash = "sha256-4M2YHcSzUYEpvuRgy13FLGFCzwS5w3MD0pJWCBrprVo=";
   };
 
   meta = {
@@ -15,4 +19,4 @@ buildDunePackage rec {
     license = lib.licenses.mit;
     maintainers = [ lib.maintainers.vbgl ];
   };
-}
+})

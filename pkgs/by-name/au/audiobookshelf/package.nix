@@ -1,103 +1,135 @@
 {
   lib,
-  stdenv,
   fetchFromGitHub,
-  runCommand,
   buildNpmPackage,
-  nodejs_18,
-  ffmpeg-full,
-  util-linux,
-  python3,
-  getopt,
+  buildPackages,
+  callPackage,
+  nodejs_24,
+  nodejs-slim_24,
+  ffmpeg_9-headless,
+  nunicode,
+  sqlite,
+  typescript_5,
+  jq,
   nixosTests,
+  nix-update-script,
+  routerBasePath ? "/audiobookshelf",
 }:
 
-let
-  nodejs = nodejs_18;
-
-  source = builtins.fromJSON (builtins.readFile ./source.json);
+buildNpmPackage (finalAttrs: {
   pname = "audiobookshelf";
+  version = "2.37.2";
 
   src = fetchFromGitHub {
     owner = "advplyr";
     repo = "audiobookshelf";
-    rev = "refs/tags/v${source.version}";
-    inherit (source) hash;
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-GnXWG+8tb/clX6rpw4x1c5Usl28jKLEhuMFiAG+fCec=";
   };
 
-  client = buildNpmPackage {
-    pname = "audiobookshelf-client";
-    inherit (source) version;
+  npmDepsHash = "sha256-wF3PMYN+nymE6VktHtKcdLhSkeE4e04nGcRQJhYHG4c=";
 
-    src = runCommand "cp-source" { } ''
-      cp -r ${src}/client $out
-    '';
+  nodejs = nodejs_24;
 
-    # don't download the Cypress binary
-    CYPRESS_INSTALL_BINARY = 0;
-    NODE_OPTIONS = "--openssl-legacy-provider";
+  nativeBuildInputs = [
+    typescript_5
+    jq
+  ];
 
-    npmBuildScript = "generate";
-    npmDepsHash = source.clientDepsHash;
-  };
+  buildInputs = [
+    nodejs-slim_24
+    sqlite
+  ];
 
-  wrapper = import ./wrapper.nix {
-    inherit
-      stdenv
-      ffmpeg-full
-      pname
-      nodejs
-      getopt
-      ;
-  };
+  inherit (buildPackages.npmHooks.override { nodejs = nodejs-slim_24; }) npmInstallHook;
 
-in
-buildNpmPackage {
-  inherit pname src;
-  inherit (source) version;
+  npmInstallFlags = [
+    "--omit=dev"
+    "--omit=optional"
+  ];
+  npmRebuildFlags = [ "--sqlite=${lib.getDev sqlite}" ];
+  npmBuildScript = "build:server";
 
-  postPatch = ''
-    # Always skip version checks of the binary manager.
-    # We provide our own binaries, and don't want to trigger downloads.
-    substituteInPlace server/managers/BinaryManager.js --replace-fail \
-      'if (!this.validVersions.length) return true' \
-      'return true'
+  makeWrapperArgs = [
+    "--set"
+    "FFMPEG_PATH"
+    (lib.getExe ffmpeg_9-headless)
+    "--set"
+    "FFPROBE_PATH"
+    (lib.getExe' ffmpeg_9-headless "ffprobe")
+    "--set"
+    "NODE_ENV"
+    "production"
+    "--set"
+    "NUSQLITE3_PATH"
+    "${nunicode.sqlite}/lib/libnusqlite3"
+    "--set"
+    "ROUTER_BASE_PATH"
+    (lib.escapeShellArg routerBasePath)
+    "--set"
+    "SKIP_BINARIES_CHECK"
+    "1"
+    "--set"
+    "SOURCE"
+    "nixpkgs"
+  ];
+
+  preInstall = ''
+    rm -r \
+      node_modules/{.bin,@types} \
+      node_modules/sqlite3/{binding.gyp,deps,src} \
+      node_modules/sqlite3/build/{Makefile,binding.Makefile,config.gypi,node_sqlite3.target.mk} \
+      node_modules/sqlite3/build/Release/{.deps,obj.target}
+
+    shopt -s globstar
+    rm node_modules/**/*.{map,ts,mts,cts}
+    shopt -u globstar
+
+    patchShebangs --host --update node_modules
   '';
-
-  buildInputs = [ util-linux ];
-  nativeBuildInputs = [ python3 ];
-
-  dontNpmBuild = true;
-  npmInstallFlags = [ "--only-production" ];
-  npmDepsHash = source.depsHash;
 
   installPhase = ''
-    mkdir -p $out/opt/client
-    cp -r index.js server package* node_modules $out/opt/
-    cp -r ${client}/lib/node_modules/audiobookshelf-client/dist $out/opt/client/dist
-    mkdir $out/bin
+    runHook preInstall
 
-    echo '${wrapper}' > $out/bin/audiobookshelf
-    echo "  exec ${nodejs}/bin/node $out/opt/index.js" >> $out/bin/audiobookshelf
+    packageOut="$out/lib/node_modules/$(jq --raw-output '.name' package.json)"
 
-    chmod +x $out/bin/audiobookshelf
+    mkdir -p "$packageOut"/{client,dist-server}
+    cp -r dist-server/{index.js,package.json,server} "$packageOut"/dist-server/
+    cp -r node_modules package.json "$packageOut"/
+    cp -r ${finalAttrs.passthru.client} "$packageOut"/client/dist
+
+    nodejsInstallExecutables
+
+    runHook postInstall
   '';
 
+  disallowedReferences = [ finalAttrs.nodejs ];
+
   passthru = {
+    client = callPackage ./client.nix {
+      inherit (finalAttrs) src version nodejs;
+      inherit routerBasePath;
+    };
     tests.basic = nixosTests.audiobookshelf;
-    updateScript = ./update.nu;
+    updateScript = nix-update-script { extraArgs = [ "--subpackage=client" ]; };
   };
 
   meta = {
     homepage = "https://www.audiobookshelf.org/";
     description = "Self-hosted audiobook and podcast server";
-    changelog = "https://github.com/advplyr/audiobookshelf/releases/tag/v${source.version}";
-    license = lib.licenses.gpl3;
+    changelog = "https://github.com/advplyr/audiobookshelf/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.gpl3Only;
     maintainers = with lib.maintainers; [
       jvanbruegge
       adamcstephens
+      tebriel
+      connor-grady
     ];
     platforms = lib.platforms.linux;
     mainProgram = "audiobookshelf";
+    sourceProvenance = with lib.sourceTypes; [
+      fromSource
+      binaryBytecode
+    ];
   };
-}
+})

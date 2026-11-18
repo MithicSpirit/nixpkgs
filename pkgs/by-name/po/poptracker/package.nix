@@ -2,29 +2,35 @@
   lib,
   stdenv,
   fetchFromGitHub,
+  cacert,
   util-linux,
   SDL2,
   SDL2_ttf,
   SDL2_image,
+  libx11,
   openssl,
+  zlib,
   which,
-  libsForQt5,
+  kdePackages,
   makeWrapper,
   makeDesktopItem,
   copyDesktopItems,
+  nix-update-script,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "poptracker";
-  version = "0.27.0";
+  version = "0.35.4";
 
   src = fetchFromGitHub {
     owner = "black-sliver";
     repo = "PopTracker";
-    rev = "v${finalAttrs.version}";
-    hash = "sha256-Tz3rVbaHw5RfFKuLih4BEEnn3uNeLrtDQpBD2yYUzkM=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-ilnBVwzd/tdolchgjz5EsMou7fMWT0xU/gTC+HBnDjU=";
     fetchSubmodules = true;
   };
+
+  passthru.updateScript = nix-update-script { };
 
   patches = [ ./assets-path.diff ];
 
@@ -44,7 +50,9 @@ stdenv.mkDerivation (finalAttrs: {
     SDL2
     SDL2_ttf
     SDL2_image
+    libx11
     openssl
+    zlib
   ];
 
   buildFlags = [
@@ -55,12 +63,14 @@ stdenv.mkDerivation (finalAttrs: {
 
   installPhase = ''
     runHook preInstall
-    install -m555 -Dt $out/bin build/linux-x86_64/poptracker
+    install -m555 -Dt $out/bin build/*/poptracker
     install -m444 -Dt $out/share/poptracker assets/*
+    rm $out/share/poptracker/cacert.pem
+    ln -s ${cacert}/etc/ssl/certs/ca-bundle.crt $out/share/poptracker/cacert.pem
     wrapProgram $out/bin/poptracker --prefix PATH : ${
       lib.makeBinPath [
         which
-        libsForQt5.kdialog
+        kdePackages.kdialog
       ]
     }
     mkdir -p $out/share/icons/hicolor/{64x64,512x512}/apps
@@ -98,6 +108,6 @@ stdenv.mkDerivation (finalAttrs: {
       pyrox0
     ];
     mainProgram = "poptracker";
-    platforms = [ "x86_64-linux" ];
+    platforms = lib.platforms.unix;
   };
 })

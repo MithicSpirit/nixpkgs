@@ -1,58 +1,63 @@
 {
   lib,
+  stdenv,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
 
   # build-system
   setuptools,
-  torch,
-  which,
+  setuptools-scm,
+
+  # nativeBuildInputs
+  cmake,
+  ninja,
 
   # dependencies
   cloudpickle,
   numpy,
-  orjson,
+  pyvers,
+  torch,
 
-  # checks
+  # tests
   h5py,
   pytestCheckHook,
-
-  stdenv,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "tensordict";
-  version = "0.5.0";
+  version = "0.15.6";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "pytorch";
     repo = "tensordict";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-jnRlN9gefR77pioIXf0qM1CP6EtpeQkBvVIecGkb/pw=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-1Ss9O3gYBh++dw6SGDdQaunkxmIGlnQ1rW1Pmd+ajSs=";
   };
 
   build-system = [
     setuptools
-    torch
-    which
+    setuptools-scm
   ];
+
+  nativeBuildInputs = [
+    cmake
+    ninja
+  ];
+  dontUseCmakeConfigure = true;
 
   dependencies = [
     cloudpickle
     numpy
-    orjson
+    pyvers
     torch
   ];
 
   pythonImportsCheck = [ "tensordict" ];
 
-  # We have to delete the source because otherwise it is used instead of the installed package.
+  # Prevent the source files from being imported at test time
   preCheck = ''
-    rm -rf tensordict
+    rm -f tensordict/__init__.py
   '';
 
   nativeCheckInputs = [
@@ -60,50 +65,49 @@ buildPythonPackage rec {
     pytestCheckHook
   ];
 
-  disabledTests =
-    [
-      # Hangs forever
-      "test_copy_onto"
+  disabledTestPaths = lib.optionals stdenv.hostPlatform.isDarwin [
+    # Hangs forever
+    "test/distributed/test_distributed.py"
+  ];
 
-      # EOFError (MPI related)
-      # AssertionError: assert tensor(False)
-      # +  where tensor(False) = <built-in method all of Tensor object at 0x7ffe49bf87d0>()
-      "test_mp"
+  disabledTests = [
+    # Tests upstream's CI installer script (.github/scripts/install_ci_tool.sh), irrelevant here
+    "test_ci_installer_checks_before_execution"
 
-      # torch._dynamo.exc.BackendCompilerFailed
-      # Requires a more recent version of triton
-      # Re-enable when https://github.com/NixOS/nixpkgs/pull/328247 is merged
-      "test_linear"
-      "test_seq"
-      "test_seq_lmbda"
-    ]
-    ++ lib.optionals (stdenv.hostPlatform.system == "aarch64-linux") [
-      # RuntimeError: internal error
-      "test_add_scale_sequence"
-      "test_modules"
-      "test_setattr"
+    # TypeError: not all arguments converted during string formatting
+    "test_dtensor"
 
-      # _queue.Empty errors in multiprocessing tests
-      "test_isend"
+    # hangs forever on some CPUs
+    "test_map_iter_interrupt_early"
 
-      # hangs forever
-      "test_map_iter_interrupt_early"
-    ];
-
-  disabledTestPaths = lib.optionals stdenv.isDarwin [
-    # torch._dynamo.exc.BackendCompilerFailed: backend='inductor' raised:
-    # OpenMP support not found.
-    "test/test_compile.py"
-
-    # ModuleNotFoundError: No module named 'torch._C._distributed_c10d'; 'torch._C' is not a package
-    "test/test_distributed.py"
+    # AssertionError: assert 'a string!' == 'a metadata!'
+    "test_save_load_memmap"
+  ]
+  ++ lib.optionals (stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64) [
+    # RuntimeError: Failed to initialize cpuinfo!
+    "test_cast_filter_class_default"
+    "test_cast_filter_inheritance"
+    "test_cast_to"
+    "test_casts"
+    "test_dtype_shorthand_cast_filter"
+    "test_load_state_dict_not_a_leaf_order["
+    "test_td_params_cast"
+    "test_to_dtype_cast_filter"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # Hangs due to the use of a pool
+    "test_chunksize_num_chunks"
+    "test_index_with_generator"
+    "test_map_exception"
+    "test_map"
+    "test_multiprocessing"
   ];
 
   meta = {
     description = "Pytorch dedicated tensor container";
-    changelog = "https://github.com/pytorch/tensordict/releases/tag/v${version}";
+    changelog = "https://github.com/pytorch/tensordict/releases/tag/${finalAttrs.src.tag}";
     homepage = "https://github.com/pytorch/tensordict";
     license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ GaetanLepage ];
   };
-}
+})

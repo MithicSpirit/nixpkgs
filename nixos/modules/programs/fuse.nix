@@ -1,11 +1,19 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   cfg = config.programs.fuse;
-in {
-  meta.maintainers = with lib.maintainers; [ primeos ];
+in
+{
+  meta.maintainers = [ ];
 
   options.programs.fuse = {
+    enable = lib.mkEnableOption "fuse";
+
     mountMax = lib.mkOption {
       # In the C code it's an "int" (i.e. signed and at least 16 bit), but
       # negative numbers obviously make no sense:
@@ -26,10 +34,22 @@ in {
     };
   };
 
-  config =  {
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = [
+      pkgs.fuse3
+    ];
+
+    security.wrappers.fusermount3 = {
+      group = "root";
+      owner = "root";
+      setuid = true;
+      source = "${lib.getBin pkgs.fuse3}/bin/fusermount3";
+    };
+
     environment.etc."fuse.conf".text = ''
       ${lib.optionalString (!cfg.userAllowOther) "#"}user_allow_other
-      mount_max = ${builtins.toString cfg.mountMax}
+      mount_max = ${toString cfg.mountMax}
     '';
+
   };
 }

@@ -3,35 +3,43 @@
   buildPythonPackage,
   fetchFromGitHub,
   pytestCheckHook,
-  pythonOlder,
   matplotlib,
   numpy,
   pendulum,
   pillow,
   poetry-core,
   pyquaternion,
+  loguru,
+  hatchling,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage {
   pname = "bbox";
-  version = "0.9.4";
+  version = "0.9.4-unstable-2025-10-21";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
 
   src = fetchFromGitHub {
     owner = "varunagrawal";
-    repo = pname;
-    # matches 0.9.4 on PyPi + tests
-    rev = "d3f07ed0e38b6015cf4181e3b3edae6a263f8565";
-    hash = "sha256-FrJ8FhlqwmnEB/QvPlkDfqZncNGPhwY9aagM9yv1LGs=";
+    repo = "bbox";
+    rev = "ac3bc3036415337722dcaf46ab59f83b38d19828";
+    hash = "sha256-IikvXxIhuZRkODMEiGUsu16GKiwfe62NxE5hOf5OfWk=";
   };
 
   nativeBuildInputs = [ poetry-core ];
 
+  postPatch = ''
+    substituteInPlace bbox/metrics.py \
+      --replace-warn round_ round
+  '';
+
+  build-system = [
+    hatchling
+  ];
+
   propagatedBuildInputs = [
     pyquaternion
     numpy
+    loguru
   ];
 
   nativeCheckInputs = [
@@ -46,12 +54,14 @@ buildPythonPackage rec {
     "test_multi_jaccard_index_2d_performance"
   ];
 
+  pythonRelaxDeps = [ "numpy" ];
+
   pythonImportsCheck = [ "bbox" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library for 2D/3D bounding boxes";
     homepage = "https://github.com/varunagrawal/bbox";
-    license = licenses.mit;
-    maintainers = with maintainers; [ lucasew ];
+    license = lib.licenses.mit;
+    maintainers = [ ];
   };
 }

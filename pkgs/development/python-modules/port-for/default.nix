@@ -2,36 +2,34 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
   pytestCheckHook,
   setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "port-for";
-  version = "0.7.1";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.8";
+  version = "1.0.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
-    owner = "kmike";
+    owner = "fizyk";
     repo = "port-for";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-/45TQ2crmTupRgL9hgZGw5IvFKywezSIHqHFbeAkMoo=";
+    tag = "v${version}";
+    hash = "sha256-vv2xjXyUh6g7T0zGDAlOs3K+YM18wSE8rEvgSP1ZBL4=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
   nativeCheckInputs = [ pytestCheckHook ];
+
   pythonImportsCheck = [ "port_for" ];
 
-  meta = with lib; {
-    homepage = "https://github.com/kmike/port-for";
-    description = "Command-line utility and library that helps with TCP port managment";
+  meta = {
+    homepage = "https://github.com/fizyk/port-for";
+    description = "Command-line utility and library that helps with TCP port management";
     mainProgram = "port-for";
-    changelog = "https://github.com/kmike/port-for/blob/v${version}/CHANGES.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ bcdarwin ];
+    changelog = "https://github.com/fizyk/port-for/blob/v${version}/CHANGES.rst";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ bcdarwin ];
   };
 }

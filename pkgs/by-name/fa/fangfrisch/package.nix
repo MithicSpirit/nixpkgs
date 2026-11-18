@@ -1,9 +1,14 @@
-{ lib
-, python3
-, fetchFromGitHub
+{
+  lib,
+  python3,
+  fetchFromGitHub,
+  nix-update-script,
+
+  # support setting socks proxies in `ALL_PROXY` environment variable
+  supportSocks ? true,
 }:
 let
-  version = "1.9.0";
+  version = "1.9.3";
 in
 python3.pkgs.buildPythonApplication {
   pname = "fangfrisch";
@@ -13,8 +18,8 @@ python3.pkgs.buildPythonApplication {
   src = fetchFromGitHub {
     owner = "rseichter";
     repo = "fangfrisch";
-    rev = "refs/tags/${version}";
-    hash = "sha256-B2fVXVYzrtWMh/WjgFBOqrq8Jt+jqudbtpY/w4rJG08=";
+    tag = version;
+    hash = "sha256-I80ih8vCZVEWJW3wOdHgVCvYg2+Qj/uMhOk5roofv/4=";
   };
 
   nativeBuildInputs = [
@@ -22,19 +27,26 @@ python3.pkgs.buildPythonApplication {
     python3.pkgs.wheel
   ];
 
-  propagatedBuildInputs = with python3.pkgs; [
-    requests
-    sqlalchemy
-  ];
+  nativeCheckInputs = [ python3.pkgs.pytestCheckHook ];
+
+  propagatedBuildInputs =
+    with python3.pkgs;
+    [
+      requests
+      sqlalchemy
+    ]
+    ++ lib.optional supportSocks pysocks;
 
   pythonImportsCheck = [ "fangfrisch" ];
 
-  meta = with lib; {
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "Update and verify unofficial Clam Anti-Virus signatures";
     homepage = "https://github.com/rseichter/fangfrisch";
     changelog = "https://github.com/rseichter/fangfrisch/blob/${version}/CHANGELOG.rst";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ happysalada ];
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ happysalada ];
     mainProgram = "fangfrisch";
   };
 }

@@ -7,22 +7,18 @@
   od,
   pygments,
   python-dateutil,
-  pythonOlder,
   repeated-test,
   setuptools-scm,
   sigtools,
   unittestCheckHook,
 }:
-
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "clize";
   version = "5.0.2";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
-    inherit pname version;
+    inherit (finalAttrs) pname version;
     hash = "sha256-BH9aRHNgJxirG4VnKn4VMDOHF41agcJ13EKd+sHstRA=";
   };
 
@@ -39,6 +35,12 @@ buildPythonPackage rec {
     datetime = [ python-dateutil ];
   };
 
+  postPatch = ''
+    # the simulated old docutils only ignores the 0.21 wording of these deprecation warnings
+    substituteInPlace clize/tests/test_help.py \
+      --replace-fail '"message": r".*Option.*\b0\.21\b.*"' '"message": r"The frontend\.Option(Parser)? class .*"'
+  '';
+
   nativeCheckInputs = [
     pygments
     unittestCheckHook
@@ -46,13 +48,18 @@ buildPythonPackage rec {
     repeated-test
   ];
 
+  unittestFlags = [
+    "-s"
+    "clize/tests"
+  ];
+
   pythonImportsCheck = [ "clize" ];
 
-  meta = with lib; {
+  meta = {
     description = "Command-line argument parsing for Python";
     homepage = "https://github.com/epsy/clize";
-    changelog = "https://github.com/epsy/clize/releases/tag/v${version}";
-    license = licenses.mit;
+    changelog = "https://github.com/epsy/clize/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
-}
+})

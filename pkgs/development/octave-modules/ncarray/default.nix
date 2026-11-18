@@ -1,8 +1,9 @@
-{ buildOctavePackage
-, lib
-, fetchurl
-, netcdf
-, statistics
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
+  netcdf,
+  statistics,
 }:
 
 buildOctavePackage rec {
@@ -11,7 +12,7 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "sha256-W6L2Esm7AdzntT7cimKylbeKYcZWKhHim96N5dM/qoE=";
+    hash = "sha256-W6L2Esm7AdzntT7cimKylbeKYcZWKhHim96N5dM/qoE=";
   };
 
   buildInputs = [
@@ -22,10 +23,10 @@ buildOctavePackage rec {
     statistics
   ];
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/ncarray/index.html";
-    license = licenses.gpl2Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/ncarray/";
+    license = lib.licenses.gpl2Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Access a single or a collection of NetCDF files as a multi-dimensional array";
   };
 }

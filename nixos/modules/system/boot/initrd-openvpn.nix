@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -47,18 +52,13 @@ in
     ];
 
     # Add kernel modules needed for OpenVPN
-    boot.initrd.kernelModules = [ "tun" "tap" ];
+    boot.initrd.kernelModules = [
+      "tun"
+      "tap"
+    ];
 
     # Add openvpn and ip binaries to the initrd
     # The shared libraries are required for DNS resolution
-    boot.initrd.extraUtilsCommands = mkIf (!config.boot.initrd.systemd.enable) ''
-      copy_bin_and_libs ${pkgs.openvpn}/bin/openvpn
-      copy_bin_and_libs ${pkgs.iproute2}/bin/ip
-
-      cp -pv ${pkgs.glibc}/lib/libresolv.so.2 $out/lib
-      cp -pv ${pkgs.glibc}/lib/libnss_dns.so.2 $out/lib
-    '';
-
     boot.initrd.systemd.storePaths = [
       "${pkgs.openvpn}/bin/openvpn"
       "${pkgs.iproute2}/bin/ip"
@@ -71,18 +71,13 @@ in
     };
 
     # openvpn --version would exit with 1 instead of 0
-    boot.initrd.extraUtilsCommandsTest = mkIf (!config.boot.initrd.systemd.enable) ''
-      $out/bin/openvpn --show-gateway
-    '';
-
-    boot.initrd.network.postCommands = mkIf (!config.boot.initrd.systemd.enable) ''
-      openvpn /etc/initrd.ovpn &
-    '';
-
     boot.initrd.systemd.services.openvpn = {
       wantedBy = [ "initrd.target" ];
       path = [ pkgs.iproute2 ];
-      after = [ "network.target" "initrd-nixos-copy-secrets.service" ];
+      after = [
+        "network.target"
+        "initrd-nixos-copy-secrets.service"
+      ];
       serviceConfig.ExecStart = "${pkgs.openvpn}/bin/openvpn /etc/initrd.ovpn";
       serviceConfig.Type = "notify";
     };

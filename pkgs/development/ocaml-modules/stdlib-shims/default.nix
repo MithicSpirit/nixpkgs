@@ -1,11 +1,16 @@
-{ buildDunePackage, lib, fetchurl, ocaml }:
+{
+  buildDunePackage,
+  lib,
+  fetchurl,
+  ocaml,
+}:
 
 buildDunePackage rec {
   pname = "stdlib-shims";
   version = "0.3.0";
   src = fetchurl {
     url = "https://github.com/ocaml/${pname}/releases/download/${version}/${pname}-${version}.tbz";
-    sha256 = "0jnqsv6pqp5b5g7lcjwgd75zqqvcwcl5a32zi03zg1kvj79p5gxs";
+    hash = "sha256-ur9y05F7hvcHiF8MVSjjbGP8y2mPS0bPK6tcfM3W2Eo=";
   };
   doCheck = true;
   meta = {

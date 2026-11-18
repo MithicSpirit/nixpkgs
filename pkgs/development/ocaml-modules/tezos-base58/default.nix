@@ -1,5 +1,10 @@
-{ buildDunePackage, fetchurl, lib
-, zarith, digestif, fmt
+{
+  buildDunePackage,
+  fetchurl,
+  lib,
+  zarith,
+  digestif,
+  fmt,
 }:
 
 buildDunePackage rec {
@@ -8,21 +13,23 @@ buildDunePackage rec {
 
   src = fetchurl {
     url = "https://github.com/tarides/tezos-base58/releases/download/${version}/${pname}-${version}.tbz";
-    sha256 = "14w2pff5dy6mxnz588pxaf2k8xpkd51sbsys065wr51kbv1f36da";
+    hash = "sha256-qpnhwl4zlMyLAdrrpUNp83Y0hVP9IlS+7dX4Vpy7gpM=";
   };
 
   minimalOCamlVersion = "4.08";
   duneVersion = "3";
 
   propagatedBuildInputs = [
-    zarith digestif fmt
+    zarith
+    digestif
+    fmt
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Base58 encoding for Tezos";
     homepage = "https://github.com/tarides/tezos-base58/";
-    license = licenses.mit;
-    maintainers = with maintainers; [ bezmuth ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ bezmuth ];
   };
 
 }

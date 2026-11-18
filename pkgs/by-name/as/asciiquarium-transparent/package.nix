@@ -7,13 +7,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "asciiquarium-transparent";
-  version = "1.3";
+  version = "1.8";
 
   src = fetchFromGitHub {
     owner = "nothub";
     repo = "asciiquarium";
-    rev = "${finalAttrs.version}";
-    hash = "sha256-zQyVIfwmhF3WsCeIZLwjDufvKzAfjLxaK2s7WTedqCg=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-RAZP0UEvu4VdAGvJvsrKcRpgfau8yYCE7rHfQlSJgFU=";
   };
 
   nativeBuildInputs = [ makeWrapper ];

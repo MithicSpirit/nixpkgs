@@ -1,55 +1,80 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, qt5
-, openssl
-, protobuf
-, pkg-config
-, cmake
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+
+  qt5,
+  openssl,
+  fmt_9,
+  tor,
+
+  # https://github.com/blueprint-freespeech/ricochet-refresh/issues/178
+  protobuf_21,
+  pkg-config,
+  cmake,
+
+  gitUpdater,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "ricochet-refresh";
-  version = "3.0.25";
+  version = "3.0.47";
 
   src = fetchFromGitHub {
     owner = "blueprint-freespeech";
     repo = "ricochet-refresh";
-    rev = "v${finalAttrs.version}-release";
+    tag = "v${finalAttrs.version}-release";
     fetchSubmodules = true;
-    hash = "sha256-MXbsNrF3y2DimXUuf6XbqqCxcNsTGfNHSAMstdX1MoU=";
+    hash = "sha256-UFo3oz+A2/yiRx42W2KoxEtilxtZtKPW6v3gje/N9tY=";
   };
 
   sourceRoot = "${finalAttrs.src.name}/src";
 
   strictDeps = true;
 
-  buildInputs = (with qt5; [
-    qtbase
-    qttools
-    qtmultimedia
-    qtquickcontrols2
-    qtwayland
-  ]) ++ [
-    openssl
-    protobuf
-  ];
+  buildInputs =
+    (with qt5; [
+      qtbase
+      qttools
+      qtmultimedia
+      qtquickcontrols2
+      qtwayland
+    ])
+    ++ [
+      fmt_9
+      openssl
+      protobuf_21
+    ];
 
   nativeBuildInputs = [
     pkg-config
-    protobuf
+    protobuf_21
     cmake
     qt5.wrapQtAppsHook
   ];
 
+  # Ricochet Refresh expects the Tor executable to be available in PATH.
+  qtWrapperArgs = [
+    "--prefix"
+    "PATH"
+    ":"
+    (lib.makeBinPath [ tor ])
+  ];
+
   enableParallelBuilding = true;
+
+  cmakeBuildType = "MinSizeRel";
 
   # https://github.com/blueprint-freespeech/ricochet-refresh/blob/main/BUILDING.md
   cmakeFlags = [
-    (lib.cmakeFeature "CMAKE_BUILD_TYPE" "MinSizeRel")
     (lib.cmakeBool "RICOCHET_REFRESH_INSTALL_DESKTOP" true)
-    (lib.cmakeBool "USE_SUBMODULE_FMT" true)
+    (lib.cmakeBool "USE_SUBMODULE_FMT" false)
   ];
+
+  passthru.updateScript = gitUpdater {
+    rev-prefix = "v";
+    rev-suffix = "-release";
+  };
 
   meta = {
     description = "Secure chat without DNS or WebPKI";
@@ -74,5 +99,6 @@ stdenv.mkDerivation (finalAttrs: {
     downloadPage = "https://github.com/blueprint-freespeech/ricochet-refresh/releases";
     license = lib.licenses.bsd3;
     platforms = lib.platforms.linux;
+    teams = with lib.teams; [ ngi ];
   };
 })

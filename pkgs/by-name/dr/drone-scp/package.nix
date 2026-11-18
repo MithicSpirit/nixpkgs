@@ -1,28 +1,29 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
 }:
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "drone-scp";
-  version = "1.6.14";
+  version = "1.8.3";
 
   src = fetchFromGitHub {
     owner = "appleboy";
     repo = "drone-scp";
-    rev = "v${version}";
-    hash = "sha256-RxpDlQ6lYT6XH5zrYZaRO5YsB++7Ujr7dvgsTtXIBfc=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-DaNHdNkjiGWz/T0zAFrhNkB1PHG64Gt85uJtWmX2lII=";
   };
 
-  vendorHash = "sha256-0/RGPvafOLT/O0l9ENoiHLmtOaP3DpjmXjmotuxF944=";
+  vendorHash = "sha256-x0saXXcnCFaABYpwJRSo1+l2R4EaWSowCdHd+TA71kc=";
 
   # Needs a specific user...
   doCheck = false;
 
-  meta = with lib; {
+  meta = {
     description = "Copy files and artifacts via SSH using a binary, docker or Drone CI";
     homepage = "https://github.com/appleboy/drone-scp";
-    license = licenses.mit;
-    maintainers = with maintainers; [ ambroisie ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ ambroisie ];
     mainProgram = "drone-scp";
   };
-}
+})

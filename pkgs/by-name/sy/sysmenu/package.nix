@@ -12,7 +12,7 @@
 
 stdenv.mkDerivation {
   pname = "sysmenu";
-  version = "unstable-2024-06-13";
+  version = "0-unstable-2024-06-13";
 
   src = fetchFromGitHub {
     owner = "System64fumo";
@@ -50,7 +50,7 @@ stdenv.mkDerivation {
     homepage = "https://github.com/System64fumo/sysmenu";
     license = lib.licenses.wtfpl;
     mainProgram = "sysmenu";
-    maintainers = with lib.maintainers; [ matteopacini ];
+    maintainers = [ ];
     platforms = lib.platforms.linux;
   };
 }

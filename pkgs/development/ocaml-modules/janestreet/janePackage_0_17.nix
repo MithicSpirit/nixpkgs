@@ -25,7 +25,7 @@ buildDunePackage (
     src = fetchFromGitHub {
       owner = "janestreet";
       repo = pname;
-      rev = "v${version}";
+      tag = "v${version}";
       sha256 = hash;
     };
 
@@ -34,6 +34,7 @@ buildDunePackage (
     meta = {
       license = lib.licenses.mit;
       homepage = "https://github.com/janestreet/${pname}";
-    } // args.meta;
+    }
+    // args.meta;
   }
 )

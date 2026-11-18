@@ -1,26 +1,43 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  pkg-config,
+  oniguruma,
+  versionCheckHook,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "adrs";
-  version = "0.2.8";
+  version = "0.13.0";
+
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "joshrotenberg";
     repo = "adrs";
-    rev = "v${version}";
-    hash = "sha256-5rvdW2UntseSsKFndrDj9ogH/qYN+KymuOsuqS0/C3M=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-XBSGK63MEpCy2jNqn2XPUmKXgmmRAYFKPupoRvG5R+8=";
   };
 
-  cargoHash = "sha256-WqsZ+ICfKrackQ5dMs/WvF3inJX+k9LhxAJkXmaVAtY=";
+  cargoHash = "sha256-sdkUYSC2OmVIL8b3u6q0Lv9yWRiijTzI7l7ch3tszsc=";
+
+  nativeBuildInputs = [ pkg-config ];
+
+  buildInputs = [ oniguruma ];
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
 
   meta = {
     description = "Command-line tool for managing Architectural Decision Records";
     homepage = "https://github.com/joshrotenberg/adrs";
-    license = with lib.licenses; [ mit asl20 ];
+    changelog = "https://github.com/joshrotenberg/adrs/releases/tag/${finalAttrs.src.tag}";
+    license = with lib.licenses; [
+      mit
+      asl20
+    ];
     maintainers = with lib.maintainers; [ dannixon ];
     mainProgram = "adrs";
   };
-}
+})

@@ -1,37 +1,56 @@
-{ stdenv
-, lib
-, fetchFromGitHub
-, cmake
-, pkg-config
-, alsa-lib
-, ffmpeg
-, kdePackages
-, kdsingleapplication
-, pipewire
-, taglib
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  SDL2,
+  alsa-lib,
+  cmake,
+  ffmpeg,
+  flac,
+  game-music-emu,
+  gtest,
+  icu,
+  jack2,
+  kdePackages,
+  kdsingleapplication,
+  libarchive,
+  libcdio,
+  libcdio-paranoia,
+  libebur128,
+  libopenmpt,
+  libprojectm,
+  libpulseaudio,
+  libsndfile,
+  libvorbis,
+  libx11,
+  libxcb,
+  mpg123,
+  nix-update-script,
+  opusfile,
+  pipewire,
+  pkg-config,
+  soundtouch,
+  soxr,
+  taglib,
+  versionCheckHook,
+  zlib,
+  # Select bundled plugins to build. Leave empty for the default set, use none for no plugins, or use a semicolon/comma-separated list of plugin names to include or -name entries to exclude
+  pluginSelection ? "",
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "fooyin";
-  version = "0.5.3";
+  version = "0.15.0";
 
   src = fetchFromGitHub {
-    owner = "ludouzi";
+    owner = "fooyin";
     repo = "fooyin";
-    rev = "v" + finalAttrs.version;
-    hash = "sha256-h8unOzDSQ9ME6nbfLxau1EctJeNH8P2VG0IBQoqhwGs=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-WOL3ZjJAN4JUthHN3rUj1GXr0jazz+4zeeIGOc3wzLA=";
   };
 
-  buildInputs = [
-    alsa-lib
-    ffmpeg
-    kdsingleapplication
-    pipewire
-    kdePackages.qcoro
-    kdePackages.qtbase
-    kdePackages.qtsvg
-    taglib
-  ];
+  __structuredAttrs = true;
+  strictDeps = true;
 
   nativeBuildInputs = [
     cmake
@@ -40,20 +59,72 @@ stdenv.mkDerivation (finalAttrs: {
     kdePackages.wrapQtAppsHook
   ];
 
+  buildInputs = [
+    # list from fooyin's BUILD.md
+    kdePackages.qcoro
+    kdePackages.qtbase
+    kdePackages.qtsvg
+    kdePackages.qtwayland
+    taglib
+    ffmpeg
+    icu
+    kdsingleapplication
+    zlib
+    libarchive
+    libx11
+    libxcb
+    # output plugins
+    alsa-lib
+    jack2
+    pipewire
+    libpulseaudio
+    SDL2
+    # input plugins
+    libsndfile
+    flac
+    mpg123
+    opusfile
+    libvorbis
+    libopenmpt
+    game-music-emu
+    libebur128
+    libcdio
+    libcdio-paranoia
+    soundtouch
+    soxr
+    libprojectm
+  ];
+
   cmakeFlags = [
     (lib.cmakeBool "BUILD_TESTING" finalAttrs.finalPackage.doCheck)
     # we need INSTALL_FHS to be true as the various artifacts are otherwise just dumped in the root
     # of $out and the fixupPhase cleans things up anyway
     (lib.cmakeBool "INSTALL_FHS" true)
+    (lib.cmakeFeature "PLUGIN_SELECTION" pluginSelection)
   ];
 
   env.LANG = "C.UTF-8";
 
-  meta = with lib; {
+  doCheck = true;
+  checkInputs = [ gtest ];
+
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [ versionCheckHook ];
+
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "Customisable music player";
+    homepage = "https://www.fooyin.org/";
+    changelog = "https://github.com/fooyin/fooyin/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [
+      peterhoeg
+      alden
+      keenanweaver
+    ];
+    platforms = lib.platforms.linux;
     mainProgram = "fooyin";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ peterhoeg ];
-    platforms = platforms.all;
+    downloadPage = "https://github.com/fooyin/fooyin";
   };
 })

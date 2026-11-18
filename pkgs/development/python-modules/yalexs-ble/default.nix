@@ -1,7 +1,6 @@
 {
   lib,
   async-interrupt,
-  async-timeout,
   bleak,
   bleak-retry-connector,
   buildPythonPackage,
@@ -10,29 +9,26 @@
   lru-dict,
   poetry-core,
   pytest-asyncio,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "yalexs-ble";
-  version = "2.4.3";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.9";
+  version = "10.0.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
-    owner = "bdraco";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-e+XTozOStGiYa4VBM/mQfcpYTapKe92OeZPuD5SwSIQ=";
+    owner = "Yale-Libs";
+    repo = "yalexs-ble";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-4mhxINrAfpHxD2t3dP89SGBOj/VjTC0lbND4s/s0/Cs=";
   };
 
-  nativeBuildInputs = [ poetry-core ];
+  build-system = [ poetry-core ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     async-interrupt
-    async-timeout
     bleak
     bleak-retry-connector
     cryptography
@@ -41,21 +37,17 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [
     pytest-asyncio
+    pytest-cov-stub
     pytestCheckHook
   ];
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace " --cov=yalexs_ble --cov-report=term-missing:skip-covered" ""
-  '';
-
   pythonImportsCheck = [ "yalexs_ble" ];
 
-  meta = with lib; {
+  meta = {
     description = "Library for Yale BLE devices";
-    homepage = "https://github.com/bdraco/yalexs-ble";
-    changelog = "https://github.com/bdraco/yalexs-ble/blob/v${version}/CHANGELOG.md";
-    license = with licenses; [ gpl3Only ];
-    maintainers = with maintainers; [ fab ];
+    homepage = "https://github.com/Yale-Libs/yalexs-ble";
+    changelog = "https://github.com/Yale-Libs/yalexs-ble/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

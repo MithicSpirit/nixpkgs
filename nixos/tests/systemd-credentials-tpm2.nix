@@ -1,15 +1,17 @@
-import ./make-test-python.nix ({ lib, pkgs, ... }:
+{ lib, pkgs, ... }:
 {
   name = "systemd-credentials-tpm2";
 
   meta = {
-    maintainers = with pkgs.lib.maintainers; [ tmarkus ];
+    maintainers = with pkgs.lib.maintainers; [ AAAAAASomeThingsFailToEvaluate ];
   };
 
-  nodes.machine = { pkgs, ... }: {
-    virtualisation.tpm.enable = true;
-    environment.systemPackages = with pkgs; [ diffutils ];
-  };
+  nodes.machine =
+    { pkgs, ... }:
+    {
+      virtualisation.tpm.enable = true;
+      environment.systemPackages = with pkgs; [ diffutils ];
+    };
 
   testScript = ''
     CRED_NAME = "testkey"
@@ -66,4 +68,4 @@ import ./make-test-python.nix ({ lib, pkgs, ... }:
     with subtest("Check whether systemd service can access credential in $CREDENTIALS_DIRECTORY"):
         systemd_run(machine, f"cmp --silent -- $CREDENTIALS_DIRECTORY/{CRED_NAME} {CRED_RAW_FILE}")
   '';
-})
+}

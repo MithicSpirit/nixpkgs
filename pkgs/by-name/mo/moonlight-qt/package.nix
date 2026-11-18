@@ -2,9 +2,6 @@
   stdenv,
   lib,
   fetchFromGitHub,
-  fetchpatch,
-  darwin,
-  overrideSDK,
   qt6,
   pkg-config,
   vulkan-headers,
@@ -21,38 +18,26 @@
   libxkbcommon,
   wayland,
   libdrm,
+  apple-sdk_15,
   nix-update-script,
 }:
 
-let
-  inherit (darwin.apple_sdk_11_0.frameworks)
-    AVFoundation
-    AppKit
-    AudioUnit
-    Cocoa
-    VideoToolbox
-    ;
-  stdenv' = if stdenv.isDarwin then overrideSDK stdenv "11.0" else stdenv;
-in
-
-stdenv'.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "moonlight-qt";
-  version = "6.0.1";
+  version = "6.2.0";
 
   src = fetchFromGitHub {
     owner = "moonlight-stream";
-    repo = pname;
-    rev = "v${version}";
-    hash = "sha256-zrl8WPXvQ/7FTqFnpwoXEJ85prtgJWoWNsdckw5+JHI=";
+    repo = "moonlight-qt";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-s6b3L51jCNuYJS0dvx2tkNvzNzrsSzzdSfTgM+IR1kg=";
     fetchSubmodules = true;
   };
 
-  patches = [
-    # Don't precompile QML files with disable-prebuilts, fix build on darwin
-    (fetchpatch {
-      url = "https://github.com/moonlight-stream/moonlight-qt/commit/d73df12367749425b86b72c250bb0fba13ddfd29.patch";
-      hash = "sha256-RIrQpZWbwUHs1Iwz/pXfXgshJeHYrzGxuaR5mRG85QY=";
-    })
+  patches = lib.optionals stdenv.hostPlatform.isDarwin [
+    # nixpkgs' ffmpeg on darwin is built without Vulkan, so it lacks
+    # av_vk_get_optional_device_extensions(). Use the static extension list.
+    ./darwin-no-ffmpeg-vulkan.patch
   ];
 
   nativeBuildInputs = [
@@ -62,38 +47,34 @@ stdenv'.mkDerivation rec {
     vulkan-headers
   ];
 
-  buildInputs =
-    [
-      (SDL2.override { drmSupport = stdenv.isLinux; })
-      SDL2_ttf
-      ffmpeg
-      libopus
-      libplacebo
-      qt6.qtdeclarative
-      qt6.qtsvg
-      openssl
-    ]
-    ++ lib.optionals stdenv.isLinux [
-      alsa-lib
-      libpulseaudio
-      libva
-      libvdpau
-      libxkbcommon
-      qt6.qtwayland
-      wayland
-      libdrm
-    ]
-    ++ lib.optionals stdenv.isDarwin [
-      AVFoundation
-      AppKit
-      AudioUnit
-      Cocoa
-      VideoToolbox
-    ];
+  buildInputs = [
+    SDL2
+    SDL2_ttf
+    ffmpeg
+    libopus
+    libplacebo
+    qt6.qtdeclarative
+    qt6.qtsvg
+    openssl
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
+    alsa-lib
+    libpulseaudio
+    libva
+    libvdpau
+    libxkbcommon
+    qt6.qtwayland
+    wayland
+    libdrm
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # The Metal renderer needs FP16 simd support, which is only in the macOS 15+ SDK.
+    apple-sdk_15
+  ];
 
   qmakeFlags = [ "CONFIG+=disable-prebuilts" ];
 
-  postInstall = lib.optionalString stdenv.isDarwin ''
+  postInstall = lib.optionalString stdenv.hostPlatform.isDarwin ''
     mkdir $out/Applications $out/bin
     mv app/Moonlight.app $out/Applications
     ln -s $out/Applications/Moonlight.app/Contents/MacOS/Moonlight $out/bin/moonlight
@@ -101,16 +82,16 @@ stdenv'.mkDerivation rec {
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
+    changelog = "https://github.com/moonlight-stream/moonlight-qt/releases/tag/v${finalAttrs.version}";
     description = "Play your PC games on almost any device";
     homepage = "https://moonlight-stream.org";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [
       azuwis
-      luc65r
       zmitchell
     ];
-    platforms = platforms.all;
+    platforms = lib.platforms.all;
     mainProgram = "moonlight";
   };
-}
+})

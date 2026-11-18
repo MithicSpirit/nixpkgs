@@ -1,17 +1,15 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
+  nix-update-script,
   flit-core,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage {
   pname = "pylibjpeg-data";
   version = "unstable-2024-03-28";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "pydicom";
@@ -29,6 +27,8 @@ buildPythonPackage rec {
     "ljdata.ds"
     "ljdata.jpg"
   ];
+
+  passthru.updateScript = nix-update-script { extraArgs = [ "--version=branch" ]; };
 
   meta = {
     description = "JPEG and DICOM data used for testing pylibjpeg";

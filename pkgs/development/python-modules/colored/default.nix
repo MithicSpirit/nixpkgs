@@ -6,31 +6,31 @@
   unittestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "colored";
-  version = "2.2.3";
-  format = "pyproject";
+  version = "2.3.2";
+  pyproject = true;
 
   src = fetchFromGitLab {
     owner = "dslackw";
     repo = "colored";
-    rev = "refs/tags/${version}";
-    hash = "sha256-4APFAIN+cmPPd6qbqVC9iU4YntNEjoPbJXZywG1hsBY=";
+    tag = finalAttrs.version;
+    hash = "sha256-MnRWb9uQczkwikyorkS77PTpajCG6M/FZibm4ww+xC4=";
   };
 
   nativeBuildInputs = [ flit-core ];
 
   nativeCheckInputs = [ unittestCheckHook ];
 
-  unittestFlagsArray = [ "unittests" ];
+  unittestFlags = [ "--start-directory=unittests" ];
 
   pythonImportsCheck = [ "colored" ];
 
-  meta = with lib; {
+  meta = {
     description = "Simple library for color and formatting to terminal";
     homepage = "https://gitlab.com/dslackw/colored";
-    changelog = "https://gitlab.com/dslackw/colored/-/raw/${version}/CHANGES.md";
+    changelog = "https://gitlab.com/dslackw/colored/-/raw/${finalAttrs.version}/CHANGES.md";
     maintainers = [ ];
-    license = licenses.mit;
+    license = lib.licenses.mit;
   };
-}
+})

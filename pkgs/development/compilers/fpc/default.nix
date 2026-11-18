@@ -1,6 +1,28 @@
-{ lib, stdenv, fetchurl, gawk, fetchpatch, undmg, cpio, xar, darwin, libiconv }:
+{
+  lib,
+  stdenv,
+  apple-sdk,
+  fetchurl,
+  gawk,
+  fetchpatch,
+  undmg,
+  cpio,
+  xar,
+  libiconv,
+}:
 
-let startFPC = import ./binary.nix { inherit stdenv fetchurl undmg cpio xar lib; }; in
+let
+  startFPC = import ./binary.nix {
+    inherit
+      stdenv
+      fetchurl
+      undmg
+      cpio
+      xar
+      lib
+      ;
+  };
+in
 
 stdenv.mkDerivation rec {
   version = "3.2.2";
@@ -11,18 +33,25 @@ stdenv.mkDerivation rec {
     sha256 = "85ef993043bb83f999e2212f1bca766eb71f6f973d362e2290475dbaaf50161f";
   };
 
-  buildInputs = [ startFPC gawk ]
-    ++ lib.optionals stdenv.isDarwin [
-      libiconv
-      darwin.apple_sdk.frameworks.CoreFoundation
-    ];
+  buildInputs = [
+    startFPC
+    gawk
+  ]
+  ++ lib.optional stdenv.hostPlatform.isDarwin apple-sdk;
 
   glibc = stdenv.cc.libc.out;
+
+  # fpc only uses clang to assemble and link, so every cc-wrapper flag is reported as unused
+  env = lib.optionalAttrs stdenv.hostPlatform.isDarwin {
+    NIX_CFLAGS_COMPILE = "-Wno-unused-command-line-argument";
+    NIX_LDFLAGS = "-L${lib.getLib libiconv}/lib";
+  };
 
   # Patch paths for linux systems. Other platforms will need their own patches.
   patches = [
     ./mark-paths.patch # mark paths for later substitution in postPatch
-  ] ++ lib.optional stdenv.isAarch64 (fetchpatch {
+  ]
+  ++ lib.optional stdenv.hostPlatform.isAarch64 (fetchpatch {
     # backport upstream patch for aarch64 glibc 2.34
     url = "https://gitlab.com/freepascal.org/fpc/source/-/commit/a20a7e3497bccf3415bf47ccc55f133eb9d6d6a0.patch";
     hash = "sha256-xKTBwuOxOwX9KCazQbBNLhMXCqkuJgIFvlXewHY63GM=";
@@ -34,6 +63,14 @@ stdenv.mkDerivation rec {
     # substitute the markers set by the mark-paths patch
     substituteInPlace fpcsrc/compiler/systems/t_linux.pas --subst-var-by dynlinker-prefix "${glibc}"
     substituteInPlace fpcsrc/compiler/systems/t_linux.pas --subst-var-by syslibpath "${glibc}/lib"
+
+  ''
+  + lib.optionalString (!stdenv.hostPlatform.isDarwin) ''
+    substituteInPlace fpcsrc/compiler/systems/t_darwin.pas \
+      --replace-fail "LibrarySearchPath.AddLibraryPath(sysrootpath,'=/usr/lib',true)" "LibrarySearchPath.AddLibraryPath(sysrootpath,'$SDKROOT/usr/lib',true)"
+
+  ''
+  + ''
     # Replace the `codesign --remove-signature` command with a custom script, since `codesign` is not available
     # in nixpkgs
     # Remove the -no_uuid strip flag which does not work on llvm-strip, only
@@ -46,10 +83,11 @@ stdenv.mkDerivation rec {
       --replace "-no_uuid" ""
   '';
 
-  NIX_LDFLAGS = lib.optionalString
-    stdenv.isDarwin (with darwin.apple_sdk.frameworks; "-F${CoreFoundation}/Library/Frameworks");
-
-  makeFlags = [ "NOGDB=1" "FPC=${startFPC}/bin/fpc" ];
+  makeFlags = [
+    "NOGDB=1"
+    "FPC=${startFPC}/bin/fpc"
+  ]
+  ++ lib.optional stdenv.hostPlatform.isDarwin "OPT=-XR${apple-sdk.sdkroot}";
 
   installFlags = [ "INSTALL_PREFIX=\${out}" ];
 
@@ -64,17 +102,32 @@ stdenv.mkDerivation rec {
     # to resolve the location of /etc
     mkdir -p $out/etc
     $out/lib/fpc/*/samplecfg $out/lib/fpc/${version} $out/etc
+  ''
+  + lib.optionalString stdenv.hostPlatform.isDarwin ''
+    for config in "$out/etc/fpc.cfg" "$out/lib/fpc/etc/fpc.cfg"; do
+      printf '%s\n' "-XR${apple-sdk.sdkroot}" >> "$config"
+      # Remove the Xcode binary search path.
+      substituteInPlace "$config" \
+        --replace-fail "-FD/Applications/Xcode.app/Contents/Developer/usr/bin" ""
+    done
   '';
 
   passthru = {
     bootstrap = startFPC;
   };
 
-  meta = with lib; {
+  meta = {
     description = "Free Pascal Compiler from a source distribution";
     homepage = "https://www.freepascal.org";
-    maintainers = [ maintainers.raskin ];
-    license = with licenses; [ gpl2 lgpl2 ];
-    platforms = platforms.unix;
+    maintainers = [ lib.maintainers.raskin ];
+    license = with lib.licenses; [
+      gpl2
+      lgpl2
+    ];
+    platforms = lib.platforms.unix;
+    # See:
+    # * <https://gitlab.com/freepascal.org/fpc/source/-/issues/41045>
+    # * <https://gitlab.com/freepascal.org/fpc/source/-/merge_requests/887>
+    broken = stdenv.cc.isClang && stdenv.hostPlatform.isx86_64;
   };
 }

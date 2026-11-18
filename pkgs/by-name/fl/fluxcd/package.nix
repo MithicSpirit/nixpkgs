@@ -1,36 +1,37 @@
 {
-  buildGoModule,
+  # Version 1.27 override necessary because it is not yet the default.
+  buildGo127Module,
   fetchFromGitHub,
   fetchzip,
   installShellFiles,
   lib,
   stdenv,
+  writableTmpDirAsHomeHook,
 }:
 
 let
-  version = "2.3.0";
-  sha256 = "sha256-ZQs1rWI31qDo/BgjrmiNnEdR2OL8bUHVz+j5VceEp2k=";
-  manifestsSha256 = "sha256-PdhR+UDquIJWtpSymtT6V7qO5fVJOkFz6RGzAx7xeb4=";
+  version = "2.10.0";
+  srcHash = "sha256-BE8uDHDMaOOEFOb6UEIH8L5uzVKn/Eybf2fynLkD2Pc=";
+  vendorHash = "sha256-l/4P92/8tpBuQodAw6aHpGpm1sm/t0a605CUyVRdxKY=";
+  manifestsHash = "sha256-61BEm2D20+Ssczu72Wle80+5ZitHqRBnQshS8Ia+7Bg=";
 
   manifests = fetchzip {
     url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";
-    hash = manifestsSha256;
+    hash = manifestsHash;
     stripRoot = false;
   };
 in
 
-buildGoModule rec {
+buildGo127Module (finalAttrs: {
   pname = "fluxcd";
-  inherit version;
+  inherit vendorHash version;
 
   src = fetchFromGitHub {
     owner = "fluxcd";
     repo = "flux2";
-    rev = "v${version}";
-    hash = sha256;
+    rev = "v${finalAttrs.version}";
+    hash = srcHash;
   };
-
-  vendorHash = "sha256-0YH3pgFrsnh5jIsZpj/sIgfiOCTtIlPltMS5mdGz1eM=";
 
   postUnpack = ''
     cp -r ${manifests} source/cmd/flux/manifests
@@ -39,23 +40,28 @@ buildGoModule rec {
     rm source/cmd/flux/create_secret_git_test.go
   '';
 
+  env.CGO_ENABLED = 0;
+
   ldflags = [
     "-s"
     "-w"
-    "-X main.VERSION=${version}"
+    "-X main.VERSION=${finalAttrs.version}"
   ];
 
   subPackages = [ "cmd/flux" ];
 
+  nativeBuildInputs = [ installShellFiles ];
+
   # Required to workaround test error:
   #   panic: mkdir /homeless-shelter: permission denied
-  HOME = "$TMPDIR";
+  nativeCheckInputs = [ writableTmpDirAsHomeHook ];
 
-  nativeBuildInputs = [ installShellFiles ];
+  # TestPluginSearch and TestPluginSearchErrors start a local HTTP server for the tests.
+  __darwinAllowLocalNetworking = true;
 
   doInstallCheck = true;
   installCheckPhase = ''
-    $out/bin/flux --version | grep ${version} > /dev/null
+    $out/bin/flux --version | grep ${finalAttrs.version} > /dev/null
   '';
 
   postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
@@ -68,7 +74,7 @@ buildGoModule rec {
   passthru.updateScript = ./update.sh;
 
   meta = {
-    changelog = "https://github.com/fluxcd/flux2/releases/tag/v${version}";
+    changelog = "https://github.com/fluxcd/flux2/releases/tag/v${finalAttrs.version}";
     description = "Open and extensible continuous delivery solution for Kubernetes";
     downloadPage = "https://github.com/fluxcd/flux2/";
     longDescription = ''
@@ -79,9 +85,12 @@ buildGoModule rec {
     homepage = "https://fluxcd.io";
     license = lib.licenses.asl20;
     maintainers = with lib.maintainers; [
-      bryanasdev000
       jlesquembre
+      ryan4yin
+      SchahinRohani
+      stealthybox
+      videl
     ];
     mainProgram = "flux";
   };
-}
+})

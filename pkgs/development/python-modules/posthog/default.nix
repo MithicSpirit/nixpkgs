@@ -2,60 +2,109 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  # build inputs
-  requests,
-  six,
-  monotonic,
+
+  # build-system
+  setuptools,
+
+  # dependencies
   backoff,
-  python-dateutil,
-  # check inputs
-  pytestCheckHook,
-  mock,
+  distro,
+  requests,
+  typing-extensions,
+
+  # tests
+  anthropic,
+  celery,
+  django,
+  djangorestframework,
+  fastapi,
+  flask,
   freezegun,
+  google-genai,
+  griffe,
+  langchain-core,
+  mcp,
+  mock,
+  openai,
+  opentelemetry-exporter-otlp,
+  opentelemetry-instrumentation-celery,
+  opentelemetry-sdk,
+  parameterized,
+  pytest-asyncio,
+  pytest-bdd,
+  pytestCheckHook,
+  zstandard,
 }:
-let
+
+buildPythonPackage (finalAttrs: {
   pname = "posthog";
-  version = "3.5.2";
-in
-buildPythonPackage {
-  inherit pname version;
-  format = "setuptools";
+  version = "7.91.1";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "PostHog";
     repo = "posthog-python";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-DhTX28j8RcEONEVIRoYHBk63Qw1Wff9qdQ/Ymbb9xHE=";
+    tag = "posthog-v${finalAttrs.version}";
+    hash = "sha256-RPvsqWJXFoujwdO47FoJKEucOVFtxhWlBUaBzgpXRN8=";
   };
 
-  propagatedBuildInputs = [
-    requests
-    six
-    monotonic
+  build-system = [ setuptools ];
+
+  dependencies = [
     backoff
-    python-dateutil
+    distro
+    requests
+    typing-extensions
   ];
 
   nativeCheckInputs = [
-    pytestCheckHook
-    mock
+    anthropic
+    celery
+    django
+    djangorestframework
+    fastapi
+    flask
     freezegun
+    google-genai
+    griffe
+    langchain-core
+    mcp
+    mock
+    openai
+    opentelemetry-exporter-otlp
+    opentelemetry-instrumentation-celery
+    opentelemetry-sdk
+    parameterized
+    pytest-asyncio
+    pytest-bdd
+    pytestCheckHook
+    zstandard
   ];
 
   pythonImportsCheck = [ "posthog" ];
 
   disabledTests = [
-    "test_load_feature_flags_wrong_key"
     # Tests require network access
+    "test_excepthook"
     "test_request"
     "test_upload"
+
+    # Timing-sensitive: the worker subprocess times out under load
+    "test_capture_from_worker_thread_wakes_loop_bound_queue"
   ];
 
-  meta = with lib; {
-    description = "Official PostHog python library";
+  disabledTestPaths = [
+    # Requires many opentelemetry-instrumentation-* packages
+    "posthog/test/test_metrics_autocapture.py"
+  ];
+
+  __darwinAllowLocalNetworking = true; # for the transport tests
+
+  meta = {
+    description = "Module for interacting with PostHog";
     homepage = "https://github.com/PostHog/posthog-python";
-    changelog = "https://github.com/PostHog/posthog-python/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ happysalada ];
+    changelog = "https://github.com/PostHog/posthog-python/blob/${finalAttrs.src.tag}/posthog/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ happysalada ];
   };
-}
+})

@@ -1,14 +1,16 @@
-{ buildOctavePackage
-, lib
-, fetchFromGitHub
-# Octave Dependencies
-, splines
-# Other Dependencies
-, gmsh
-, gawk
-, pkg-config
-, dolfin
-, autoconf, automake
+{
+  buildOctavePackage,
+  lib,
+  fetchFromGitHub,
+  # Octave Dependencies
+  splines,
+  # Other Dependencies
+  gmsh,
+  gawk,
+  pkg-config,
+  dolfin,
+  autoconf,
+  automake,
 }:
 
 buildOctavePackage rec {
@@ -19,12 +21,13 @@ buildOctavePackage rec {
     owner = "carlodefalco";
     repo = "msh";
     rev = "v${version}";
-    sha256 = "sha256-UnMrIruzm3ARoTgUlMMxfjTOMZw/znZUQJmj3VEOw8I=";
+    hash = "sha256-UnMrIruzm3ARoTgUlMMxfjTOMZw/znZUQJmj3VEOw8I=";
   };
 
   nativeBuildInputs = [
     pkg-config
-    autoconf automake
+    autoconf
+    automake
     dolfin
   ];
 
@@ -42,10 +45,10 @@ buildOctavePackage rec {
     splines
   ];
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/msh/index.html";
-    license = licenses.gpl2Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/msh/";
+    license = lib.licenses.gpl2Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Create and manage triangular and tetrahedral meshes for Finite Element or Finite Volume PDE solvers";
     longDescription = ''
       Create and manage triangular and tetrahedral meshes for Finite Element or

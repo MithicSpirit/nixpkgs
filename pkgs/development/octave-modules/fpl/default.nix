@@ -1,6 +1,7 @@
-{ buildOctavePackage
-, lib
-, fetchurl
+{
+  buildOctavePackage,
+  lib,
+  fetchurl,
 }:
 
 buildOctavePackage rec {
@@ -9,13 +10,13 @@ buildOctavePackage rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/octave/${pname}-${version}.tar.gz";
-    sha256 = "0cbpahn9flrv9ppp5xakhwh8vyyy7wzlsz22i3s93yqg9q2bh4ys";
+    hash = "sha256-2hO4BE4P+5H0iEJ8TT8/3vuNIIdT9XLvTTtTlyxUdzE=";
   };
 
-  meta = with lib; {
-    homepage = "https://octave.sourceforge.io/fpl/index.html";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ KarlJoad ];
+  meta = {
+    homepage = "https://gnu-octave.github.io/packages/fpl/";
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [ ravenjoad ];
     description = "Collection of routines to export data produced by Finite Elements or Finite Volume Simulations in formats used by some visualization programs";
   };
 }

@@ -5,35 +5,32 @@
   fetchFromGitHub,
   msgpack,
   pytestCheckHook,
-  pythonOlder,
   pyyaml,
   ruamel-yaml,
   setuptools,
   toml,
-  tomli,
   tomli-w,
+  toon-format,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "python-box";
-  version = "7.2.0";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.8";
+  version = "8.0.1";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "cdgriffith";
     repo = "Box";
-    rev = "refs/tags/${version}";
-    hash = "sha256-5aORpuh0ezA3mUEpAPANDkdeN8ujNRfCUCV5qamMk68=";
+    tag = finalAttrs.version;
+    hash = "sha256-7/yr4nQHd2SqH8tNoOWbss0weDNPYk5b1XkqjdskDYQ=";
   };
 
-  nativeBuildInputs = [
+  build-system = [
     cython
     setuptools
   ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     all = [
       msgpack
       ruamel-yaml
@@ -42,20 +39,29 @@ buildPythonPackage rec {
     yaml = [ ruamel-yaml ];
     ruamel-yaml = [ ruamel-yaml ];
     PyYAML = [ pyyaml ];
-    tomli = [ tomli-w ] ++ lib.optionals (pythonOlder "3.11") [ tomli ];
+    tomli = [ tomli-w ];
     toml = [ toml ];
     msgpack = [ msgpack ];
   };
 
-  nativeCheckInputs = [ pytestCheckHook ] ++ passthru.optional-dependencies.all;
+  nativeCheckInputs = [
+    pytestCheckHook
+    toon-format
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
+
+  disabledTests = [
+    # ruamel 8.18.13 update changed white space rules
+    "test_to_yaml_ruamel"
+  ];
 
   pythonImportsCheck = [ "box" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python dictionaries with advanced dot notation access";
     homepage = "https://github.com/cdgriffith/Box";
-    changelog = "https://github.com/cdgriffith/Box/blob/${version}/CHANGES.rst";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/cdgriffith/Box/blob/${finalAttrs.version}/CHANGES.rst";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

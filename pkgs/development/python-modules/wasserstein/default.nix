@@ -15,7 +15,7 @@ buildPythonPackage rec {
   format = "setuptools";
 
   src = fetchFromGitHub {
-    owner = "pkomiske";
+    owner = "thaler-lab";
     repo = "Wasserstein";
     rev = "v${version}";
     hash = "sha256-s9en6XwvO/WPsF7/+SEmGePHZQgl7zLgu5sEn4nD9YE=";
@@ -35,7 +35,7 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [ pytestCheckHook ];
-  pytestFlagsArray = [ "wasserstein/tests" ];
+  enabledTestPaths = [ "wasserstein/tests" ];
   disabledTestPaths = [
     "wasserstein/tests/test_emd.py" # requires "ot"
     # cyclic dependency on energyflow
@@ -45,10 +45,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "wasserstein" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python/C++ library for computing Wasserstein distances efficiently";
-    homepage = "https://github.com/pkomiske/Wasserstein";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ veprbl ];
+    homepage = "https://github.com/thaler-lab/Wasserstein";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ veprbl ];
   };
 }

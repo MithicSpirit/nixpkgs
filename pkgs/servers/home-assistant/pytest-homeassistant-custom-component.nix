@@ -6,8 +6,10 @@
   setuptools,
   aiohttp,
   bcrypt,
+  execnet,
   freezegun,
   homeassistant,
+  paho-mqtt,
   pytest-asyncio,
   pytest-socket,
   requests-mock,
@@ -18,17 +20,24 @@
 
 buildPythonPackage rec {
   pname = "pytest-homeassistant-custom-component";
-  version = "0.13.154";
+  version = "0.13.375";
   pyproject = true;
 
-  disabled = pythonOlder "3.12";
+  disabled = pythonOlder "3.13";
 
   src = fetchFromGitHub {
     owner = "MatthewFlamm";
     repo = "pytest-homeassistant-custom-component";
-    rev = "refs/tags/${version}";
-    hash = "sha256-BmZ12amsa4BzesaxGMdQ2VY2FM5ZfgU32plAl4mG+tE=";
+    tag = version;
+    hash = "sha256-VicNHxcCL+TxVxjWOMWlHd8MDMd+Ixy/3HiKFNQyCfA=";
   };
+
+  patches = [
+    # e2e tests should write temporary files into a temporary directory instead of into the installation directory aka the nix store
+    ./pytest-homeassistant-custom-component-tmpdir.patch
+
+    ./pytest-homeassistant-custom-component-hass-2026.11-comp.diff
+  ];
 
   build-system = [ setuptools ];
 
@@ -37,8 +46,10 @@ buildPythonPackage rec {
   dependencies = [
     aiohttp
     bcrypt
+    execnet
     freezegun
     homeassistant
+    paho-mqtt
     pytest-asyncio
     pytest-socket
     requests-mock
@@ -51,7 +62,7 @@ buildPythonPackage rec {
   nativeCheckInputs = [ pytestCheckHook ];
 
   meta = {
-    changelog = "https://github.com/MatthewFlamm/pytest-homeassistant-custom-component/blob/${src.rev}/CHANGELOG.md";
+    changelog = "https://github.com/MatthewFlamm/pytest-homeassistant-custom-component/blob/${src.tag}/CHANGELOG.md";
     description = "Package to automatically extract testing plugins from Home Assistant for custom component testing";
     homepage = "https://github.com/MatthewFlamm/pytest-homeassistant-custom-component";
     license = lib.licenses.mit;

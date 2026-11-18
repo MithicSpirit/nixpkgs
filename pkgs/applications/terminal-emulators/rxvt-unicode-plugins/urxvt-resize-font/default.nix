@@ -1,4 +1,8 @@
-{ lib, stdenv, fetchFromGitHub }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+}:
 
 stdenv.mkDerivation {
   pname = "urxvt-resize-font";
@@ -9,7 +13,7 @@ stdenv.mkDerivation {
     owner = "simmel";
     repo = "urxvt-resize-font";
     rev = "e966a5d77264e9263bfc8a51e160fad24055776b";
-    sha256 = "18ab3bsfdkzzh1n9fpi2al5bksvv2b7fjmvxpx6fzqcy4bc64vkh";
+    hash = "sha256-cG5i2CKe4e9Mv31X6c4Se+u5ClUiXpdsgP/P5vQaS6E=";
   };
 
   installPhase = ''
@@ -17,11 +21,11 @@ stdenv.mkDerivation {
     cp resize-font $out/lib/urxvt/perl
   '';
 
-  meta = with lib; {
+  meta = {
     description = "URxvt Perl extension for resizing the font";
     homepage = "https://github.com/simmel/urxvt-resize-font";
-    license = licenses.mit;
-    maintainers = with maintainers; [ rnhmjoj ];
-    platforms = platforms.unix;
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ rnhmjoj ];
+    platforms = lib.platforms.unix;
   };
 }

@@ -2,35 +2,49 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+  jsonschema,
   setuptools,
+  pydantic,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "json-repair";
-  version = "0.27.2";
+  version = "0.64.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "mangiucugna";
     repo = "json_repair";
-    rev = "refs/tags/${version}";
-    hash = "sha256-NYY76sIp4XirVifOPOs6iEzP93ERzNIHAvpgU4+fi24=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-ceWp6dz8YovvktIUIOAUP5pUIrBGbwiik9LaClRzLmo=";
   };
 
   build-system = [ setuptools ];
 
-  nativeBuildInputs = [ pytestCheckHook ];
+  optional-dependencies.schema = [
+    jsonschema
+    pydantic
+  ];
 
-  disabledTestPaths = [ "tests/test_performance.py" ];
+  nativeCheckInputs = [
+    pytestCheckHook
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
+
+  disabledTestPaths = [
+    # Disable benchmark tests
+    "tests/test_performance.py"
+  ];
 
   pythonImportsCheck = [ "json_repair" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module to repair invalid JSON, commonly used to parse the output of LLMs";
     homepage = "https://github.com/mangiucugna/json_repair/";
-    changelog = "https://github.com/mangiucugna/json_repair/releases/tag/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ greg ];
+    changelog = "https://github.com/mangiucugna/json_repair/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ greg ];
+    mainProgram = "json_repair";
   };
-}
+})

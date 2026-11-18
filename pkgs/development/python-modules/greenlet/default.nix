@@ -1,4 +1,5 @@
 {
+  stdenv,
   lib,
   buildPythonPackage,
   fetchPypi,
@@ -14,22 +15,18 @@
 }:
 
 let
-  greenlet = buildPythonPackage rec {
+  greenlet = buildPythonPackage (finalAttrs: {
     pname = "greenlet";
-    version = "3.0.3";
+    version = "3.5.5";
     pyproject = true;
 
     src = fetchPypi {
-      inherit pname version;
-      hash = "sha256-QzdEQjUyWVVM4zWZ2otpLVqpb4l21WfUut8mM3H75JE=";
+      pname = "greenlet";
+      inherit (finalAttrs) version;
+      hash = "sha256-rbS64C6RqOhj5IsXfkAUvcrIprXgR+od9oemFTS4Xmw=";
     };
 
-    patches = [
-      # https://github.com/python-greenlet/greenlet/pull/396
-      ./python-3.13-compat.patch
-    ];
-
-    nativeBuildInputs = [ setuptools ];
+    build-system = [ setuptools ];
 
     # tests in passthru, infinite recursion via objgraph/graphviz
     doCheck = false;
@@ -40,11 +37,16 @@ let
       unittestCheckHook
     ];
 
+    # https://github.com/python-greenlet/greenlet/issues/395
+    env.NIX_CFLAGS_COMPILE = lib.optionalString (
+      stdenv.hostPlatform.isPower64 || stdenv.hostPlatform.isLoongArch64
+    ) "-fomit-frame-pointer";
+
     preCheck = ''
       pushd ${placeholder "out"}/${python.sitePackages}
     '';
 
-    unittestFlagsArray = [ "greenlet.tests" ];
+    unittestFlags = [ "--start-directory=greenlet.tests" ];
 
     postCheck = ''
       popd
@@ -54,15 +56,15 @@ let
       doCheck = true;
     });
 
-    meta = with lib; {
-      changelog = "https://github.com/python-greenlet/greenlet/blob/${version}/CHANGES.rst";
+    meta = {
+      changelog = "https://github.com/python-greenlet/greenlet/blob/${finalAttrs.version}/CHANGES.rst";
       homepage = "https://github.com/python-greenlet/greenlet";
       description = "Module for lightweight in-process concurrent programming";
-      license = with licenses; [
+      license = with lib.licenses; [
         psfl # src/greenlet/slp_platformselect.h & files in src/greenlet/platform/ directory
         mit
       ];
     };
-  };
+  });
 in
 greenlet

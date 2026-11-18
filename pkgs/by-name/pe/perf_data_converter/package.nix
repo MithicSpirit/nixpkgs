@@ -1,32 +1,42 @@
 {
   lib,
+  stdenv,
   buildBazelPackage,
   fetchFromGitHub,
-  bazel_6,
+  bazel_9,
   jdk,
   elfutils,
   libcap,
 }:
 
-buildBazelPackage rec {
+let
+  system = stdenv.hostPlatform.system;
+  registry = fetchFromGitHub {
+    owner = "bazelbuild";
+    repo = "bazel-central-registry";
+    rev = "0aeaaaeee4bb913e21853a0ee0b935b2c114ae3f";
+    hash = "sha256-OZjzzwO2+SmlhJvkTaW26gNvmZx0amCLF6e6MGJkRlI=";
+  };
+in
+buildBazelPackage {
   pname = "perf_data_converter";
-  version = "0-unstable-2024-07-25";
+  version = "0-unstable-2026-09-02";
 
   src = fetchFromGitHub {
     owner = "google";
     repo = "perf_data_converter";
-    rev = "571052793d8c49fd3e93121af548cc8ebd8920f0";
-    hash = "sha256-yoWOCSYAfnDVDQ6uwZ30P4p3pgvfmjVQiN9gu5auusY=";
+    rev = "d4ea56c0c9c0c3f197e26a0161a5a0d9580d5ba7";
+    hash = "sha256-qimXlAB4mk7TagnHWG2n+4aRX1fhtisSXFhbNvQw4UI=";
   };
 
-  bazel = bazel_6;
+  bazel = bazel_9;
   bazelFlags = [
-    "--java_runtime_version=local_jdk"
-    "--tool_java_runtime_version=local_jdk"
+    "--registry"
+    "file://${registry}"
   ];
 
   fetchAttrs = {
-    sha256 = "sha256-Qm6Ng9cXvKx043P7qyNHyyMvdGK9aNarX1ZKeCp3mgY=";
+    hash = "sha256-aiKFVuOWi9/Ex+7+2L0Sb8ac9tqqVc4zRW+fLjOHtWI=";
   };
 
   nativeBuildInputs = [ jdk ];
@@ -35,8 +45,6 @@ buildBazelPackage rec {
     elfutils
     libcap
   ];
-
-  removeRulesCC = false;
 
   bazelBuildFlags = [ "-c opt" ];
   bazelTargets = [ "src:perf_to_profile" ];
@@ -52,11 +60,14 @@ buildBazelPackage rec {
     '';
   };
 
-  meta = with lib; {
+  meta = {
     description = "Tool to convert Linux perf files to the profile.proto format used by pprof";
     homepage = "https://github.com/google/perf_data_converter";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ hzeller ];
-    platforms = platforms.linux;
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [
+      hzeller
+      lromor
+    ];
+    platforms = lib.platforms.linux;
   };
 }

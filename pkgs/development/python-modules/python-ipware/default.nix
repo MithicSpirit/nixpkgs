@@ -2,35 +2,33 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
+  hatchling,
   unittestCheckHook,
-  setuptools,
 }:
-buildPythonPackage rec {
-  pname = "python-ipware";
-  version = "2.0.0";
-  pyproject = true;
 
-  disabled = pythonOlder "3.7";
+buildPythonPackage (finalAttrs: {
+  pname = "python-ipware";
+  version = "4.1.1";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "un33k";
     repo = "python-ipware";
-    rev = "v${version}";
-    hash = "sha256-j43uAcb1dyKe/SHQLLR+QJS6hKGB5qxjb9NiJaUPj8Y=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-PYWOihNMHaYAnDeLQ2T5RnS5N9T1E5skv33EANgVdX8=";
   };
 
-  nativeBuildInputs = [ setuptools ];
-
-  pythonImportsCheck = [ "python_ipware" ];
+  build-system = [ hatchling ];
 
   nativeCheckInputs = [ unittestCheckHook ];
 
-  meta = with lib; {
+  pythonImportsCheck = [ "python_ipware" ];
+
+  meta = {
     description = "Python package for server applications to retrieve client's IP address";
     homepage = "https://github.com/un33k/python-ipware";
-    changelog = "https://github.com/un33k/python-ipware/blob/v${version}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ e1mo ];
+    changelog = "https://github.com/un33k/python-ipware/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ e1mo ];
   };
-}
+})

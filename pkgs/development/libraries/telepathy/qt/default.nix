@@ -1,14 +1,15 @@
-{ lib
-, stdenv
-, fetchurl
-, cmake
-, qtbase
-, pkg-config
-, python3Packages
-, dbus-glib
-, dbus
-, telepathy-farstream
-, telepathy-glib
+{
+  lib,
+  stdenv,
+  fetchurl,
+  cmake,
+  qtbase,
+  pkg-config,
+  python3Packages,
+  dbus-glib,
+  dbus,
+  telepathy-farstream,
+  telepathy-glib,
 }:
 
 let
@@ -20,13 +21,24 @@ stdenv.mkDerivation rec {
 
   src = fetchurl {
     url = "https://telepathy.freedesktop.org/releases/telepathy-qt/telepathy-qt-${version}.tar.gz";
-    sha256 = "bf8e2a09060addb80475a4938105b9b41d9e6837999b7a00e5351783857e18ad";
+    hash = "sha256-v44qCQYK3bgEdaSTgQW5tB2eaDeZm3oA5TUXg4V+GK0=";
   };
 
-  nativeBuildInputs = [ cmake pkg-config python ];
-  propagatedBuildInputs = [ qtbase telepathy-farstream telepathy-glib ];
+  nativeBuildInputs = [
+    cmake
+    pkg-config
+    python
+  ];
+  propagatedBuildInputs = [
+    qtbase
+    telepathy-farstream
+    telepathy-glib
+  ];
   buildInputs = [ dbus-glib ];
-  nativeCheckInputs = [ dbus dbus-python ];
+  nativeCheckInputs = [
+    dbus
+    dbus-python
+  ];
 
   # No point in building tests if they are not run
   # On 0.9.7, they do not even build with QT4
@@ -36,10 +48,10 @@ stdenv.mkDerivation rec {
 
   doCheck = false; # giving up for now
 
-  meta = with lib; {
+  meta = {
     description = "Telepathy Qt bindings";
     homepage = "https://telepathy.freedesktop.org/components/telepathy-qt/";
-    license = licenses.lgpl21;
-    platforms = platforms.unix;
+    license = lib.licenses.lgpl21;
+    platforms = lib.platforms.unix;
   };
 }

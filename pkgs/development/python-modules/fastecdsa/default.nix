@@ -1,46 +1,62 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  gmp,
+  cargo,
+  fetchFromGitHub,
+  nix-update-script,
+  parameterized,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
+  rustc,
+  rustPlatform,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "fastecdsa";
-  version = "2.3.2";
-  format = "setuptools";
+  version = "4.0.0";
+  pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-81JVptPkEQkWa11LCIZtWsu5ny4eZNOn50x3RmTNqEI=";
+  src = fetchFromGitHub {
+    owner = "AntonKueltz";
+    repo = "fastecdsa";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-LZVFcobDZAHobQChkCJGlkB3UcolIDAmFGpBG4El6nw=";
   };
 
-  buildInputs = [ gmp ];
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs) pname version src;
+    hash = "sha256-f0XeCUQnj+k+/NANeCs9cvuFKUiYY0mlMgAkWYpr87o=";
+  };
 
-  nativeCheckInputs = [ pytestCheckHook ];
-
-  disabledTestPaths = [
-    # skip tests which require being online to download test vectors
-    "fastecdsa/tests/test_wycheproof_vectors.py"
-    "fastecdsa/tests/test_rfc6979_ecdsa.py"
+  build-system = [
+    cargo
+    rustPlatform.cargoSetupHook
+    rustPlatform.maturinBuildHook
+    rustc
   ];
 
-  # skip tests for now, they fail with
-  # ImportError: cannot import name '_ecdsa' from 'fastecdsa'
-  # but the installed package works just fine
-  doCheck = false;
+  nativeCheckInputs = [
+    parameterized
+    pytest-cov-stub
+    pytestCheckHook
+  ];
+
+  preCheck = ''
+    cp $out/lib/python*/site-packages/fastecdsa/*.so fastecdsa/
+  '';
 
   pythonImportsCheck = [ "fastecdsa" ];
 
-  meta = with lib; {
-    description = "Fast elliptic curve digital signatures";
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
+    description = "Python library for fast elliptic curve crypto";
     homepage = "https://github.com/AntonKueltz/fastecdsa";
-    changelog = "https://github.com/AntonKueltz/fastecdsa/blob/v${version}/CHANGELOG.md";
-    license = licenses.unlicense;
-    maintainers = with maintainers; [ prusnak ];
+    changelog = "https://github.com/AntonKueltz/fastecdsa/blob/${finalAttrs.src.rev}/CHANGELOG.md";
+    license = with lib.licenses; [
+      cc0
+      unlicense
+    ];
+    maintainers = with lib.maintainers; [ prusnak ];
   };
-}
+})

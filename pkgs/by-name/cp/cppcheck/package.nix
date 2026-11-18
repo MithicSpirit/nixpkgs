@@ -3,19 +3,22 @@
   stdenv,
   fetchFromGitHub,
 
+  # nativeBuildInputs
   docbook_xml_dtd_45,
   docbook_xsl,
   installShellFiles,
   libxslt,
-  pcre,
   pkg-config,
   python3,
   which,
+
+  versionCheckHook,
+  gitUpdater,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "cppcheck";
-  version = "2.14.2";
+  version = "2.22.0";
 
   outputs = [
     "out"
@@ -23,10 +26,10 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   src = fetchFromGitHub {
-    owner = "danmar";
+    owner = "cppcheck-opensource";
     repo = "cppcheck";
-    rev = finalAttrs.version;
-    hash = "sha256-aVjQqwsTw6TCLxs2oQif3hX5kfXHua7ekBpO/PyneAQ=";
+    tag = finalAttrs.version;
+    hash = "sha256-HbrNBDxo3/b4h6BeBD9gohI4PB4xeosy9Y0Y3uB4J2g=";
   };
 
   nativeBuildInputs = [
@@ -40,7 +43,6 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
-    pcre
     (python3.withPackages (ps: [ ps.pygments ]))
   ];
 
@@ -48,19 +50,29 @@ stdenv.mkDerivation (finalAttrs: {
     "PREFIX=$(out)"
     "MATCHCOMPILER=yes"
     "FILESDIR=$(out)/share/cppcheck"
-    "HAVE_RULES=yes"
+    "HAVE_RULES=" # Requires pcre1. See https://github.com/cppcheck-opensource/cppcheck/pull/8382
   ];
 
   enableParallelBuilding = true;
   strictDeps = true;
 
   # test/testcondition.cpp:4949(TestCondition::alwaysTrueContainer): Assertion failed.
-  doCheck = !(stdenv.isLinux && stdenv.isAarch64);
+  doCheck = !(stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64);
   doInstallCheck = true;
 
-  postPatch = ''
-    substituteInPlace Makefile \
-      --replace 'PCRE_CONFIG = $(shell which pcre-config)' 'PCRE_CONFIG = $(PKG_CONFIG) libpcre'
+  # Expected:
+  # Internal Error. MathLib::toDoubleNumber: conversion failed: 1invalid
+  #
+  # Actual:
+  # Internal Error. MathLib::toDoubleNumber: input was not completely consumed: 1invalid
+  postPatch = lib.optionalString stdenv.hostPlatform.isDarwin ''
+    substituteInPlace test/testmathlib.cpp \
+      --replace-fail \
+        'ASSERT_THROW_INTERNAL_EQUALS(MathLib::toDoubleNumber("1invalid"), INTERNAL, "Internal Error. MathLib::toDoubleNumber: conversion failed: 1invalid");' \
+        "" \
+      --replace-fail \
+        'ASSERT_THROW_INTERNAL_EQUALS(MathLib::toDoubleNumber("1.1invalid"), INTERNAL, "Internal Error. MathLib::toDoubleNumber: conversion failed: 1.1invalid");' \
+        ""
   '';
 
   postBuild = ''
@@ -71,6 +83,9 @@ stdenv.mkDerivation (finalAttrs: {
     installManPage cppcheck.1
   '';
 
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
   installCheckPhase = ''
     runHook preInstallCheck
 
@@ -80,6 +95,10 @@ stdenv.mkDerivation (finalAttrs: {
     runHook postInstallCheck
   '';
 
+  passthru = {
+    updateScript = gitUpdater { };
+  };
+
   meta = {
     description = "Static analysis tool for C/C++ code";
     longDescription = ''
@@ -88,10 +107,7 @@ stdenv.mkDerivation (finalAttrs: {
     '';
     homepage = "http://cppcheck.sourceforge.net";
     license = lib.licenses.gpl3Plus;
-    maintainers = with lib.maintainers; [
-      joachifm
-      paveloom
-    ];
+    maintainers = with lib.maintainers; [ l33tname ];
     platforms = lib.platforms.unix;
   };
 })

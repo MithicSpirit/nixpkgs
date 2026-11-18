@@ -13,13 +13,17 @@
   taglib,
   shared-mime-info,
   libappimage,
-  xorg,
+  libxcursor,
   kio,
 }:
 mkKdeDerivation {
   pname = "kio-extras";
 
-  extraNativeBuildInputs = [pkg-config gperf shared-mime-info];
+  extraNativeBuildInputs = [
+    pkg-config
+    gperf
+    shared-mime-info
+  ];
   extraBuildInputs = [
     qt5compat
     qtsvg
@@ -33,7 +37,7 @@ mkKdeDerivation {
     openexr
     taglib
     libappimage
-    xorg.libXcursor
+    libxcursor
   ];
 
   postInstall = ''

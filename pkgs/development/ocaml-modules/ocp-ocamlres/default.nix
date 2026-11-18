@@ -1,8 +1,12 @@
-{ stdenv, lib, fetchFromGitHub, ocaml, findlib, astring, pprint }:
-
-if lib.versionOlder ocaml.version "4.02"
-then throw "ocp-ocamlres is not available for OCaml ${ocaml.version}"
-else
+{
+  stdenv,
+  lib,
+  fetchFromGitHub,
+  ocaml,
+  findlib,
+  astring,
+  pprint,
+}:
 
 stdenv.mkDerivation rec {
   pname = "ocaml${ocaml.version}-ocp-ocamlres";
@@ -10,12 +14,18 @@ stdenv.mkDerivation rec {
   src = fetchFromGitHub {
     owner = "OCamlPro";
     repo = "ocp-ocamlres";
-    rev = "v${version}";
-    sha256 = "0smfwrj8qhzknhzawygxi0vgl2af4vyi652fkma59rzjpvscqrnn";
+    tag = "v${version}";
+    hash = "sha256-1mbM9L7y51RUnU4UE/0mTgn6Noj9ea4+tPNDjGTmrmo=";
   };
 
-  nativeBuildInputs = [ ocaml findlib ];
-  buildInputs = [ astring pprint ];
+  nativeBuildInputs = [
+    ocaml
+    findlib
+  ];
+  buildInputs = [
+    astring
+    pprint
+  ];
 
   strictDeps = true;
 
@@ -31,5 +41,6 @@ stdenv.mkDerivation rec {
     maintainers = [ lib.maintainers.vbgl ];
     mainProgram = "ocp-ocamlres";
     inherit (ocaml.meta) platforms;
+    broken = lib.versionOlder ocaml.version "4.02";
   };
 }

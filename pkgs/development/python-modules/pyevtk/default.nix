@@ -1,36 +1,35 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitHub,
+  fetchPypi,
   setuptools,
   numpy,
+  versioneer,
   pytestCheckHook,
-  pytest-cov,
+  pytest-cov-stub,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pyevtk";
-  version = "1.2.0";
+  version = "1.7.0";
   pyproject = true;
 
-  src = fetchFromGitHub {
-    owner = "pyscience-projects";
-    repo = "pyevtk";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-HrodoVxjREZiutgRJ3ZUrART29+gAZfpR9f4A4SRh4Q=";
+  src = fetchPypi {
+    inherit (finalAttrs) pname version;
+
+    hash = "sha256-Ia07GQWwa/KIFmYp8AAtE6nGZOtCvL7WJNIDLXuLz1I=";
   };
 
-  postPatch = ''
-    substituteInPlace setup.py \
-      --replace-fail 'setup_requires=["pytest-runner"],' 'setup_requires=[],'
-  '';
+  build-system = [
+    setuptools
+    versioneer
+  ];
 
-  build-system = [ setuptools ];
   dependencies = [ numpy ];
 
   nativeCheckInputs = [
     pytestCheckHook
-    pytest-cov
+    pytest-cov-stub
   ];
 
   pythonImportsCheck = [ "pyevtk" ];
@@ -38,8 +37,7 @@ buildPythonPackage rec {
   meta = {
     description = "Exports data to binary VTK files for visualization/analysis";
     homepage = "https://github.com/pyscience-projects/pyevtk";
-    changelog = "https://github.com/pyscience-projects/pyevtk/blob/${src.rev}/CHANGES.txt";
-    license = lib.licenses.bsd2;
+    license = lib.licenses.mit;
     maintainers = with lib.maintainers; [ sigmanificient ];
   };
-}
+})

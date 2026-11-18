@@ -1,46 +1,89 @@
-{ stdenv
-, fetchurl
-, autoPatchelfHook
-, rpmextract
-, libX11
-, libXext
-, pname
-, version
-, meta
+{
+  stdenv,
+  fetchurl,
+  autoPatchelfHook,
+  rpmextract,
+  buildFHSEnv,
+  libx11,
+  libxext,
+  libepoxy,
+  fontconfig,
+  glib,
+  gtk3,
+  xdg-utils,
+  shared-mime-info,
+  desktop-file-utils,
+  pname,
+  version,
+  meta,
 }:
 
-stdenv.mkDerivation (finalAttrs: {
-  inherit pname version;
+let
+  vncviewer-unwrapped = stdenv.mkDerivation (finalAttrs: {
+    inherit pname version;
 
-  src = {
-    "x86_64-linux" = fetchurl rec {
-      name = "VNC-Viewer-${finalAttrs.version}-Linux-x64.rpm";
-      url = "https://downloads.realvnc.com/download/file/viewer.files/${name}";
-      hash = "sha256-KJZbH3mfxuyUslkYvB/RKquEsB7ayJSv6yNqfLmAsGI=";
-    };
-  }.${stdenv.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
+    src =
+      {
+        "x86_64-linux" = fetchurl rec {
+          name = "RealVNC-Connect-Viewer-${finalAttrs.version}-Linux-x64.rpm";
+          url = "https://downloads.realvnc.com/download/file/realvnc-connect-viewer/${name}";
+          hash = "sha256-x/NG9ivYUbtrFxksglCLF+lGA2OO2VdEN1qPsvum7tQ=";
+        };
+      }
+      .${stdenv.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
 
-  nativeBuildInputs = [ autoPatchelfHook rpmextract ];
-  buildInputs = [ libX11 libXext stdenv.cc.cc.libgcc or null ];
+    nativeBuildInputs = [
+      autoPatchelfHook
+      rpmextract
+    ];
+    buildInputs = [
+      libx11
+      libxext
+      libepoxy
+      fontconfig
+      glib
+      gtk3
+      stdenv.cc.cc.libgcc or null
+    ];
 
-  unpackPhase = ''
-    rpmextract $src
+    unpackPhase = ''
+      rpmextract $src
+    '';
+
+    installPhase = ''
+      runHook preInstall
+
+      mv usr $out
+      find $out -xtype l -delete
+
+      runHook postInstall
+    '';
+  });
+in
+buildFHSEnv {
+  # buildFHSEnv needed because the newer version uses a tricky hardcoded external binary path:
+  # /usr/bin/xdg-mime. Otherwise a crash will take place when openning browser or signing in
+  inherit pname version meta;
+
+  runScript = "${vncviewer-unwrapped}/lib/rvncconnect/rvncconnect";
+
+  extraInstallCommands = ''
+    mkdir -p $out/share/applications
+    mkdir -p $out/share/icons
+    cp -r ${vncviewer-unwrapped}/share/applications/. $out/share/applications/
+    cp -r ${vncviewer-unwrapped}/share/icons/. $out/share/icons/
+
+    substituteInPlace $out/share/applications/com.realvnc.rvncconnect.desktop \
+      --replace-fail /usr/lib/rvncconnect/rvncconnect $out/bin/realvnc-vnc-viewer \
+      --replace-fail /usr/share/icons/hicolor/scalable/apps/com.realvnc.rvncconnect.svg $out/share/icons/hicolor/scalable/apps/com.realvnc.rvncconnect.svg
+    substituteInPlace $out/share/applications/com.realvnc.rvncconnect.connect.uri.desktop \
+      --replace-fail /usr/lib/rvncconnect/rvncconnect $out/bin/realvnc-vnc-viewer
   '';
 
-  postPatch = ''
-    substituteInPlace ./usr/share/applications/realvnc-vncviewer.desktop \
-      --replace /usr/share/icons/hicolor/48x48/apps/vncviewer48x48.png vncviewer48x48.png
-    substituteInPlace ./usr/share/mimelnk/application/realvnc-vncviewer-mime.desktop \
-      --replace /usr/share/icons/hicolor/48x48/apps/vncviewer48x48.png vncviewer48x48.png
-  '';
-
-  installPhase = ''
-    runHook preInstall
-
-    mv usr $out
-
-    runHook postInstall
-  '';
-
-  meta = meta // { mainProgram = "vncviewer"; };
-})
+  targetPkgs = pkgs: [
+    vncviewer-unwrapped
+    xdg-utils
+    shared-mime-info
+    desktop-file-utils
+  ];
+}

@@ -1,23 +1,30 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitHub,
+  fetchFromGitea,
   setuptools,
   colorama,
   pytestCheckHook,
+  nix-update-script,
 }:
 
-buildPythonPackage {
+buildPythonPackage (finalAttrs: {
   pname = "migen";
-  version = "unstable-2024-07-21";
+  version = "0.10.0";
   pyproject = true;
 
-  src = fetchFromGitHub {
-    owner = "m-labs";
+  src = fetchFromGitea {
+    domain = "git.m-labs.hk";
+    owner = "M-Labs";
     repo = "migen";
-    rev = "9279e8623f8433bc4f23ac51e5e2331bfe544417";
-    hash = "sha256-z3LRhNmKZrjr6rFD0yxtccSa/SWvFIYmb+G/D5d2Jd8=";
+    tag = finalAttrs.version;
+    hash = "sha256-aVGzcwgcXutB9ZGiyO3v9Dmnayh+wWR9N58reOLXIf0=";
   };
+
+  patches = [
+    # Add LOAD_FAST_BORROW to opcode tracer for python 3.14.
+    ./tracer-3.14.patch
+  ];
 
   nativeBuildInputs = [ setuptools ];
 
@@ -27,10 +34,12 @@ buildPythonPackage {
 
   pythonImportsCheck = [ "migen" ];
 
+  passthru.updateScript = nix-update-script { };
+
   meta = {
-    description = " A Python toolbox for building complex digital hardware";
-    homepage = "https://m-labs.hk/migen";
+    description = "Python toolbox for building complex digital hardware";
+    homepage = "https://m-labs.hk/misc/migen";
     license = lib.licenses.bsd2;
-    maintainers = with lib.maintainers; [ l-as ];
+    maintainers = with lib.maintainers; [ evanwporter ];
   };
-}
+})

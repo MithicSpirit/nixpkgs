@@ -1,16 +1,20 @@
-{ build-idris-package
-, fetchFromGitHub
-, contrib
-, effects
-, libmicrohttpd
-, lib
+{
+  build-idris-package,
+  fetchFromGitHub,
+  contrib,
+  effects,
+  libmicrohttpd,
+  lib,
 }:
-build-idris-package  {
+build-idris-package {
   pname = "mhd";
   version = "2016-04-22";
 
   ipkgName = "MHD";
-  idrisDeps = [ contrib effects ];
+  idrisDeps = [
+    contrib
+    effects
+  ];
 
   extraBuildInputs = [ libmicrohttpd ];
 
@@ -18,7 +22,7 @@ build-idris-package  {
     owner = "colin-adams";
     repo = "idris-libmicrohttpd";
     rev = "a8808bc06fa292d4b3389f32cb00716e43122a46";
-    sha256 = "0wvp1qi3bn4hk52vsid6acfwvwbs58sggylbpjvkxzycsbhz4nx4";
+    hash = "sha256-pFvy4dLM/z63vIv69zQqevHNHVOmRb1FmZDYNSIOd3M=";
   };
 
   meta = {

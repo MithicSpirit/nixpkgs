@@ -1,51 +1,59 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
-, go-mockery
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+  versionCheckHook,
+  mockgen,
 }:
-
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "terragrunt";
-  version = "0.66.9";
+  version = "1.1.3";
 
   src = fetchFromGitHub {
     owner = "gruntwork-io";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-yL24oxuwdIMaMPQIZFHkp33B8x1TDwjXRkk9fQgMdrY=";
+    repo = "terragrunt";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-JovTD88P/9IUX1y1AG/NhkIRRPCa0eAwJSx5qfg+4Ck=";
   };
 
-  nativeBuildInputs = [ go-mockery ];
+  nativeBuildInputs = [
+    mockgen
+  ];
+
+  proxyVendor = true;
 
   preBuild = ''
     make generate-mocks
   '';
 
-  vendorHash = "sha256-Hg+9Zfv8IQpJEtLh5QHm6HLgn/RTlf723dePD4481fM=";
+  vendorHash = "sha256-eqoT9On/nGwJIbWug4RQVmibbsqbTRa5MzOoFXgGmxc=";
+
+  excludedPackages = [ "test/flake" ];
 
   doCheck = false;
 
   ldflags = [
     "-s"
-    "-w"
-    "-X github.com/gruntwork-io/go-commons/version.Version=v${version}"
+    "-X github.com/gruntwork-io/terragrunt/internal/version.Version=v${finalAttrs.version}"
+    "-extldflags '-static'"
   ];
 
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+  versionCheckProgramArg = "--version";
   doInstallCheck = true;
 
-  installCheckPhase = ''
-    runHook preInstallCheck
-    $out/bin/terragrunt --help
-    $out/bin/terragrunt --version | grep "v${version}"
-    runHook postInstallCheck
-  '';
-
-  meta = with lib; {
+  meta = {
     homepage = "https://terragrunt.gruntwork.io";
-    changelog = "https://github.com/gruntwork-io/terragrunt/releases/tag/v${version}";
+    changelog = "https://github.com/gruntwork-io/terragrunt/releases/tag/v${finalAttrs.version}";
     description = "Thin wrapper for Terraform that supports locking for Terraform state and enforces best practices";
     mainProgram = "terragrunt";
-    license = licenses.mit;
-    maintainers = with maintainers; [ jk qjoly kashw2 ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      jk
+      qjoly
+      kashw2
+    ];
   };
-}
+})

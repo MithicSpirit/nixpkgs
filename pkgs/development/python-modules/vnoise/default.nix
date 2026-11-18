@@ -1,9 +1,11 @@
-{ lib
-, buildPythonPackage
-, fetchFromGitHub
-, numpy
-, pytestCheckHook
-, setuptools
+{
+  lib,
+  buildPythonPackage,
+  fetchFromGitHub,
+  numpy,
+  pytestCheckHook,
+  setuptools,
+  pkg-resources-backport,
 }:
 
 buildPythonPackage rec {
@@ -18,7 +20,10 @@ buildPythonPackage rec {
     hash = "sha256-nflAh3vj48wneM0wy/+M+XD6GC63KZEIFb1x4SS46YI=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  nativeBuildInputs = [
+    setuptools
+    pkg-resources-backport
+  ];
 
   propagatedBuildInputs = [ numpy ];
 
@@ -26,10 +31,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "vnoise" ];
 
-  meta = with lib; {
+  meta = {
     description = "Vectorized, pure-Python Perlin noise library";
     homepage = "https://github.com/plottertools/vnoise";
-    license = licenses.mit;
-    maintainers = with maintainers; [ SuperSandro2000 ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ SuperSandro2000 ];
   };
 }

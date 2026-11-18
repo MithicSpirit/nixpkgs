@@ -1,7 +1,10 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
-
-  concatMapLines = f: l: lib.concatStringsSep "\n" (map f l);
 
   cfg = config.services.mlmmj;
   stateDir = "/var/lib/mlmmj";
@@ -22,8 +25,11 @@ let
     "List-Unsubscribe: <mailto:${list}+unsubscribe@${domain}>"
   ];
   footer = domain: list: "To unsubscribe send a mail to ${list}+unsubscribe@${domain}";
-  createList = d: l:
-    let ctlDir = listCtl d l; in
+  createList =
+    d: l:
+    let
+      ctlDir = listCtl d l;
+    in
     ''
       for DIR in incoming queue queue/discarded archive text subconf unsubconf \
                  bounce control moderation subscribers.d digesters.d requeue \
@@ -76,7 +82,7 @@ in
 
       mailLists = lib.mkOption {
         type = lib.types.listOf lib.types.str;
-        default = [];
+        default = [ ];
         description = "The collection of hosted maillists";
       };
 
@@ -112,8 +118,11 @@ in
 
     services.postfix = {
       enable = true;
-      recipientDelimiter= "+";
-      masterConfig.mlmmj = {
+      settings.main = {
+        recipient_delimiter = "+";
+        propagate_unmatched_extensions = "virtual";
+      };
+      settings.master.mlmmj = {
         type = "unix";
         private = true;
         privileged = true;
@@ -130,12 +139,10 @@ in
         ];
       };
 
-      extraAliases = concatMapLines (alias cfg.listDomain) cfg.mailLists;
+      extraAliases = lib.concatMapStringsSep "\n" (alias cfg.listDomain) cfg.mailLists;
 
-      extraConfig = "propagate_unmatched_extensions = virtual";
-
-      virtual = concatMapLines (virtual cfg.listDomain) cfg.mailLists;
-      transport = concatMapLines (transport cfg.listDomain) cfg.mailLists;
+      virtual = lib.concatMapStringsSep "\n" (virtual cfg.listDomain) cfg.mailLists;
+      transport = lib.concatMapStringsSep "\n" (transport cfg.listDomain) cfg.mailLists;
     };
 
     environment.systemPackages = [ pkgs.mlmmj ];
@@ -156,9 +163,9 @@ in
         ExecStart = "${pkgs.mlmmj}/bin/mlmmj-maintd -F -d ${spoolDir}/${cfg.listDomain}";
       };
       preStart = ''
-        ${concatMapLines (createList cfg.listDomain) cfg.mailLists}
-        ${pkgs.postfix}/bin/postmap /etc/postfix/virtual
-        ${pkgs.postfix}/bin/postmap /etc/postfix/transport
+        ${lib.concatMapStringsSep "\n" (createList cfg.listDomain) cfg.mailLists}
+        ${lib.getExe' config.services.postfix.package "postmap"} /etc/postfix/virtual
+        ${lib.getExe' config.services.postfix.package "postmap"} /etc/postfix/transport
       '';
     };
 

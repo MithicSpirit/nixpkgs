@@ -1,72 +1,82 @@
 {
   lib,
-  stdenv,
-  fetchFromGitHub,
-  buildPythonPackage,
-  pythonOlder,
-  # Mitmproxy requirements
   aioquic,
+  argon2-cffi,
   asgiref,
-  blinker,
+  backports-zstd,
+  bcrypt,
   brotli,
+  buildPythonPackage,
   certifi,
   cryptography,
+  fetchFromGitHub,
+  fetchpatch,
   flask,
   h11,
   h2,
   hyperframe,
+  hypothesis,
   kaitaistruct,
   ldap3,
-  mitmproxy-macos,
   mitmproxy-rs,
-  msgpack,
-  passlib,
-  protobuf5,
+  nixosTests,
   publicsuffix2,
   pyopenssl,
   pyparsing,
   pyperclip,
+  pytest-asyncio,
+  pytest-cov-stub,
+  pytest-timeout,
+  pytest-xdist,
+  pytestCheckHook,
+  pythonOlder,
+  requests,
   ruamel-yaml,
   setuptools,
   sortedcontainers,
   tornado,
   urwid,
   wsproto,
-  zstandard,
-  # Additional check requirements
-  hypothesis,
-  parver,
-  pytest-asyncio,
-  pytest-timeout,
-  pytest-xdist,
-  pytestCheckHook,
-  requests,
 }:
 
 buildPythonPackage rec {
   pname = "mitmproxy";
-  version = "10.4.2";
+  version = "12.3.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.9";
 
   src = fetchFromGitHub {
     owner = "mitmproxy";
     repo = "mitmproxy";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-1OMVgV6dFKoG/upv+RWbYqftqejeQLBlsycuy2+Na6E=";
+    tag = "v${version}";
+    hash = "sha256-Hd8Nk9ycd74aXHodiPKMRGWArpduiAchtxscVZq4W1M=";
   };
 
-
-  pythonRelaxDeps = [
-    "urwid"
+  patches = [
+    # Use mitmproxy's own TLS client in test_emudhra, CPython's ssl module rejects
+    # chains with compromised eMudhra intermediate keys since 3.13.18/3.14.10
+    # https://github.com/python/cpython/issues/160040
+    (fetchpatch {
+      name = "fix-test-emudhra.patch";
+      url = "https://github.com/mitmproxy/mitmproxy/commit/992052ee92d7ff4d240eafbe1afdf87c94b3f080.patch";
+      hash = "sha256-kxCt72m8G+yoAWe8xsXjt1U6B2Sh02u8MCFiqi18lng=";
+    })
   ];
 
-  propagatedBuildInputs = [
+  # pins many dependencies way to strict
+  pythonRelaxDeps = true;
+
+  # msgpack is unused and was removed upstream:
+  # https://github.com/mitmproxy/mitmproxy/pull/8319
+  pythonRemoveDeps = [ "msgpack" ];
+
+  build-system = [ setuptools ];
+
+  dependencies = [
     aioquic
+    argon2-cffi
     asgiref
-    blinker
     brotli
+    bcrypt
     certifi
     cryptography
     flask
@@ -76,26 +86,22 @@ buildPythonPackage rec {
     kaitaistruct
     ldap3
     mitmproxy-rs
-    msgpack
-    passlib
-    protobuf5
     publicsuffix2
     pyopenssl
     pyparsing
     pyperclip
     ruamel-yaml
-    setuptools
     sortedcontainers
     tornado
     urwid
     wsproto
-    zstandard
-  ] ++ lib.optionals stdenv.isDarwin [ mitmproxy-macos ];
+  ]
+  ++ lib.optionals (pythonOlder "3.14") [ backports-zstd ];
 
   nativeCheckInputs = [
     hypothesis
-    parver
     pytest-asyncio
+    pytest-cov-stub
     pytest-timeout
     pytest-xdist
     pytestCheckHook
@@ -103,6 +109,12 @@ buildPythonPackage rec {
   ];
 
   __darwinAllowLocalNetworking = true;
+
+  postPatch = ''
+    # Rename to fix pytest exception
+    substituteInPlace pyproject.toml \
+      --replace-warn "[tool.pytest.individual_coverage]" "[tool.mitmproxy.individual_coverage]"
+  '';
 
   preCheck = ''
     export HOME=$(mktemp -d)
@@ -122,6 +134,7 @@ buildPythonPackage rec {
     "test_statusbar"
     # FileNotFoundError: [Errno 2] No such file or directory
     # likely wireguard is also not working in the sandbox
+    "test_tun_mode"
     "test_wireguard"
     # test require a DNS server
     # RuntimeError: failed to get dns servers: io error: entity not found
@@ -129,6 +142,12 @@ buildPythonPackage rec {
     "test_errorcheck"
     "test_dns"
     "test_order"
+    # fails in pytest asyncio internals
+    "test_decorator"
+    "test_exception_handler"
+    # RuntimeError: Event loop is closed
+    # relies on cleanup from tests deselected by test_errorcheck and test_order above
+    "test_emudhra_revocation_block"
   ];
 
   disabledTestPaths = [
@@ -146,11 +165,20 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "mitmproxy" ];
 
-  meta = with lib; {
+  passthru.tests = {
+    inherit (nixosTests) mitmproxy;
+  };
+
+  meta = {
+    broken = lib.versionAtLeast aioquic.version "1.3";
     description = "Man-in-the-middle proxy";
     homepage = "https://mitmproxy.org/";
-    changelog = "https://github.com/mitmproxy/mitmproxy/blob/${version}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ SuperSandro2000 ];
+    changelog = "https://github.com/mitmproxy/mitmproxy/blob/${src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      SuperSandro2000
+      Misaka13514
+    ];
+    mainProgram = "mitmproxy";
   };
 }

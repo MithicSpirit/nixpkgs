@@ -1,31 +1,41 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
-  pytest7CheckHook,
-  six,
+  fetchFromGitHub,
+  pytestCheckHook,
+  setuptools,
+  setuptools-scm,
+  typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "nocasedict";
-  version = "2.0.3";
-  format = "setuptools";
+  version = "2.2.0";
+  pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-HJImx/WoqXrVHcsK4xV6cg4/fLnEVo0i6joF4/hWWKk=";
+  src = fetchFromGitHub {
+    owner = "pywbem";
+    repo = "nocasedict";
+    tag = finalAttrs.version;
+    hash = "sha256-e3APYlmeoby0CGoEh4g6ZK27DwWi4EZdpwsRORxly+w=";
   };
 
-  propagatedBuildInputs = [ six ];
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
 
-  nativeCheckInputs = [ pytest7CheckHook ];
+  dependencies = [ typing-extensions ];
+
+  nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "nocasedict" ];
 
-  meta = with lib; {
+  meta = {
     description = "Case-insensitive ordered dictionary for Python";
     homepage = "https://github.com/pywbem/nocasedict";
-    license = licenses.lgpl21Plus;
-    maintainers = with maintainers; [ freezeboy ];
+    changelog = "https://github.com/pywbem/nocasedict/blob/${finalAttrs.src.tag}/docs/changes.rst";
+    license = lib.licenses.lgpl21Plus;
+    maintainers = [ ];
   };
-}
+})

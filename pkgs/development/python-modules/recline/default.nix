@@ -1,25 +1,32 @@
 {
-  lib,
+  argcomplete,
   buildPythonPackage,
+  docstring-parser,
   fetchFromGitHub,
+  lib,
+  poetry-core,
   pudb,
   pytestCheckHook,
-  setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "recline";
-  version = "2024.7.1";
-  format = "pyproject";
+  version = "2026.5";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "NetApp";
     repo = "recline";
-    rev = "refs/tags/v${version}";
-    sha256 = "sha256-Qc4oofuhSZ2S5zuCY9Ce9ISldYI3MDUJXFc8VcXdLIU=";
+    tag = "v${finalAttrs.version}.1";
+    hash = "sha256-DQSLsMGS/YxchR4OfZGX2iPg7cqIJEoAScxYjKxOTFI=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ poetry-core ];
+
+  dependencies = [
+    argcomplete
+    docstring-parser
+  ];
 
   nativeCheckInputs = [
     pudb
@@ -28,10 +35,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "recline" ];
 
-  meta = with lib; {
+  meta = {
     description = "This library helps you quickly implement an interactive command-based application";
     homepage = "https://github.com/NetApp/recline";
-    license = licenses.bsd3;
+    license = lib.licenses.bsd3;
     maintainers = [ ];
   };
-}
+})

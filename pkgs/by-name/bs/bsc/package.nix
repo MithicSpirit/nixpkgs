@@ -3,34 +3,42 @@
   stdenv,
   fetchFromGitHub,
   llvmPackages,
+  cmake,
+  nix-update-script,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "bsc";
-  version = "3.3.4";
+  version = "3.4.0";
 
   src = fetchFromGitHub {
     owner = "IlyaGrebnov";
     repo = "libbsc";
-    rev = "refs/tags/v${finalAttrs.version}";
-    sha256 = "sha256-reGg5xvoZBbNFFYPPyT2P1LA7oSCUIm9NIDjXyvkP9Q=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-wVAKgCgxGiRYZWWvzoFRzngnorq6usuNYuNHq+tH5dY=";
   };
 
   enableParallelBuilding = true;
 
-  buildInputs = lib.optional stdenv.isDarwin llvmPackages.openmp;
+  nativeBuildInputs = [ cmake ];
 
-  makeFlags = [
-    "CC=$(CXX)"
-    "PREFIX=${placeholder "out"}"
-  ];
+  buildInputs = lib.optional stdenv.hostPlatform.isDarwin llvmPackages.openmp;
 
-  meta = with lib; {
+  postPatch = ''
+    substituteInPlace CMakeLists.txt \
+      --replace-fail "check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE_C)" "" \
+      --replace-fail "check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE_CXX)" ""
+  '';
+
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "High performance block-sorting data compression library";
+    changelog = "https://github.com/IlyaGrebnov/libbsc/blob/v${finalAttrs.version}/CHANGES";
     homepage = "http://libbsc.com/";
-    maintainers = with maintainers; [ sigmanificient ];
+    maintainers = with lib.maintainers; [ sigmanificient ];
     license = lib.licenses.asl20;
-    platforms = platforms.unix;
+    platforms = lib.platforms.unix;
     mainProgram = "bsc";
   };
 })

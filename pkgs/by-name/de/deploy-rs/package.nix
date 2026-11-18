@@ -1,34 +1,39 @@
 {
   lib,
-  stdenv,
   fetchFromGitHub,
   rustPlatform,
-  darwin,
+  nix-update-script,
 }:
 
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "deploy-rs";
-  version = "0-unstable-2024-06-12";
+  version = "1.0.0";
 
   src = fetchFromGitHub {
     owner = "serokell";
     repo = "deploy-rs";
-    rev = "3867348fa92bc892eba5d9ddb2d7a97b9e127a8a";
-    hash = "sha256-FaGrf7qwZ99ehPJCAwgvNY5sLCqQ3GDiE/6uLhxxwSY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-i5dTwfPglZYE1zpg2IvBq+n0wDxMdrLwgHuRxZmO6Tw=";
   };
 
-  cargoHash = "sha256-lsW810bktMzHZIbuN3pz9N+IUcjNtE5J2AuB/G6pGWI=";
+  cargoHash = "sha256-bgx2aKAYtq/8A2fa8xlhSjh2Jd6Pas5rUF+IiYEoxXQ=";
 
-  buildInputs = lib.optionals stdenv.isDarwin [
-    darwin.apple_sdk.frameworks.CoreServices
-    darwin.apple_sdk.frameworks.SystemConfiguration
-  ];
+  # Tests use the FSEvents API on macOS, which the darwin sandbox blocks by default
+  sandboxProfile = ''
+    (allow mach-lookup (global-name "com.apple.FSEvents"))
+  '';
+
+  passthru.updateScript = nix-update-script { };
 
   meta = {
     description = "Multi-profile Nix-flake deploy tool";
     homepage = "https://github.com/serokell/deploy-rs";
+    changelog = "https://github.com/serokell/deploy-rs/blob/${finalAttrs.src.tag}/CHANGELOG.md";
     license = lib.licenses.mpl20;
-    maintainers = with lib.maintainers; [ teutat3s ];
+    maintainers = with lib.maintainers; [
+      teutat3s
+      jk
+    ];
     mainProgram = "deploy";
   };
-}
+})

@@ -1,7 +1,6 @@
 {
   stdenv,
   lib,
-  pythonOlder,
   buildPythonPackage,
   fetchFromGitHub,
   numpy,
@@ -9,7 +8,7 @@
   pandas,
   matplotlib,
   nbval,
-  pyvisa,
+  pyvisa-py,
   networkx,
   ipython,
   ipykernel,
@@ -21,27 +20,22 @@
   openpyxl,
   setuptools,
   pytestCheckHook,
+  pytest-cov-stub,
   pytest-mock,
+  writableTmpDirAsHomeHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "scikit-rf";
-  version = "1.2.0";
+  version = "2.2.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "scikit-rf";
     repo = "scikit-rf";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-K+iOpgEKwYtv8be/dLeDHYUDI8xZsoqB7mYDkVeCA10=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-g8JDTGwvijnS0LJBHn50gdfahqMovs+A1uWDAyZdHu0=";
   };
-
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "--cov=skrf" ""
-  '';
 
   build-system = [ setuptools ];
 
@@ -51,11 +45,13 @@ buildPythonPackage rec {
     pandas
   ];
 
+  pythonRemoveDeps = [ "pre-commit" ];
+
   optional-dependencies = {
     plot = [ matplotlib ];
     xlsx = [ openpyxl ];
     netw = [ networkx ];
-    visa = [ pyvisa ];
+    visa = [ pyvisa-py ];
     docs = [
       ipython
       ipykernel
@@ -65,34 +61,34 @@ buildPythonPackage rec {
       sphinx
       nbsphinx
       openpyxl
+      nbval
     ];
   };
 
-  env = lib.optionalAttrs stdenv.isDarwin { MPLBACKEND = "Agg"; };
+  env = lib.optionalAttrs stdenv.hostPlatform.isDarwin { MPLBACKEND = "Agg"; };
 
   nativeCheckInputs = [
     pytest-mock
-    nbval
-    matplotlib
-    pyvisa
-    openpyxl
-    networkx
     pytestCheckHook
-  ];
+    pytest-cov-stub
+    writableTmpDirAsHomeHook
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
 
-  # test_calibration.py generates a divide by zero error on darwin
-  # https://github.com/scikit-rf/scikit-rf/issues/972
-  disabledTestPaths = lib.optional (
-    stdenv.isAarch64 && stdenv.isDarwin
-  ) "skrf/calibration/tests/test_calibration.py";
+  pytestFlags = [ "-Wignore::pytest.PytestUnraisableExceptionWarning" ];
+
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
+    # Tests for an exact 0 but gets 1.6e-17
+    "test_passivity"
+  ];
 
   pythonImportsCheck = [ "skrf" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library for RF/Microwave engineering";
     homepage = "https://scikit-rf.org/";
-    changelog = "https://github.com/scikit-rf/scikit-rf/releases/tag/v${version}";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ lugarun ];
+    changelog = "https://github.com/scikit-rf/scikit-rf/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ lugarun ];
   };
-}
+})

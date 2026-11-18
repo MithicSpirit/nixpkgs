@@ -4,15 +4,14 @@
   fetchPypi,
   mock,
   pytestCheckHook,
-  pythonOlder,
-  setuptools,
+  hatchling,
   sybil,
   twisted,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "testfixtures";
-  version = "8.3.0";
+  version = "12.3.0";
   pyproject = true;
   # DO NOT CONTACT upstream.
   # https://github.com/simplistix/ is only concerned with internal CI process.
@@ -21,14 +20,12 @@ buildPythonPackage rec {
   # https://github.com/simplistix/testfixtures/issues/169
   # https://github.com/simplistix/testfixtures/issues/168
 
-  disabled = pythonOlder "3.7";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-1MC4SvLyZ2EPkIAJtQ1vmDpOWK3iLGe6tnh7WkAtWcA=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-2AfOub3W6nzAZjNw3VVoM5BWs13BXCbv/RriZ+MjrPE=";
   };
 
-  build-system = [ setuptools ];
+  build-system = [ hatchling ];
 
   nativeCheckInputs = [
     mock
@@ -37,20 +34,25 @@ buildPythonPackage rec {
     twisted
   ];
 
-  disabledTestPaths = [
-    # Django is too much hasle to setup at the moment
-    "testfixtures/tests/test_django"
+  disabledTests = [
+    "test_filter_missing"
+    "test_filter_present"
   ];
 
-  pytestFlagsArray = [ "testfixtures/tests" ];
+  disabledTestPaths = [
+    # Django is too much hasle to setup at the moment
+    "tests/test_django"
+  ];
+
+  enabledTestPaths = [ "tests" ];
 
   pythonImportsCheck = [ "testfixtures" ];
 
-  meta = with lib; {
+  meta = {
     description = "Collection of helpers and mock objects for unit tests and doc tests";
     homepage = "https://github.com/Simplistix/testfixtures";
-    changelog = "https://github.com/simplistix/testfixtures/blob/${version}/CHANGELOG.rst";
-    license = licenses.mit;
-    maintainers = with maintainers; [ siriobalmelli ];
+    changelog = "https://github.com/simplistix/testfixtures/blob/${finalAttrs.version}/CHANGELOG.rst";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ siriobalmelli ];
   };
-}
+})

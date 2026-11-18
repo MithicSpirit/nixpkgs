@@ -1,53 +1,45 @@
 {
   lib,
-  pythonOlder,
   buildPythonPackage,
   fetchFromGitHub,
 
-  # build-system
+  # build
   setuptools,
 
-  # Python Inputs
-  decorator,
+  # runtime dependencies
+  qiskit,
+  scipy,
+  numpy,
   docplex,
   networkx,
-  numpy,
-  qiskit-terra,
-  scipy,
-  # Check Inputs
+
+  # test dependencies
   pytestCheckHook,
   ddt,
   pylatexenc,
   qiskit-aer,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "qiskit-optimization";
-  version = "0.6.1";
+  version = "0.7.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.6";
-
   src = fetchFromGitHub {
-    owner = "qiskit";
-    repo = pname;
-    rev = "refs/tags/${version}";
-    hash = "sha256-kzEuICajlV8mgD0YLhwFJaDQVxYZo9jv3sr/r/P0VG0=";
+    owner = "qiskit-community";
+    repo = "qiskit-optimization";
+    tag = finalAttrs.version;
+    hash = "sha256-aonL08avVZlpGQ/FCZnrsPMvu1lbhRiadzKf/oPndZk=";
   };
-
-  postPatch = ''
-    substituteInPlace requirements.txt --replace "networkx>=2.2,<2.6" "networkx"
-  '';
 
   nativeBuildInputs = [ setuptools ];
 
-  propagatedBuildInputs = [
-    docplex
-    decorator
-    networkx
-    numpy
-    qiskit-terra
+  dependencies = [
+    qiskit
     scipy
+    numpy
+    docplex
+    networkx
   ];
 
   nativeCheckInputs = [
@@ -58,14 +50,13 @@ buildPythonPackage rec {
   ];
 
   pythonImportsCheck = [ "qiskit_optimization" ];
-  pytestFlagsArray = [ "--durations=10" ];
 
-  meta = with lib; {
+  meta = {
     description = "Software for developing quantum computing programs";
     homepage = "https://qiskit.org";
-    downloadPage = "https://github.com/QISKit/qiskit-optimization/releases";
+    downloadPage = "https://github.com/qiskit-community/qiskit-optimization/releases";
     changelog = "https://qiskit.org/documentation/release_notes.html";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ drewrisinger ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ chemonke ];
   };
-}
+})

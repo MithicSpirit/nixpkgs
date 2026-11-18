@@ -1,4 +1,10 @@
-{ lib, rel, buildKodiAddon, fetchzip, addonUpdateScript }:
+{
+  lib,
+  rel,
+  buildKodiAddon,
+  fetchzip,
+  addonUpdateScript,
+}:
 
 buildKodiAddon rec {
   pname = "future";
@@ -7,7 +13,7 @@ buildKodiAddon rec {
 
   src = fetchzip {
     url = "https://mirrors.kodi.tv/addons/${lib.toLower rel}/${namespace}/${namespace}-${version}.zip";
-    sha256 = "sha256-BsDgCAZuJBRBpe6EmfSynhrXS3ktQRZsEwf9CdF0VCg=";
+    hash = "sha256-BsDgCAZuJBRBpe6EmfSynhrXS3ktQRZsEwf9CdF0VCg=";
   };
 
   passthru = {
@@ -17,10 +23,10 @@ buildKodiAddon rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://python-future.org";
     description = "Missing compatibility layer between Python 2 and Python 3";
-    license = licenses.mit;
-    maintainers = teams.kodi.members;
+    license = lib.licenses.mit;
+    teams = [ lib.teams.kodi ];
   };
 }

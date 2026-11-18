@@ -1,7 +1,9 @@
 {
   buildPackages,
+  clippy,
   dbus,
   lib,
+  nixosTests,
   pkg-config,
   rustPlatform,
 }:
@@ -10,15 +12,7 @@ rustPlatform.buildRustPackage {
   pname = "switch-to-configuration";
   version = "0.1.0";
 
-  src = lib.fileset.toSource {
-    root = ./.;
-    fileset = lib.fileset.unions [
-      ./Cargo.lock
-      ./Cargo.toml
-      ./build.rs
-      ./src
-    ];
-  };
+  src = builtins.filterSource (name: _: !(lib.hasSuffix ".nix" name)) ./.;
 
   cargoLock.lockFile = ./Cargo.lock;
 
@@ -26,6 +20,25 @@ rustPlatform.buildRustPackage {
   buildInputs = [ dbus ];
 
   env.SYSTEMD_DBUS_INTERFACE_DIR = "${buildPackages.systemd}/share/dbus-1/interfaces";
+
+  nativeCheckInputs = [
+    clippy
+  ];
+
+  preCheck = ''
+    echo "Running clippy..."
+    cargo clippy -- -Dwarnings
+  '';
+
+  passthru.tests = {
+    inherit (nixosTests)
+      switchTest
+      switchTest-basics
+      switchTest-units
+      switchTest-user
+      activation-template-dropin
+      ;
+  };
 
   meta = {
     description = "NixOS switch-to-configuration program";

@@ -3,22 +3,19 @@
   buildPythonPackage,
   fetchFromGitHub,
   packaging,
-  pythonOlder,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "fastcore";
-  version = "1.7.2";
+  version = "2.2.41";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
   src = fetchFromGitHub {
-    owner = "fastai";
+    owner = "AnswerDotAI";
     repo = "fastcore";
-    rev = "refs/tags/${version}";
-    hash = "sha256-3BOsOd3g+SepFUH2czywyaBnA88qLVyu/8eyHGkuEPY=";
+    tag = finalAttrs.version;
+    hash = "sha256-uz+5+DuGKWH8b78dGQXExn6+I3VK0bQlCM88K0VGyUA=";
   };
 
   build-system = [ setuptools ];
@@ -30,11 +27,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "fastcore" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module for Fast AI";
-    homepage = "https://github.com/fastai/fastcore";
-    changelog = "https://github.com/fastai/fastcore/blob/${version}/CHANGELOG.md";
-    license = with licenses; [ asl20 ];
-    maintainers = with maintainers; [ fab ];
+    homepage = "https://github.com/AnswerDotAI/fastcore";
+    changelog = "https://github.com/AnswerDotAI/fastcore/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

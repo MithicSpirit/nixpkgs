@@ -2,69 +2,60 @@
   lib,
   buildPythonPackage,
   fetchPypi,
-  pythonOlder,
+  fetchpatch,
   click,
   click-log,
-  click-threading,
-  requests-toolbelt,
   requests,
-  atomicwrites,
   hypothesis,
   pytestCheckHook,
-  pytest-subtesthack,
+  pytest-cov-stub,
   setuptools,
   setuptools-scm,
-  wheel,
   aiostream,
   aiohttp-oauthlib,
   aiohttp,
+  tenacity,
   pytest-asyncio,
   trustme,
   aioresponses,
-  vdirsyncer,
-  testers,
+  nixosTests,
+  versionCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "vdirsyncer";
-  version = "0.19.2";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.7";
+  version = "0.21.0";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-/QWM7quCk0WaBGbNmw5Ks7OUYsbgiaDwrDfDB0INgro=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-tqwEC4gNpnWPZcF6NpVy9i5zI76NIc0zDCb6E00bE3M=";
   };
-
-  postPatch = ''
-    sed -i -e '/--cov/d' -e '/--no-cov/d' pyproject.toml
-  '';
-
-  nativeBuildInputs = [
-    setuptools
-    setuptools-scm
-    wheel
-  ];
 
   pythonRelaxDeps = [ "aiostream" ];
 
-  propagatedBuildInputs = [
-    atomicwrites
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
+
+  dependencies = [
     click
     click-log
-    click-threading
     requests
-    requests-toolbelt
     aiostream
     aiohttp
-    aiohttp-oauthlib
+    tenacity
   ];
+
+  optional-dependencies = {
+    google = [ aiohttp-oauthlib ];
+  };
 
   nativeCheckInputs = [
     hypothesis
     pytestCheckHook
-    pytest-subtesthack
+    pytest-cov-stub
     pytest-asyncio
     trustme
     aioresponses
@@ -80,14 +71,20 @@ buildPythonPackage rec {
     "test_verbosity"
   ];
 
-  passthru.tests.version = testers.testVersion { package = vdirsyncer; };
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
 
-  meta = with lib; {
+  passthru.tests = {
+    inherit (nixosTests) vdirsyncer;
+  };
+
+  meta = {
     description = "Synchronize calendars and contacts";
     homepage = "https://github.com/pimutils/vdirsyncer";
-    changelog = "https://github.com/pimutils/vdirsyncer/blob/v${version}/CHANGELOG.rst";
-    license = licenses.bsd3;
-    maintainers = [ ];
+    changelog = "https://github.com/pimutils/vdirsyncer/blob/v${finalAttrs.version}/CHANGELOG.rst";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ stephen-huan ];
     mainProgram = "vdirsyncer";
   };
-}
+})

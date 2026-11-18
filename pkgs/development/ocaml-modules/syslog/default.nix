@@ -1,4 +1,8 @@
-{ lib, fetchFromGitHub, buildDunePackage }:
+{
+  lib,
+  fetchFromGitHub,
+  buildDunePackage,
+}:
 
 buildDunePackage rec {
   pname = "syslog";
@@ -9,14 +13,14 @@ buildDunePackage rec {
   src = fetchFromGitHub {
     owner = "geneanet";
     repo = "ocaml-syslog";
-    rev = "v${version}";
+    tag = "v${version}";
     hash = "sha256-WybNZBPhv4fhjzzb95E+6ZHcZUnfROLlNF3PMBGO9ys=";
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/geneanet/ocaml-syslog";
     description = "Simple wrapper to access the system logger from OCaml";
-    license = licenses.lgpl21Plus;
-    maintainers = [ maintainers.rixed ];
+    license = lib.licenses.lgpl21Plus;
+    maintainers = [ lib.maintainers.rixed ];
   };
 }

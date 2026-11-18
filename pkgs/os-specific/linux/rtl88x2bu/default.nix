@@ -3,43 +3,57 @@
   stdenv,
   fetchFromGitHub,
   kernel,
+  kernelModuleMakeFlags,
   bc,
+  unstableGitUpdater,
 }:
 
 stdenv.mkDerivation {
   pname = "rtl88x2bu";
-  version = "${kernel.version}-unstable-2024-06-09";
+  version = "0-unstable-2026-10-27";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
-    owner = "morrownr";
-    repo = "88x2bu-20210702";
-    rev = "62f3a86a2687fe98bd441e0aff5adf87d95c238a";
-    hash = "sha256-gQWk1nhtT0W2dY5uQitWabBGEDfZpmJAoJg+j2ndO00=";
+    owner = "RinCat";
+    repo = "RTL88x2BU-Linux-Driver";
+    rev = "465ae7cb522a382adc85ea5c31f228af8d172148";
+    hash = "sha256-+UDY9B6ZjwkDNbVoYhpwAiZ+cLd72/LMp/mQ6LJN5+0=";
   };
+
+  prePatch = ''
+    substituteInPlace ./Makefile \
+      --replace-fail /lib/modules/ "${kernel.dev}/lib/modules/" \
+      --replace-fail /sbin/depmod \# \
+      --replace-fail 'install -p -m 644 $(MODULE_NAME).ko  $(MODDESTDIR)' \
+        '$(MAKE) -C $(KSRC) M=$(shell pwd) modules_install'
+  '';
 
   hardeningDisable = [ "pic" ];
 
   nativeBuildInputs = [ bc ] ++ kernel.moduleBuildDependencies;
-  makeFlags = kernel.makeFlags;
-
-  prePatch = ''
-    substituteInPlace ./Makefile \
-      --replace /lib/modules/ "${kernel.dev}/lib/modules/" \
-      --replace /sbin/depmod \# \
-      --replace '$(MODDESTDIR)' "$out/lib/modules/${kernel.modDirVersion}/kernel/net/wireless/"
-  '';
-
-  preInstall = ''
-    mkdir -p "$out/lib/modules/${kernel.modDirVersion}/kernel/net/wireless/"
-  '';
+  makeFlags = kernelModuleMakeFlags ++ [
+    "INSTALL_MOD_PATH=$(out)"
+    "INSTALL_MOD_DIR=kernel/net/wireless"
+    "INSTALL_MOD_STRIP=1"
+    "DEPMOD=true"
+  ];
 
   enableParallelBuilding = true;
 
-  meta = with lib; {
+  passthru.updateScript = unstableGitUpdater {
+    hardcodeZeroVersion = true;
+  };
+
+  meta = {
     description = "Realtek rtl88x2bu driver";
-    homepage = "https://github.com/morrownr/88x2bu-20210702";
-    license = licenses.gpl2Only;
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ otavio ];
+    homepage = "https://github.com/RinCat/RTL88x2BU-Linux-Driver";
+    license = lib.licenses.gpl2Only;
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [
+      otavio
+      claymorwan
+    ];
+
+    broken = kernel.kernelOlder "5.11";
   };
 }

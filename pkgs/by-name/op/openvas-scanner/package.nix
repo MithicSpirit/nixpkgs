@@ -6,6 +6,7 @@
   curl,
   doxygen,
   fetchFromGitHub,
+  file,
   git,
   glib,
   gnutls,
@@ -29,16 +30,18 @@
   util-linux,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "openvas-scanner";
-  version = "23.8.5";
+  version = "23.52.12";
 
   src = fetchFromGitHub {
     owner = "greenbone";
     repo = "openvas-scanner";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-0zVhrnDimmSg5auIT1NQaNRsilASkkXK6tVimoWsXn8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-7rbzJdE1Jjc2qB9mtOnjUbyEiBtZsDkJIOEUxsT+3Qk=";
   };
+
+  env.NIX_CFLAGS_COMPILE = "-Wno-error=discarded-qualifiers -Wno-error=sign-compare";
 
   nativeBuildInputs = [
     cmake
@@ -51,6 +54,7 @@ stdenv.mkDerivation rec {
   buildInputs = [
     bison
     curl
+    file
     glib
     gnutls
     gpgme
@@ -79,13 +83,13 @@ stdenv.mkDerivation rec {
     "-DOPENVAS_FEED_LOCK_PATH=$out/var/lib/openvas/feed-update.lock"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Scanner component for Greenbone Community Edition";
     homepage = "https://github.com/greenbone/openvas-scanner";
-    changelog = "https://github.com/greenbone/openvas-scanner/blob/${src.rev}/changelog.toml";
-    license = licenses.gpl2Only;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/greenbone/openvas-scanner/blob/${finalAttrs.src.rev}/changelog.toml";
+    license = lib.licenses.gpl2Only;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "openvas-scanner";
-    platforms = platforms.all;
+    platforms = lib.platforms.all;
   };
-}
+})

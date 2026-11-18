@@ -2,12 +2,14 @@
   lib,
   buildPythonPackage,
   pythonAtLeast,
-  pythonOlder,
   fetchFromGitHub,
-  setuptools,
+  hatchling,
+  uv-dynamic-versioning,
   aiohttp,
   attrs,
   defusedxml,
+  serialx,
+  pytest-asyncio,
   pytest-aiohttp,
   pytest-mock,
   pytestCheckHook,
@@ -15,43 +17,33 @@
 
 buildPythonPackage rec {
   pname = "arcam-fmj";
-  version = "1.5.2";
+  version = "3.1.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "elupus";
     repo = "arcam_fmj";
-    rev = "refs/tags/${version}";
-    hash = "sha256-hBoUxY+xtW04UPUG2P8A8QQbHxGk0bjcrtXis6nlaGg=";
+    tag = version;
+    hash = "sha256-WQxa5ocs/+p8L7927nPqvOtPUiNd4DxYGbNwbhjsAu0=";
   };
 
-  build-system = [ setuptools ];
+  build-system = [
+    hatchling
+    uv-dynamic-versioning
+  ];
 
   dependencies = [
     aiohttp
     attrs
     defusedxml
+    serialx
   ];
 
   nativeCheckInputs = [
+    pytest-asyncio
     pytest-aiohttp
     pytest-mock
     pytestCheckHook
-  ];
-
-  disabledTests = lib.optionals (pythonAtLeast "3.12") [
-    # stuck on EpollSelector.poll()
-    "test_power"
-    "test_multiple"
-    "test_invalid_command"
-    "test_state"
-    "test_silent_server_request"
-    "test_silent_server_disconnect"
-    "test_heartbeat"
-    "test_cancellation"
-    "test_unsupported_zone"
   ];
 
   pythonImportsCheck = [
@@ -61,12 +53,12 @@ buildPythonPackage rec {
     "arcam.fmj.utils"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library for speaking to Arcam receivers";
     mainProgram = "arcam-fmj";
     homepage = "https://github.com/elupus/arcam_fmj";
-    changelog = "https://github.com/elupus/arcam_fmj/releases/tag/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ dotlambda ];
+    changelog = "https://github.com/elupus/arcam_fmj/releases/tag/${src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ dotlambda ];
   };
 }

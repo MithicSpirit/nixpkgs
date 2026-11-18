@@ -1,23 +1,26 @@
-{ lib
-, fetchurl
-, gdk-pixbuf
-, gobject-introspection
-, gtk3
-, libnotify
-, libsecret
-, networkmanager
-, python3Packages
-, wrapGAppsHook3
+{
+  lib,
+  fetchFromCodeberg,
+  gdk-pixbuf,
+  gobject-introspection,
+  gtk3,
+  libnotify,
+  libsecret,
+  networkmanager,
+  python3Packages,
+  wrapGAppsHook3,
 }:
 
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication (finalAttrs: {
   pname = "eduvpn-client";
-  version = "4.4.0";
-  format = "pyproject";
+  version = "4.7.3";
+  pyproject = true;
 
-  src = fetchurl {
-    url = "https://github.com/eduvpn/python-${pname}/releases/download/${version}/python-${pname}-${version}.tar.xz";
-    hash = "sha256-IHRIjryAIeGcFqz5BMWsE0/gClaSmnwWhjc1f1c69vk=";
+  src = fetchFromCodeberg {
+    owner = "eduVPN";
+    repo = "linux-app";
+    tag = finalAttrs.version;
+    hash = "sha256-bYIN05vhQKTSEXBxTam5pCjyHQZEQE5b+Q++L0H4e5w=";
   };
 
   nativeBuildInputs = [
@@ -33,23 +36,29 @@ python3Packages.buildPythonApplication rec {
     networkmanager
   ];
 
-  propagatedBuildInputs = with python3Packages; [
+  build-system = [ python3Packages.setuptools ];
+
+  dependencies = with python3Packages; [
     eduvpn-common
     pygobject3
-    setuptools
   ];
 
-  checkInputs = with python3Packages; [
-    pytestCheckHook
-  ];
+  postInstall = ''
+    ln -s $out/${python3Packages.python.sitePackages}/eduvpn/data/share/ $out/share
+  '';
 
-  meta = with lib; {
-    changelog = "https://raw.githubusercontent.com/eduvpn/python-eduvpn-client/${version}/CHANGES.md";
+  nativeCheckInputs = [ python3Packages.pytestCheckHook ];
+
+  meta = {
+    changelog = "https://codeberg.org/eduVPN/linux-app/raw/tag/${finalAttrs.version}/CHANGES.md";
     description = "Linux client for eduVPN";
-    homepage = "https://github.com/eduvpn/python-eduvpn-client";
-    license = licenses.gpl3Plus;
+    homepage = "https://codeberg.org/eduVPN/linux-app";
+    license = lib.licenses.gpl3Plus;
     mainProgram = "eduvpn-gui";
-    maintainers = with maintainers; [ benneti jwijenbergh ];
-    platforms = platforms.linux;
+    maintainers = with lib.maintainers; [
+      benneti
+      jwijenbergh
+    ];
+    platforms = lib.platforms.linux;
   };
-}
+})

@@ -1,25 +1,51 @@
-{ lib
-, stdenv
-, fetchFromGitLab
-, autoreconfHook
-, libarchive
-, pkg-config
+{
+  lib,
+  stdenv,
+  argp-standalone,
+  fetchFromGitLab,
+  autoreconfHook,
+  libarchive,
+  pkg-config,
+  versionCheckHook,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "unrar-free";
-  version = "0.3.0";
+  version = "0.4.0";
+
+  __structuredAttrs = true;
+  strictDeps = true;
 
   src = fetchFromGitLab {
     owner = "bgermann";
     repo = "unrar-free";
-    rev = finalAttrs.version;
-    hash = "sha256-hVUEvlaVx2Ai1lYXU6hwiLToEMhCPWlSIh1WrbYKmco=";
+    tag = finalAttrs.version;
+    hash = "sha256-XjcwKkPHptIr+hr+kzXhDUzE62gqTXquv0SzRoWBM14=";
   };
 
-  nativeBuildInputs = [ autoreconfHook pkg-config ];
+  outputs = [
+    "out"
+    "dev"
+  ];
 
-  buildInputs = [ libarchive ];
+  nativeBuildInputs = [
+    autoreconfHook
+    pkg-config
+  ];
+
+  buildInputs = [
+    libarchive
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    argp-standalone
+  ];
+
+  env.NIX_LDFLAGS = lib.optionalString stdenv.hostPlatform.isDarwin "-largp";
+
+  setupHook = ./setup-hook.sh;
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
 
   meta = {
     description = "Free utility to extract files from RAR archives";
@@ -33,10 +59,13 @@ stdenv.mkDerivation (finalAttrs: {
       special care has been taken to ensure it meets most user's needs.
     '';
     homepage = "https://gitlab.com/bgermann/unrar-free";
+    changelog = "https://gitlab.com/bgermann/unrar-free/-/blob/${finalAttrs.version}/ChangeLog";
     license = lib.licenses.gpl2Plus;
-    mainProgram = "unrar";
-    maintainers = with lib.maintainers; [ thiagokokada ];
+    mainProgram = "unrar-free";
+    maintainers = with lib.maintainers; [
+      anthonyroussel
+      thiagokokada
+    ];
     platforms = lib.platforms.unix;
-    broken = stdenv.isDarwin;
   };
 })

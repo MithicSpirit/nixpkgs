@@ -1,69 +1,50 @@
 {
   lib,
-  aiodns,
   aiohttp,
-  async-timeout,
-  attrs,
-  brotlipy,
   buildPythonPackage,
-  faust-cchardet,
   click,
-  colorama,
   fetchFromGitHub,
-  halo,
   poetry-core,
-  pythonOlder,
-  requests,
+  pytest-asyncio,
+  pytest-cov,
+  pytestCheckHook,
   rich,
 }:
 
 buildPythonPackage rec {
   pname = "surepy";
-  version = "0.9.0";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.8";
+  version = "0.10.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "benleb";
-    repo = pname;
-    rev = "refs/tags/v${version}";
-    hash = "sha256-ETgpXSUUsV1xoZjdnL2bzn4HwDjKC2t13yXwf28OBqI=";
+    repo = "surepy";
+    tag = "v${version}";
+    hash = "sha256-b93SqZr+9VKYHoFxkutZ01LsuvtGiDO5FrHIrZvho94=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace 'aiohttp = {extras = ["speedups"], version = "^3.7.4"}' 'aiohttp = {extras = ["speedups"], version = ">=3.7.4"}' \
-      --replace 'async-timeout = "^3.0.1"' 'async-timeout = ">=3.0.1"' \
-      --replace 'rich = "^10.1.0"' 'rich = ">=10.1.0"'
-  '';
+  pythonRelaxDeps = [ "aiohttp" ];
 
-  nativeBuildInputs = [ poetry-core ];
+  build-system = [ poetry-core ];
 
-  propagatedBuildInputs = [
-    aiodns
+  dependencies = [
     aiohttp
-    async-timeout
-    attrs
-    brotlipy
     click
-    colorama
-    faust-cchardet
-    halo
-    requests
     rich
-  ];
+  ]
+  ++ aiohttp.optional-dependencies.speedups;
 
-  # Project has no tests
+  # tests require to configure a token
   doCheck = false;
 
   pythonImportsCheck = [ "surepy" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library to interact with the Sure Petcare API";
-    mainProgram = "surepy";
     homepage = "https://github.com/benleb/surepy";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/benleb/surepy/releases/tag/${src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
+    mainProgram = "surepy";
   };
 }

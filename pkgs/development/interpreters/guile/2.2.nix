@@ -1,44 +1,43 @@
-{ lib
-, stdenv
-, fetchurl
-, fetchpatch
-, boehmgc
-, buildPackages
-, coverageAnalysis ? null
-, gawk
-, gmp
-, libffi
-, libtool
-, libunistring
-, makeWrapper
-, pkg-config
-, pkgsBuildBuild
-, readline
+{
+  lib,
+  stdenv,
+  fetchurl,
+  fetchpatch,
+  boehmgc,
+  buildPackages,
+  coverageAnalysis ? null,
+  gawk,
+  gmp,
+  libffi,
+  libtool,
+  libunistring,
+  makeWrapper,
+  pkg-config,
+  pkgsBuildBuild,
+  readline,
+  guileImportsCheckHook,
 }:
 
-let
-  # Do either a coverage analysis build or a standard build.
-  builder = if coverageAnalysis != null
-            then coverageAnalysis
-            else stdenv.mkDerivation;
-in
-builder rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "guile";
   version = "2.2.7";
 
   src = fetchurl {
-    url = "mirror://gnu/${pname}/${pname}-${version}.tar.xz";
+    url = "mirror://gnu/guile/guile-${finalAttrs.version}.tar.xz";
     sha256 = "013mydzhfswqci6xmyc1ajzd59pfbdak15i0b090nhr9bzm7dxyd";
   };
 
-  outputs = [ "out" "dev" "info" ];
+  outputs = [
+    "out"
+    "dev"
+    "info"
+  ];
   setOutputFlags = false; # $dev gets into the library otherwise
 
   depsBuildBuild = [
     buildPackages.stdenv.cc
   ]
-  ++ lib.optional (stdenv.hostPlatform != stdenv.buildPlatform)
-    pkgsBuildBuild.guile_2_2;
+  ++ lib.optional (stdenv.hostPlatform != stdenv.buildPlatform) pkgsBuildBuild.guile_2_2;
   nativeBuildInputs = [
     makeWrapper
     pkg-config
@@ -60,6 +59,9 @@ builder rec {
     libtool
     libunistring
   ];
+  propagatedNativeBuildInputs = lib.optionals (stdenv.buildPlatform == stdenv.hostPlatform) [
+    (guileImportsCheckHook.override { effectiveVersion = finalAttrs.passthru.effectiveVersion; })
+  ];
 
   # According to Bernhard M. Wiedemann <bwiedemann suse de> on
   # #reproducible-builds on irc.oftc.net, (2020-01-29): they had to
@@ -72,23 +74,24 @@ builder rec {
   patches = [
     # Read the header of the patch to more info
     ./eai_system.patch
-  ] ++ lib.optional (coverageAnalysis != null) ./gcov-file-name.patch
-  ++ lib.optional stdenv.isDarwin
-    (fetchpatch {
-      url = "https://gitlab.gnome.org/GNOME/gtk-osx/raw/52898977f165777ad9ef169f7d4818f2d4c9b731/patches/guile-clocktime.patch";
-      sha256 = "12wvwdna9j8795x59ldryv9d84c1j3qdk2iskw09306idfsis207";
-    });
+  ]
+  ++ lib.optional stdenv.hostPlatform.isDarwin (fetchpatch {
+    url = "https://gitlab.gnome.org/GNOME/gtk-osx/raw/52898977f165777ad9ef169f7d4818f2d4c9b731/patches/guile-clocktime.patch";
+    sha256 = "12wvwdna9j8795x59ldryv9d84c1j3qdk2iskw09306idfsis207";
+  });
 
   # Explicitly link against libgcc_s, to work around the infamous
   # "libgcc_s.so.1 must be installed for pthread_cancel to work".
 
   # don't have "libgcc_s.so.1" on clang
-  LDFLAGS = lib.optionalString
-    (stdenv.cc.isGNU && !stdenv.hostPlatform.isStatic) "-lgcc_s";
+  env = lib.optionalAttrs (stdenv.cc.isGNU && !stdenv.hostPlatform.isStatic) {
+    LDFLAGS = "-lgcc_s";
+  };
 
   configureFlags = [
     "--with-libreadline-prefix=${lib.getDev readline}"
-  ] ++ lib.optionals stdenv.isSunOS [
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isSunOS [
     # Make sure the right <gmp.h> is found, and not the incompatible
     # /usr/include/mp.h from OpenSolaris.  See
     # <https://lists.gnu.org/archive/html/hydra-users/2012-08/msg00000.html>
@@ -115,22 +118,22 @@ builder rec {
             s|-lltdl|-L${libtool.lib}/lib -lltdl|g ;
             s|includedir=$out|includedir=$dev|g
             "
-    '';
+  '';
 
   # make check doesn't work on darwin
   # On Linuxes+Hydra the tests are flaky; feel free to investigate deeper.
   doCheck = false;
-  doInstallCheck = doCheck;
+  doInstallCheck = finalAttrs.doCheck;
 
   setupHook = ./setup-hook-2.2.sh;
 
-  passthru = rec {
-    effectiveVersion = lib.versions.majorMinor version;
-    siteCcacheDir = "lib/guile/${effectiveVersion}/site-ccache";
-    siteDir = "share/guile/site/${effectiveVersion}";
+  passthru = {
+    effectiveVersion = lib.versions.majorMinor finalAttrs.version;
+    siteCcacheDir = "lib/guile/${finalAttrs.passthru.effectiveVersion}/site-ccache";
+    siteDir = "share/guile/site/${finalAttrs.passthru.effectiveVersion}";
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://www.gnu.org/software/guile/";
     description = "Embeddable Scheme implementation";
     longDescription = ''
@@ -141,8 +144,8 @@ builder rec {
       system calls, networking support, multiple threads, dynamic linking, a
       foreign function call interface, and powerful string processing.
     '';
-    license = licenses.lgpl3Plus;
-    maintainers = with maintainers; [ ludo ];
-    platforms = platforms.all;
+    license = lib.licenses.lgpl3Plus;
+    maintainers = with lib.maintainers; [ ludo ];
+    platforms = lib.platforms.all;
   };
-}
+})

@@ -9,13 +9,13 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "kzones";
-  version = "0.8";
+  version = "0.9.2";
 
   src = fetchFromGitHub {
     owner = "gerritdevriese";
     repo = "kzones";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-6cZJEcvynlP9nXyBKRst8Bca0d8Mh51ft7ocRrgCV7w=";
+    hash = "sha256-JtKE66J/yJfKsS7K6j4wYd1C7A1iVcajsQA+vzL18AY=";
   };
 
   nativeBuildInputs = [

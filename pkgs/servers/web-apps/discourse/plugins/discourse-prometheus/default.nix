@@ -1,13 +1,17 @@
-{ lib, mkDiscoursePlugin, fetchFromGitHub }:
+{
+  lib,
+  mkDiscoursePlugin,
+  fetchFromGitHub,
+}:
 
- mkDiscoursePlugin {
+mkDiscoursePlugin {
   bundlerEnvArgs.gemdir = ./.;
   name = "discourse-prometheus";
   src = fetchFromGitHub {
     owner = "discourse";
     repo = "discourse-prometheus";
-    rev = "831dba15659055361966e0c42e6b517b3d7b133b";
-    sha256 = "sha256-b7Du8rENY/gBbkqZSu6b9KHbvklYMkIRl8IGd1W4dHk=";
+    rev = "635f45bf06cc2fba9b5c3e1b0a06398bdd0ec718";
+    sha256 = "sha256-tEfejuJ7cBVXfSiee1kE4EWqYqBWiLtQABE2PKCbZbM=";
   };
 
   patches = [
@@ -17,10 +21,9 @@
     ./spec-import-fix-abi-version.patch
   ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/discourse/discourse-prometheus";
-    maintainers = with maintainers; [ dpausp ];
-    license = licenses.mit;
+    license = lib.licenses.mit;
     description = "Official Discourse Plugin for Prometheus Monitoring";
   };
 }

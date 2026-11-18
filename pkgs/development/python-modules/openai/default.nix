@@ -2,72 +2,99 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pythonOlder,
 
   # build-system
   hatchling,
-  hatch-fancy-pypi-readme,
+
+  # native build inputs
+  bash,
 
   # dependencies
   anyio,
-  cached-property,
-  distro,
-  httpx,
+  httpx2,
   jiter,
   pydantic,
   sniffio,
-  tqdm,
   typing-extensions,
 
+  # optional-dependencies
+  aiohttp,
+  botocore,
   numpy,
   pandas,
-  pandas-stubs,
+  sounddevice,
+  urllib3,
+  websockets,
 
   # check deps
   pytestCheckHook,
-  dirty-equals,
   inline-snapshot,
   pytest-asyncio,
-  pytest-mock,
-  respx,
+  pytest-xdist,
 
+  # optional-dependencies toggle
+  withAiohttp ? false,
+  withDatalib ? false,
+  withRealtime ? false,
+  withVoiceHelpers ? false,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "openai";
-  version = "1.42.0";
+  version = "3.14.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.7.1";
 
   src = fetchFromGitHub {
     owner = "openai";
     repo = "openai-python";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Pj4MmylUB6JGTlueOgtAd9RgOxn3QoPe2Xf1hYnOZ9c=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-7oFIiENP5d/TAVbkjtsjcsuin+qJ/tmjSdzXgu/qsCE=";
   };
+
+  postPatch = ''
+    substituteInPlace pyproject.toml --replace-fail "hatchling==1.27.0" "hatchling"
+    substituteInPlace tests/test_uv_workflows.py --replace-fail "/bin/bash" "${lib.getExe bash}"
+  '';
 
   build-system = [
     hatchling
-    hatch-fancy-pypi-readme
+  ];
+
+  nativeBuildInputs = [
+    bash
   ];
 
   dependencies = [
     anyio
-    distro
-    httpx
+    httpx2
     jiter
     pydantic
     sniffio
-    tqdm
     typing-extensions
-  ] ++ lib.optionals (pythonOlder "3.8") [ cached-property ];
+  ]
+  ++ lib.optionals withAiohttp finalAttrs.passthru.optional-dependencies.aiohttp
+  ++ lib.optionals withDatalib finalAttrs.passthru.optional-dependencies.datalib
+  ++ lib.optionals withRealtime finalAttrs.passthru.optional-dependencies.realtime
+  ++ lib.optionals withVoiceHelpers finalAttrs.passthru.optional-dependencies.voice-helpers;
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
+    aiohttp = [
+      aiohttp
+    ];
+    bedrock = [
+      botocore
+      urllib3
+    ];
     datalib = [
       numpy
       pandas
-      pandas-stubs
+    ];
+    realtime = [
+      websockets
+    ];
+    voice-helpers = [
+      numpy
+      sounddevice
     ];
   };
 
@@ -75,35 +102,34 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [
     pytestCheckHook
-    dirty-equals
     inline-snapshot
     pytest-asyncio
-    pytest-mock
-    respx
-  ];
-
-  pytestFlagsArray = [
-    "-W"
-    "ignore::DeprecationWarning"
-  ];
-
-  disabledTests = [
-    # Tests make network requests
-    "test_copy_build_request"
-    "test_basic_attribute_access_works"
-  ];
+    pytest-xdist
+  ]
+  # including pandas-stubs would cause infinite recursion
+  ++ lib.concatAttrValues (lib.removeAttrs finalAttrs.passthru.optional-dependencies [ "datalib" ]);
 
   disabledTestPaths = [
-    # Test makes network requests
+    # tests makes network requests
     "tests/api_resources"
+    "tests/lib/test_fine_tuning_positional_arguments.py"
+    "tests/test_tls_hostname.py"
+
+    # Tests the pypi build system (not relevant in Nix build environment)
+    "tests/test_uv_workflows.py"
+
+    # flaky
+    "tests/lib/test_azure_redirects.py::test_sync_redirect_origin"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Python client library for the OpenAI API";
     homepage = "https://github.com/openai/openai-python";
-    changelog = "https://github.com/openai/openai-python/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ malo ];
-    mainProgram = "openai";
+    changelog = "https://github.com/openai/openai-python/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
+      malo
+      sarahec
+    ];
   };
-}
+})

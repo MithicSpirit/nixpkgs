@@ -2,71 +2,69 @@
   lib,
   aioquic,
   buildPythonPackage,
-  cacert,
   cryptography,
-  curio,
   fetchPypi,
   h2,
   httpcore,
-  httpx,
+  httpx2,
   idna,
-  hatchling,
+  uv-build,
   pytestCheckHook,
-  pythonOlder,
-  requests,
-  requests-toolbelt,
-  sniffio,
   trio,
 }:
 
 buildPythonPackage rec {
   pname = "dnspython";
-  version = "2.6.1";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.8";
+  version = "2.9.0";
+  pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-6PD5wjp7fLmd7WTmw6bz5wHXj1DFXgArg53qciXP98w=";
+    hash = "sha256-tE3GsY8HqLHFZnahn7/bUglBWwRqnOzihrqvqH/z9/E=";
   };
 
-  nativeBuildInputs = [ hatchling ];
+  build-system = [ uv-build ];
 
-  passthru.optional-dependencies = {
-    DOH = [
-      httpx
+  optional-dependencies = {
+    doh = [
+      httpx2
       h2
-      requests
-      requests-toolbelt
       httpcore
     ];
-    IDNA = [ idna ];
-    DNSSEC = [ cryptography ];
+    idna = [ idna ];
+    dnssec = [ cryptography ];
     trio = [ trio ];
-    curio = [
-      curio
-      sniffio
-    ];
-    DOQ = [ aioquic ];
+    doq = [ aioquic ];
   };
 
-  nativeCheckInputs = [ pytestCheckHook ];
-
-  checkInputs = [ cacert ] ++ passthru.optional-dependencies.DNSSEC;
+  nativeCheckInputs = [
+    pytestCheckHook
+    idna
+  ];
 
   disabledTests = [
     # dns.exception.SyntaxError: protocol not found
     "test_misc_good_WKS_text"
   ];
 
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail 'uv_build>=0.9.21,<0.13.0' "uv_build"
+  '';
+
+  # disable network on all builds (including darwin)
+  # see https://github.com/NixOS/nixpkgs/issues/356803
+  preCheck = ''
+    export NO_INTERNET=1
+  '';
+
   pythonImportsCheck = [ "dns" ];
 
-  meta = with lib; {
+  meta = {
     description = "DNS toolkit for Python";
     homepage = "https://www.dnspython.org";
     changelog = "https://github.com/rthalley/dnspython/blob/v${version}/doc/whatsnew.rst";
-    license = with licenses; [ isc ];
-    maintainers = with maintainers; [ gador ];
+    license = lib.licenses.isc;
+    maintainers = with lib.maintainers; [ gador ];
   };
 }

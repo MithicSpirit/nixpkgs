@@ -1,45 +1,58 @@
-{ stdenv, lib, fetchFromGitHub, kernel, bc, nukeReferences }:
+{
+  stdenv,
+  lib,
+  fetchFromGitHub,
+  kernel,
+  kernelModuleMakeFlags,
+  bc,
+}:
 
 stdenv.mkDerivation rec {
-  name = "rtl8189es-${kernel.version}-${version}";
-  version = "2024-01-21";
+  name = "${pname}-${version}-${kernel.version}";
+  pname = "rtl8189es";
+  version = "0-unstable-2026-11-03";
 
   src = fetchFromGitHub {
     owner = "jwrdegoede";
     repo = "rtl8189ES_linux";
-    rev = "eb51e021b0e1b6f94a4b49da3f4ee5c5fb20b715";
-    sha256 = "sha256-n7Bsstr1H1RvguAyJnVqk/JgEx8WEZWaVg7ZfEYykR0=";
+    rev = "81e7b8939cf2b4ba0a80da6786055ba0dc740362";
+    hash = "sha256-bNZXeXPS3M7inWEGz3OuIt/6hTMvoqSpQob5cHhj0Xw=";
   };
 
-  nativeBuildInputs = [ bc nukeReferences ] ++ kernel.moduleBuildDependencies;
+  nativeBuildInputs = [ bc ] ++ kernel.moduleBuildDependencies;
 
-  hardeningDisable = [ "pic" "format" ];
-
-  prePatch = ''
-    substituteInPlace ./Makefile --replace /lib/modules/ "${kernel.dev}/lib/modules/"
-    substituteInPlace ./Makefile --replace /sbin/depmod \#
-    substituteInPlace ./Makefile --replace '$(MODDESTDIR)' "$out/lib/modules/${kernel.modDirVersion}/kernel/net/wireless/"
-  '';
-
-  makeFlags = kernel.makeFlags ++ [
-    "KSRC=${kernel.dev}/lib/modules/${kernel.modDirVersion}/build"
-    ("CONFIG_PLATFORM_I386_PC=" + (if (stdenv.hostPlatform.isi686 || stdenv.hostPlatform.isx86_64) then "y" else "n"))
-    ("CONFIG_PLATFORM_ARM_RPI=" + (if stdenv.hostPlatform.isAarch then "y" else "n"))
+  hardeningDisable = [
+    "pic"
+    "format"
   ];
 
-  preInstall = ''
-    mkdir -p "$out/lib/modules/${kernel.modDirVersion}/kernel/net/wireless/"
+  prePatch = ''
+    substituteInPlace ./Makefile \
+      --replace-fail /lib/modules/ "${kernel.dev}/lib/modules/" \
+      --replace-fail /sbin/depmod \# \
+      --replace-fail 'install -p -m 644 $(MODULE_NAME).ko  $(MODDESTDIR)' \
+        '$(MAKE) -C $(KSRC) M=$(shell pwd) modules_install'
   '';
 
-  postInstall = ''
-    nuke-refs $out/lib/modules/*/kernel/net/wireless/*.ko
-  '';
+  enableParallelBuilding = true;
 
-  meta = with lib; {
+  makeFlags = kernelModuleMakeFlags ++ [
+    "KSRC=${kernel.dev}/lib/modules/${kernel.modDirVersion}/build"
+    (
+      "CONFIG_PLATFORM_I386_PC="
+      + (if (stdenv.hostPlatform.isi686 || stdenv.hostPlatform.isx86_64) then "y" else "n")
+    )
+    ("CONFIG_PLATFORM_ARM_RPI=" + (if stdenv.hostPlatform.isAarch then "y" else "n"))
+    "INSTALL_MOD_PATH=$(out)"
+    "INSTALL_MOD_DIR=kernel/net/wireless"
+    "DEPMOD=true"
+  ];
+
+  meta = {
     description = "Driver for Realtek rtl8189es";
     homepage = "https://github.com/jwrdegoede/rtl8189ES_linux";
-    license = licenses.gpl2Only;
-    platforms = platforms.linux;
-    maintainers = with maintainers; [ danielfullmer ];
+    license = lib.licenses.gpl2Only;
+    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [ danielfullmer ];
   };
 }

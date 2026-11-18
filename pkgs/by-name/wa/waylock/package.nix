@@ -2,7 +2,7 @@
   lib,
   stdenv,
   callPackage,
-  fetchFromGitea,
+  fetchFromCodeberg,
   libxkbcommon,
   pam,
   pkg-config,
@@ -10,21 +10,25 @@
   wayland,
   wayland-scanner,
   wayland-protocols,
-  zig_0_12,
+  zig_0_17,
 }:
-
+let
+  zig = zig_0_17;
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "waylock";
-  version = "1.1.0";
+  version = "1.7.0";
 
-  src = fetchFromGitea {
-    domain = "codeberg.org";
+  src = fetchFromCodeberg {
     owner = "ifreund";
     repo = "waylock";
-    rev = "v${finalAttrs.version}";
-    fetchSubmodules = true;
-    hash = "sha256-U8xJucLpmeLdmSUc+AVSH/mlv6UOXsxotJPTMK7lnkA=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-0KSiAGsvdQdod5WviQe4gxKxV/fHx+IJ1oF6wZa2qA0=";
   };
+
+  postPatch = ''
+    substituteInPlace build.zig --replace-fail "1.4.0-dev" "${finalAttrs.version}"
+  '';
 
   deps = callPackage ./build.zig.zon.nix { };
 
@@ -32,7 +36,7 @@ stdenv.mkDerivation (finalAttrs: {
     pkg-config
     scdoc
     wayland-scanner
-    zig_0_12.hook
+    zig
   ];
 
   buildInputs = [
@@ -52,7 +56,7 @@ stdenv.mkDerivation (finalAttrs: {
     substituteInPlace pam.d/waylock --replace-fail "system-auth" "login"
   '';
 
-  passthru.updateScript = ./update.nu;
+  passthru.updateScript = ./update.sh;
 
   meta = {
     homepage = "https://codeberg.org/ifreund/waylock";
@@ -60,7 +64,6 @@ stdenv.mkDerivation (finalAttrs: {
     description = "Small screenlocker for Wayland compositors";
     license = lib.licenses.isc;
     maintainers = with lib.maintainers; [
-      adamcstephens
       jordanisaacs
     ];
     mainProgram = "waylock";

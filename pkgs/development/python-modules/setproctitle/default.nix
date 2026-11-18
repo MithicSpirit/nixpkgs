@@ -1,35 +1,44 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
-  fetchPypi,
+  fetchFromGitHub,
   setuptools,
   pytestCheckHook,
+  procps,
+  stdenv,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "setproctitle";
-  version = "1.3.3";
+  version = "1.3.8";
   pyproject = true;
 
-  disabled = pythonOlder "3.6";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-yRPhUefqAVZ4N/8DeiPKh0AZKIAZi3+7kLFtGBYHyq4=";
+  src = fetchFromGitHub {
+    owner = "dvarrazzo";
+    repo = "py-setproctitle";
+    tag = "version-${finalAttrs.version}";
+    hash = "sha256-PGTaK9/Wwd5Lp2tZCVSrnPkfVwWvJIq8rWNQ83OH/eI=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  nativeCheckInputs = [
+    pytestCheckHook
+    procps
+  ];
 
-  # tries to compile programs with dependencies that aren't available
-  disabledTestPaths = [ "tests/setproctitle_test.py" ];
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
+    # Setting the process title fails on macOS in the Nix builder environment (regardless of sandboxing)
+    "test_setproctitle_darwin"
+  ];
 
-  meta = with lib; {
+  pythonImportsCheck = [ "setproctitle" ];
+
+  meta = {
     description = "Allows a process to change its title (as displayed by system tools such as ps and top)";
     homepage = "https://github.com/dvarrazzo/py-setproctitle";
-    license = licenses.bsdOriginal;
-    maintainers = with maintainers; [ exi ];
+    changelog = "https://github.com/dvarrazzo/py-setproctitle/blob/${finalAttrs.src.tag}/HISTORY.rst";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ exi ];
   };
-}
+})

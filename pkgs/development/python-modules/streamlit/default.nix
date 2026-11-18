@@ -2,13 +2,15 @@
   lib,
   stdenv,
   altair,
+  anyio,
   blinker,
   buildPythonPackage,
   cachetools,
   click,
   fetchPypi,
   gitpython,
-  importlib-metadata,
+  httptools,
+  itsdangerous,
   numpy,
   packaging,
   pandas,
@@ -16,49 +18,47 @@
   protobuf,
   pyarrow,
   pydeck,
-  pympler,
-  python-dateutil,
-  pythonOlder,
-  setuptools,
+  python-multipart,
   requests,
   rich,
+  setuptools,
+  starlette,
   tenacity,
   toml,
   tornado,
   typing-extensions,
-  tzlocal,
-  validators,
+  uvicorn,
   watchdog,
+  websockets,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "streamlit";
-  version = "1.37.1";
+  version = "1.67.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-vH44E9lKOd2lbxVnhDfrN4MJc8YB6OV08iJae/GI6lo=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-WBWdrhGZISJQv6X7ugdAmWEpADJmwsN9RlFR73bEjzs=";
   };
 
-  build-system = [
-    setuptools
-  ];
+  build-system = [ setuptools ];
 
   pythonRelaxDeps = [
     "packaging"
-    "tenacity"
+    "protobuf"
+    "websockets"
   ];
 
   dependencies = [
     altair
+    anyio
     blinker
     cachetools
     click
     gitpython
-    importlib-metadata
+    httptools
+    itsdangerous
     numpy
     packaging
     pandas
@@ -66,36 +66,33 @@ buildPythonPackage rec {
     protobuf
     pyarrow
     pydeck
-    pympler
-    python-dateutil
+    python-multipart
     requests
     rich
+    starlette
     tenacity
     toml
     tornado
     typing-extensions
-    tzlocal
-    validators
-  ] ++ lib.optionals (!stdenv.isDarwin) [ watchdog ];
+    uvicorn
+    websockets
+  ]
+  ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [ watchdog ];
 
   # pypi package does not include the tests, but cannot be built with fetchFromGitHub
   doCheck = false;
 
   pythonImportsCheck = [ "streamlit" ];
 
-  postInstall = ''
-    rm $out/bin/streamlit.cmd # remove windows helper
-  '';
-
-  meta = with lib; {
+  meta = {
     homepage = "https://streamlit.io/";
-    changelog = "https://github.com/streamlit/streamlit/releases/tag/${version}";
+    changelog = "https://github.com/streamlit/streamlit/releases/tag/${finalAttrs.version}";
     description = "Fastest way to build custom ML tools";
     mainProgram = "streamlit";
-    maintainers = with maintainers; [
+    maintainers = with lib.maintainers; [
       natsukium
       yrashk
     ];
-    license = licenses.asl20;
+    license = lib.licenses.asl20;
   };
-}
+})

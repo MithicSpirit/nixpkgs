@@ -16,7 +16,7 @@ buildPythonPackage rec {
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "0bvz6fwdi55rkrz3f50zsy35gvvwhlppki2yml5bj5ffy9d499vx";
+    hash = "sha256-fadEWvLOFbkKrV7EeS+FfO9XhtcfFDd+nrmU2Lgzfy8=";
   };
 
   postPatch = ''
@@ -36,6 +36,6 @@ buildPythonPackage rec {
     license = lib.licenses.gpl2Plus;
     maintainers = with lib.maintainers; [ jluttine ];
     # Tests fail on i686: https://hydra.nixos.org/build/52896671/nixlog/4
-    broken = stdenv.isi686;
+    broken = stdenv.hostPlatform.isi686;
   };
 }

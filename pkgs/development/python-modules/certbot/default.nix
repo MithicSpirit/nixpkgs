@@ -1,5 +1,6 @@
 {
   lib,
+  stdenv,
   buildPythonPackage,
   python,
   runCommand,
@@ -12,32 +13,32 @@
   josepy,
   parsedatetime,
   pyrfc3339,
-  pytz,
   setuptools,
   dialog,
   gnureadline,
   pytest-xdist,
   pytestCheckHook,
   python-dateutil,
+  writeShellScriptBin,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "certbot";
-  version = "2.11.0";
+  version = "5.10.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "certbot";
     repo = "certbot";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Qee7lUjgliG5fmUWWPm3MzpGJHUF/DXZ08UA6kkWjjk=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-+XPoVRF/1RgeETGHNIzgrojMAl2JWrJQ4B+EZn3u/40=";
   };
 
-  sourceRoot = "${src.name}/${pname}";
+  sourceRoot = "${finalAttrs.src.name}/certbot";
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     configargparse
     acme
     configobj
@@ -46,8 +47,6 @@ buildPythonPackage rec {
     josepy
     parsedatetime
     pyrfc3339
-    pytz
-    setuptools # for pkg_resources
   ];
 
   buildInputs = [
@@ -59,11 +58,31 @@ buildPythonPackage rec {
     python-dateutil
     pytestCheckHook
     pytest-xdist
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    (writeShellScriptBin "sw_vers" ''
+      echo 'ProductVersion: 13.0'
+    '')
   ];
 
-  pytestFlagsArray = [ "-o cache_dir=$(mktemp -d)" ];
+  pytestFlags = [
+    "-pno:cacheprovider"
+    "-Wignore::DeprecationWarning"
+  ];
 
-  makeWrapperArgs = [ "--prefix PATH : ${dialog}/bin" ];
+  disabledTests = [
+    # network access
+    "test_lock_order"
+  ];
+
+  __darwinAllowLocalNetworking = true;
+
+  makeWrapperArgs = [
+    "--prefix"
+    "PATH"
+    ":"
+    "${dialog}/bin"
+  ];
 
   # certbot.withPlugins has a similar calling convention as python*.withPackages
   # it gets invoked with a lambda, and invokes that lambda with the python package set matching certbot's:
@@ -73,19 +92,23 @@ buildPythonPackage rec {
     let
       pythonEnv = python.withPackages f;
     in
-    runCommand "certbot-with-plugins" { } ''
-      mkdir -p $out/bin
-      cd $out/bin
-      ln -s ${pythonEnv}/bin/certbot
-    '';
+    runCommand "certbot-with-plugins-${finalAttrs.version}"
+      {
+        inherit (finalAttrs) pname version meta;
+      }
+      ''
+        mkdir -p $out/bin
+        cd $out/bin
+        ln -s ${pythonEnv}/bin/certbot
+      '';
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/certbot/certbot";
-    changelog = "https://github.com/certbot/certbot/blob/${src.rev}/certbot/CHANGELOG.md";
+    changelog = "https://github.com/certbot/certbot/blob/${finalAttrs.src.tag}/certbot/CHANGELOG.md";
     description = "ACME client that can obtain certs and extensibly update server configurations";
-    platforms = platforms.unix;
+    platforms = lib.platforms.unix;
     mainProgram = "certbot";
-    maintainers = with maintainers; [ domenkozar ];
-    license = with licenses; [ asl20 ];
+    maintainers = with lib.maintainers; [ miniharinn ];
+    license = lib.licenses.asl20;
   };
-}
+})

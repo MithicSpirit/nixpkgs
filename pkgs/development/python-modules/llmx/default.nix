@@ -2,34 +2,35 @@
   lib,
   buildPythonPackage,
   fetchPypi,
+
   setuptools-scm,
   setuptools,
-  pythonOlder,
-  pydantic,
-  openai,
-  tiktoken,
-  diskcache,
-  cohere,
-  google-auth,
-  typer,
-  pyyaml,
-  transformers,
-  fastapi,
-  uvicorn,
+
   accelerate,
+  anthropic,
+  bitsandbytes,
+  cohere,
+  diskcache,
+  fastapi,
+  google-auth,
+  openai,
+  pydantic,
+  pyyaml,
+  tiktoken,
+  transformers,
+  typer,
+  uvicorn,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "llmx";
   version = "0.0.21a0";
   pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
+    inherit (finalAttrs) pname version;
     hash = "sha256-OEo6wIaDTktzAsP0rOmhxjFSHygTR/EpcRI6AXsu+6M=";
   };
-
-  disabled = pythonOlder "3.9";
 
   build-system = [
     setuptools
@@ -37,25 +38,28 @@ buildPythonPackage rec {
   ];
 
   dependencies = [
-    pydantic
-    openai
-    tiktoken
-    diskcache
+    anthropic
     cohere
+    diskcache
     google-auth
-    typer
+    openai
+    pydantic
     pyyaml
+    tiktoken
+    typer
   ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     web = [
       fastapi
       uvicorn
     ];
     transformers = [
       accelerate
+      bitsandbytes
       transformers
-    ] ++ transformers.optional-dependencies.torch;
+    ]
+    ++ transformers.optional-dependencies.torch;
   };
 
   # Tests of llmx try to access openai, google, etc.
@@ -63,11 +67,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "llmx" ];
 
-  meta = with lib; {
+  meta = {
     description = "Library for LLM Text Generation";
     homepage = "https://github.com/victordibia/llmx";
     mainProgram = "llmx";
-    license = licenses.mit;
-    maintainers = with maintainers; [ moraxyc ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ moraxyc ];
   };
-}
+})

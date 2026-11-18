@@ -1,18 +1,21 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
-
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   cfg = config.services.litestream;
-  settingsFormat = pkgs.formats.yaml {};
+  settingsFormat = pkgs.formats.yaml { };
+  settingsFile = settingsFormat.generate "litestream-config.yaml" cfg.settings;
 in
 {
   options.services.litestream = {
-    enable = mkEnableOption "litestream";
+    enable = lib.mkEnableOption "litestream";
 
-    package = mkPackageOption pkgs "litestream" { };
+    package = lib.mkPackageOption pkgs "litestream" { };
 
-    settings = mkOption {
+    settings = lib.mkOption {
       description = ''
         See the [documentation](https://litestream.io/reference/config/).
       '';
@@ -31,8 +34,8 @@ in
       };
     };
 
-    environmentFile = mkOption {
-      type = types.nullOr types.path;
+    environmentFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
       default = null;
       example = "/run/secrets/litestream";
       description = ''
@@ -61,20 +64,17 @@ in
     };
   };
 
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable {
     environment.systemPackages = [ cfg.package ];
-    environment.etc = {
-      "litestream.yml" = {
-        source = settingsFormat.generate "litestream-config.yaml" cfg.settings;
-      };
-    };
+    environment.etc."litestream.yml".source = settingsFile;
 
     systemd.services.litestream = {
       description = "Litestream";
       wantedBy = [ "multi-user.target" ];
-      after = [ "networking.target" ];
+      after = [ "network.target" ];
+      restartTriggers = [ settingsFile ];
       serviceConfig = {
-        EnvironmentFile = mkIf (cfg.environmentFile != null) cfg.environmentFile;
+        EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
         ExecStart = "${cfg.package}/bin/litestream replicate";
         Restart = "always";
         User = "litestream";
@@ -87,7 +87,7 @@ in
       group = "litestream";
       isSystemUser = true;
     };
-    users.groups.litestream = {};
+    users.groups.litestream = { };
   };
 
   meta.doc = ./default.md;

@@ -1,38 +1,38 @@
 {
+  lib,
   aiohttp,
   buildPythonPackage,
-  fetchPypi,
-  isPy3k,
-  lib,
-  python,
-  requests,
+  fetchFromGitHub,
+  pytestCheckHook,
+  setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "agent-py";
-  version = "0.0.23";
-  format = "setuptools";
+  version = "0.0.25";
+  pyproject = true;
 
-  disabled = !isPy3k;
-
-  src = fetchPypi {
-    inherit pname version;
-    sha256 = "1hx88m8b8kfb2gm6hii5ldjv7hlvqf99cz0w2vj0d0grrxcbn5cz";
+  src = fetchFromGitHub {
+    owner = "ispysoftware";
+    repo = "agent-py";
+    tag = "agent-py.${version}";
+    hash = "sha256-G7rmOl2H/xpOSVmjvZXLm8WBqn+aCgOzqz/yKy2huMY=";
   };
 
-  propagatedBuildInputs = [
-    requests
-    aiohttp
-  ];
+  build-system = [ setuptools ];
 
-  checkPhase = ''
-    ${python.interpreter} tests/test_agent.py
-  '';
+  dependencies = [ aiohttp ];
 
-  meta = with lib; {
+  doCheck = false; # only test is outdated
+
+  nativeCheckInputs = [ pytestCheckHook ];
+
+  pythonImportsCheck = [ "agent" ];
+
+  meta = {
     description = "Python wrapper around the Agent REST API";
     homepage = "https://github.com/ispysoftware/agent-py";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ jamiemagee ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ jamiemagee ];
   };
 }

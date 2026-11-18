@@ -3,34 +3,40 @@
   aiohttp,
   buildPythonPackage,
   fetchPypi,
-  pythonOlder,
+  setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pynina";
-  version = "0.3.3";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  version = "1.0.4";
+  pyproject = true;
 
   src = fetchPypi {
-    pname = "PyNINA";
-    inherit version;
-    hash = "sha256-6HJ78tKl6If/ezwOrGl3VEYO4eMh/6cZq2j2AMBr0I8=";
+    inherit (finalAttrs) pname version;
+    hash = "sha256-c9J9g6oCxR7YdeGekO2fjTO/WMunPZ6rA9sX8YEpIrM=";
   };
 
-  propagatedBuildInputs = [ aiohttp ];
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "setuptools >= 84.0.0" setuptools
+  '';
+
+  pythonRelaxDeps = [ "aiohttp" ];
+
+  build-system = [ setuptools ];
+
+  dependencies = [ aiohttp ];
 
   # Project has no tests
   doCheck = false;
 
   pythonImportsCheck = [ "pynina" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python API wrapper to retrieve warnings from the german NINA app";
     homepage = "https://gitlab.com/DeerMaximum/pynina";
-    changelog = "https://gitlab.com/DeerMaximum/pynina/-/releases/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://gitlab.com/DeerMaximum/pynina/-/releases/v${finalAttrs.version}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

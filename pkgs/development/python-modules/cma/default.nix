@@ -2,42 +2,63 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  numpy,
-  python,
-  pythonOlder,
+
+  # build-system
   setuptools,
+
+  # dependencies
+  numpy,
+
+  # optional-dependencies
+  matplotlib,
+  scipy,
+
+  # tests
+  python,
+  writableTmpDirAsHomeHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "cma";
-  version = "3.4.0";
+  version = "4.5.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.7";
 
   src = fetchFromGitHub {
     owner = "CMA-ES";
     repo = "pycma";
-    rev = "refs/tags/r${version}";
-    hash = "sha256-wbAH0A5vpnnXqt7TTvLDPnCp6M3QjeCwD6l6LoTVu1w=";
+    tag = "r${finalAttrs.version}";
+    hash = "sha256-54atJuPFTczLN4piSLh84+W0GKJ1u/LgurZZpRrQZe4=";
   };
 
   build-system = [ setuptools ];
 
   dependencies = [ numpy ];
 
-  checkPhase = ''
-    # At least one doctest fails, thus only limited amount of files is tested
-    ${python.executable} -m cma.test interfaces.py purecma.py logger.py optimization_tools.py transformations.py
-  '';
+  optional-dependencies = {
+    plotting = [ matplotlib ];
+    statistical-tests = [ scipy ];
+  };
 
   pythonImportsCheck = [ "cma" ];
 
-  meta = with lib; {
+  nativeCheckInputs = [
+    writableTmpDirAsHomeHook
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
+
+  checkPhase = ''
+    runHook preCheck
+
+    ${python.executable} -m cma.test
+
+    runHook postCheck
+  '';
+
+  meta = {
     description = "Library for Covariance Matrix Adaptation Evolution Strategy for non-linear numerical optimization";
     homepage = "https://github.com/CMA-ES/pycma";
-    changelog = "https://github.com/CMA-ES/pycma/releases/tag/r${version}";
-    license = licenses.bsd3;
+    changelog = "https://github.com/CMA-ES/pycma/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.bsd3;
     maintainers = [ ];
   };
-}
+})

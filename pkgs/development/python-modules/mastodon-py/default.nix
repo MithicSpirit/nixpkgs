@@ -5,75 +5,67 @@
   blurhash,
   cryptography,
   decorator,
+  graphemeu,
   http-ece,
   python-dateutil,
   python-magic,
   requests,
-  six,
   pytestCheckHook,
+  pytest-cov-stub,
   pytest-mock,
   pytest-vcr,
   requests-mock,
   setuptools,
+  websocket-client,
 }:
 
 buildPythonPackage rec {
   pname = "mastodon-py";
-  version = "1.8.1";
+  version = "2.3.3";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "halcy";
     repo = "Mastodon.py";
-    rev = "refs/tags/${version}";
-    hash = "sha256-r0AAUjd2MBfZANEpyztMNyaQTlGWvWoUVjJNO1eL218=";
+    tag = "v${version}";
+    hash = "sha256-c0AHqqb9nBKKccoEPx/jsUm4szGP/CEdBYQbFEAdEF4=";
   };
 
-  postPatch = ''
-    sed -i '/addopts/d' setup.cfg
-  '';
+  build-system = [ setuptools ];
 
-  nativeBuildInputs = [ setuptools ];
-
-  propagatedBuildInputs = [
-    blurhash
+  dependencies = [
     decorator
     python-dateutil
-    python-magic
     requests
-    six
   ];
 
-  passthru.optional-dependencies = {
+  optional-dependencies = {
     blurhash = [ blurhash ];
+    grapheme = [ graphemeu ];
+    magic = [ python-magic ];
     webpush = [
       http-ece
       cryptography
     ];
+    websocket_streaming = [ websocket-client ];
   };
 
   nativeCheckInputs = [
     pytestCheckHook
+    pytest-cov-stub
     pytest-mock
     pytest-vcr
     requests-mock
-    setuptools
-  ] ++ lib.flatten (builtins.attrValues passthru.optional-dependencies);
-
-  disabledTests = [
-    "test_notifications_dismiss_pre_2_9_2"
-    "test_status_card_pre_2_9_2"
-    "test_stream_user_direct"
-    "test_stream_user_local"
-  ];
+  ]
+  ++ lib.concatAttrValues optional-dependencies;
 
   pythonImportsCheck = [ "mastodon" ];
 
-  meta = with lib; {
-    changelog = "https://github.com/halcy/Mastodon.py/blob/${src.rev}/CHANGELOG.rst";
+  meta = {
+    changelog = "https://github.com/halcy/Mastodon.py/blob/${src.tag}/CHANGELOG.rst";
     description = "Python wrapper for the Mastodon API";
     homepage = "https://github.com/halcy/Mastodon.py";
-    license = licenses.mit;
-    maintainers = with maintainers; [ dotlambda ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ dotlambda ];
   };
 }

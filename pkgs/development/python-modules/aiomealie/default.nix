@@ -1,61 +1,62 @@
 {
   lib,
   aiohttp,
-  aioresponses,
+  aiointercept,
+  awesomeversion,
   buildPythonPackage,
   fetchFromGitHub,
   mashumaro,
   orjson,
-  poetry-core,
+  hatchling,
+  pyprojectVersionPatchHook,
   pytest-asyncio,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
   syrupy,
   yarl,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aiomealie";
-  version = "0.8.1";
+  version = "2.1.3";
   pyproject = true;
-
-  disabled = pythonOlder "3.11";
 
   src = fetchFromGitHub {
     owner = "joostlek";
     repo = "python-mealie";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-1n/AMXEoJJ/jftYzYHvo+jTSasNEqnFVAYqlipHFmGc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-yf/16+Yi7Wvafl9mH5ah6SYbMtrhIXsn/4ajyjidR+M=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "--cov" ""
-  '';
+  build-system = [ hatchling ];
 
-  build-system = [ poetry-core ];
+  nativeBuildInputs = [
+    pyprojectVersionPatchHook
+  ];
 
   dependencies = [
     aiohttp
+    awesomeversion
     mashumaro
     orjson
     yarl
   ];
 
   nativeCheckInputs = [
-    aioresponses
+    aiointercept
     pytest-asyncio
+    pytest-cov-stub
     pytestCheckHook
     syrupy
   ];
 
   pythonImportsCheck = [ "aiomealie" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module to interact with Mealie";
     homepage = "https://github.com/joostlek/python-mealie";
-    changelog = "https://github.com/joostlek/python-mealie/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/joostlek/python-mealie/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

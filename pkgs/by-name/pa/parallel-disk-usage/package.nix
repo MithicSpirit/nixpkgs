@@ -1,25 +1,47 @@
-{ lib
-, fetchFromGitHub
-, rustPlatform
+{
+  lib,
+  fetchFromGitHub,
+  rustPlatform,
+  installShellFiles,
+  versionCheckHook,
 }:
-rustPlatform.buildRustPackage rec {
+
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "parallel-disk-usage";
-  version = "0.9.3";
+  version = "0.24.0";
 
   src = fetchFromGitHub {
     owner = "KSXGitHub";
-    repo = pname;
-    rev = version;
-    hash = "sha256-2w+A2ZpmLPBSj9odGh8QWAadE6e2XPJmBZwl6ZT6bSc=";
+    repo = "parallel-disk-usage";
+    tag = finalAttrs.version;
+    hash = "sha256-fxEiZGdBUYmPcTPDpcwlB8xYcA/zC+HBspNAUpg0Rgg=";
   };
 
-  cargoHash = "sha256-WwWNAF0iKFZJ8anvXUJwXo8xw5pCNVO7RcAMyA1R4wE=";
+  cargoHash = "sha256-goPN4O2HfSqyzfvJ8c6NqHSA3+S54tE8SgiYoAaeUW4=";
 
-  meta = with lib; {
+  nativeBuildInputs = [ installShellFiles ];
+
+  checkFlags = [
+    "--skip=cross_device_excludes_mount"
+  ];
+
+  postInstall = ''
+    installManPage exports/pdu.1
+
+    installShellCompletion --cmd pdu \
+      --bash exports/completion.bash \
+      --fish exports/completion.fish \
+      --zsh exports/completion.zsh
+  '';
+
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
+
+  meta = {
     description = "Highly parallelized, blazing fast directory tree analyzer";
     homepage = "https://github.com/KSXGitHub/parallel-disk-usage";
-    license = licenses.asl20;
-    maintainers = [maintainers.peret];
+    license = lib.licenses.asl20;
+    maintainers = [ lib.maintainers.peret ];
     mainProgram = "pdu";
   };
-}
+})

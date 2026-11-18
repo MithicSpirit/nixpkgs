@@ -1,16 +1,25 @@
-{ stdenv, go, docker, nixosTests }:
+{
+  lib,
+  stdenv,
+  go,
+  docker,
+  nixosTests,
+}:
 
 stdenv.mkDerivation {
-  name = "tarsum";
+  pname = "tarsum";
+  inherit (docker) version;
 
   nativeBuildInputs = [ go ];
   disallowedReferences = [ go ];
 
   dontUnpack = true;
 
-  CGO_ENABLED = 0;
-  GOFLAGS = "-trimpath";
-  GO111MODULE = "off";
+  env = {
+    CGO_ENABLED = 0;
+    GOFLAGS = "-trimpath";
+    GO111MODULE = "off";
+  };
 
   buildPhase = ''
     runHook preBuild
@@ -19,8 +28,9 @@ stdenv.mkDerivation {
     cp ${./tarsum.go} tarsum.go
     export GOPATH=$(pwd)
     export GOCACHE="$TMPDIR/go-cache"
-    mkdir -p src/github.com/docker/docker/pkg
-    ln -sT ${docker.moby-src}/pkg/tarsum src/github.com/docker/docker/pkg/tarsum
+    mkdir -p src/github.com/docker/docker/daemon/builder/remotecontext
+    # We need to drop the internal as otherwise go refuses to use it.
+    ln -sT ${docker.moby-src}/daemon/builder/remotecontext/internal/tarsum src/github.com/docker/docker/daemon/builder/remotecontext/tarsum
     go build
     runHook postBuild
   '';
@@ -38,6 +48,12 @@ stdenv.mkDerivation {
     };
   };
 
-  meta.platforms = go.meta.platforms;
-  meta.mainProgram = "tarsum";
+  meta = {
+    platforms = go.meta.platforms;
+    mainProgram = "tarsum";
+    license = with lib.licenses; [
+      asl20 # upstream
+      mit # nixpkgs wrapper
+    ];
+  };
 }

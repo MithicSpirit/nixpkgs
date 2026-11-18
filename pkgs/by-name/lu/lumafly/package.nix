@@ -5,48 +5,67 @@
   dotnetCorePackages,
   zlib,
   icu,
-  fontconfig,
   openssl,
-  libX11,
-  libICE,
-  libSM,
   icoutils,
   copyDesktopItems,
   makeDesktopItem,
+  nix-update-script,
+  unzip,
+  python3,
+  stdenv,
 }:
 buildDotnetModule rec {
   pname = "lumafly";
-  version = "3.2.0.0";
+  version = "3.3.0.0";
 
   src = fetchFromGitHub {
     owner = "TheMulhima";
     repo = "lumafly";
-    rev = "v${version}";
-    hash = "sha256-oDSM5Ev9SCjbvCgDZcpzm2bVnzG04yy/WaSwJyh0b18=";
+    tag = "v${version}";
+    hash = "sha256-GVPMAwxbq9XlKjMKd9G5yUol42f+6lSyHukN7NMCVDA=";
   };
+
+  patches = [ ./no_timestamp_check.patch ];
+
+  # Use .NET 9.0 since 7.0 is EOL
+  dotnetFlags = [ "-p:TargetFramework=net9.0" ];
 
   projectFile = "Lumafly/Lumafly.csproj";
 
-  nugetDeps = ./deps.nix;
+  nugetDeps = ./deps.json;
 
-  dotnet-sdk = dotnetCorePackages.sdk_7_0;
+  dotnet-sdk = dotnetCorePackages.sdk_9_0;
+  dotnet-runtime = dotnetCorePackages.sdk_9_0;
 
   selfContainedBuild = true;
+
+  passthru.updateScript = nix-update-script { };
 
   runtimeDeps = [
     zlib
     icu
-    fontconfig
     openssl
-    libX11
-    libICE
-    libSM
   ];
 
   nativeBuildInputs = [
     icoutils
     copyDesktopItems
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    python3
+    unzip
   ];
+
+  executables = [ "Lumafly" ];
+
+  postInstall = lib.optionalString stdenv.hostPlatform.isDarwin ''
+    (
+      cd Scripts
+      python3 make_mac_app.py Lumafly.app $out/lib/${pname} ../out
+    )
+    mkdir -p $out/Applications
+    unzip -o out/mac.zip -d $out/Applications
+  '';
 
   postFixup = ''
     # Icon for the desktop file
@@ -54,22 +73,24 @@ buildDotnetModule rec {
     install -D Lumafly_1_32x32x32.png $out/share/icons/hicolor/32x32/apps/lumafly.png
   '';
 
-  desktopItems = [(makeDesktopItem {
-    desktopName = "Lumafly";
-    name = "lumafly";
-    exec = "Lumafly";
-    icon = "lumafly";
-    comment = meta.description;
-    type = "Application";
-    categories = [ "Game" ];
-  })];
+  desktopItems = [
+    (makeDesktopItem {
+      desktopName = "Lumafly";
+      name = "lumafly";
+      exec = "Lumafly";
+      icon = "lumafly";
+      comment = "A cross platform mod manager for Hollow Knight written in Avalonia";
+      type = "Application";
+      categories = [ "Game" ];
+    })
+  ];
 
   meta = {
-    description = "A cross platform mod manager for Hollow Knight written in Avalonia";
+    description = "Cross platform mod manager for Hollow Knight written in Avalonia";
     homepage = "https://themulhima.github.io/Lumafly/";
     license = lib.licenses.gpl3Plus;
     mainProgram = "Lumafly";
     maintainers = with lib.maintainers; [ rohanssrao ];
-    platforms = lib.platforms.linux;
+    platforms = with lib.platforms; linux ++ darwin;
   };
 }

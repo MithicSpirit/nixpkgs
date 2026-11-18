@@ -1,16 +1,16 @@
 {
-  version = "2024.2";
+  version = "2026.4";
+
+  minKernelVersion = "5.18";
 
   # To get these, run:
   #
   # ```
-  # for tool in alfred batctl batman-adv; do
-  #   nix-prefetch-url https://downloads.open-mesh.org/batman/releases/batman-adv-2024.2/$tool-2024.2.tar.gz --type sha256 | xargs nix hash to-sri --type sha256
-  # done
+  # for tool in alfred batctl batman-adv; do nix-prefetch-url https://downloads.open-mesh.org/batman/releases/batman-adv-2026.4/$tool-2026.4.tar.gz --type sha256 | xargs nix --extra-experimental-features nix-command hash convert --hash-algo sha256 --to sri; done
   # ```
   sha256 = {
-    alfred = "sha256-Kpvr62fIh1n+31fRjm79qtDECPIGikYlIBfCJ8sQlnI=";
-    batctl = "sha256-ywKVMJP/wscA0SLAOj2eTYZ/ZG0wOPMdCpAeWP+ZXQc=";
-    batman-adv = "sha256-dpKm3uei8/ZnMumuyMcWTgwYGBZ/OvBjv/P/+7AZlkM=";
+    alfred = "sha256-nR9ceEYI0Pjw26W0YB9cPFzR7etsZx/jISsI+FX9cKk=";
+    batctl = "sha256-otqlAdMGrPMGIZQiietlGi8XTyDnFPcDWdKfsyuqLTM=";
+    batman-adv = "sha256-AihI5FDjrOKedRDu/A+Hbk98eAvVJzbvLIA1np4zOiA=";
   };
 }

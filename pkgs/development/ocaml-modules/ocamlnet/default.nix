@@ -1,9 +1,16 @@
-{ stdenv, lib, fetchurl, pkg-config, which, ncurses, ocaml, findlib, ocaml_pcre, camlzip
-, gnutls, nettle
+{
+  stdenv,
+  lib,
+  fetchurl,
+  pkg-config,
+  which,
+  ncurses,
+  ocaml,
+  findlib,
+  camlzip,
+  gnutls,
+  nettle,
 }:
-
-lib.throwIf (lib.versionOlder ocaml.version "4.02" || lib.versionAtLeast ocaml.version "5.0")
-  "ocamlnet is not available for OCaml ${ocaml.version}"
 
 stdenv.mkDerivation rec {
   pname = "ocaml${ocaml.version}-ocamlnet";
@@ -11,11 +18,21 @@ stdenv.mkDerivation rec {
 
   src = fetchurl {
     url = "http://download.camlcity.org/download/ocamlnet-${version}.tar.gz";
-    sha256 = "1vlwxjxr946gdl61a1d7yk859cijq45f60dhn54ik3w4g6cx33pr";
+    hash = "sha256-+Y7RmXmEjxlJsbAB4wrBMrJU0PSnBRUMbc+QlLvsnO4=";
   };
 
-  nativeBuildInputs = [ pkg-config which ocaml findlib ];
-  buildInputs = [ ncurses ocaml_pcre camlzip gnutls nettle ];
+  nativeBuildInputs = [
+    pkg-config
+    which
+    ocaml
+    findlib
+  ];
+  buildInputs = [
+    ncurses
+    camlzip
+    gnutls
+    nettle
+  ];
 
   strictDeps = true;
 
@@ -23,14 +40,14 @@ stdenv.mkDerivation rec {
 
   dontAddPrefix = true;
   dontAddStaticConfigureFlags = true;
-  configurePlatforms = [];
+  configurePlatforms = [ ];
 
   preConfigure = ''
     configureFlagsArray=(
       -bindir $out/bin
       -enable-gnutls
       -enable-zip
-      -enable-pcre
+      -disable-pcre
       -disable-gtk2
       -with-nethttpd
       -datadir $out/lib/ocaml/${ocaml.version}/ocamlnet
@@ -45,10 +62,14 @@ stdenv.mkDerivation rec {
   meta = {
     homepage = "http://projects.camlcity.org/projects/ocamlnet.html";
     description = "Library implementing Internet protocols (http, cgi, email, etc.) for OCaml";
-    license = "Most Ocamlnet modules are released under the zlib/png license. The HTTP server module Nethttpd is, however, under the GPL.";
+    license =
+      with lib.licenses;
+      AND [
+        mit
+        bsd3
+        gpl2Only
+      ];
     inherit (ocaml.meta) platforms;
-    maintainers = [
-      lib.maintainers.maggesi
-    ];
+    broken = lib.versionOlder ocaml.version "4.02" || lib.versionAtLeast ocaml.version "5.0";
   };
 }

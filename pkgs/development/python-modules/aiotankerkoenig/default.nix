@@ -1,41 +1,40 @@
 {
   lib,
   aiohttp,
+  aiointercept,
   aioresponses,
   buildPythonPackage,
   fetchFromGitHub,
   mashumaro,
   orjson,
-  poetry-core,
+  hatchling,
   pytest-asyncio,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
-  syrupy,
+  syrupy_5,
   yarl,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aiotankerkoenig";
-  version = "0.4.1";
+  version = "0.5.5";
   pyproject = true;
-
-  disabled = pythonOlder "3.11";
 
   src = fetchFromGitHub {
     owner = "jpbede";
     repo = "aiotankerkoenig";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-BB1Cy4Aji5m06LlNj03as4CWF8RcYKAYy4oxPomOP68=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-5lYWoqQo/Ur+dV/e8GU209hYVYnjeIFOM7APG0ScBwc=";
   };
 
   postPatch = ''
     substituteInPlace pyproject.toml \
-      --replace-fail "--cov" ""
+      --replace-fail 'version = "0.0.0"' 'version = "${finalAttrs.version}"'
   '';
 
-  nativeBuildInputs = [ poetry-core ];
+  build-system = [ hatchling ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     aiohttp
     mashumaro
     orjson
@@ -43,19 +42,21 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [
+    aiointercept
     aioresponses
     pytest-asyncio
+    pytest-cov-stub
     pytestCheckHook
-    syrupy
+    syrupy_5
   ];
 
   pythonImportsCheck = [ "aiotankerkoenig" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module for interacting with tankerkoenig.de";
     homepage = "https://github.com/jpbede/aiotankerkoenig";
-    changelog = "https://github.com/jpbede/aiotankerkoenig/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/jpbede/aiotankerkoenig/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

@@ -1,47 +1,38 @@
 {
   lib,
-  stdenv,
-  nixosTests,
   fetchFromGitHub,
   rustPlatform,
-  libiconv,
-  darwin,
-  openssl,
+
   pkg-config,
+  openssl,
+
+  versionCheckHook,
+
   nix-update-script,
+  nixosTests,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "agate";
-  version = "3.3.8";
+  version = "3.3.25";
+
+  __darwinAllowLocalNetworking = true;
 
   src = fetchFromGitHub {
     owner = "mbrubeck";
     repo = "agate";
-    rev = "v${version}";
-    hash = "sha256-HK4ZTpRe6dEvBnjZLisSGXJmD5gTPEnf6f/gN0AHUsI=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-6gAurd65EvwCv9GDqUSy6mfAmQK7SXapOVL67YJwYlQ=";
   };
 
-  cargoHash = "sha256-yRCH4TRZ3m7ZG/NAEi1YDisSoad6FxCyojtXVvwbU9w=";
+  cargoHash = "sha256-/bX2IhH5mA4J65ZNR+R5GgfXAcCI16jF90IxjxHVi/U=";
 
   nativeBuildInputs = [ pkg-config ];
+  buildInputs = [ openssl ];
 
-  buildInputs =
-    [ openssl ]
-    ++ lib.optionals stdenv.isDarwin [
-      libiconv
-      darwin.apple_sdk.frameworks.Security
-    ];
+  nativeInstallCheckInputs = [ versionCheckHook ];
 
   doInstallCheck = true;
-  installCheckPhase = ''
-    runHook preInstallCheck
-    $out/bin/agate --help
-    $out/bin/agate --version 2>&1 | grep "agate ${version}"
-    runHook postInstallCheck
-  '';
-
-  __darwinAllowLocalNetworking = true;
 
   passthru = {
     tests = {
@@ -52,7 +43,7 @@ rustPlatform.buildRustPackage rec {
 
   meta = {
     homepage = "https://github.com/mbrubeck/agate";
-    changelog = "https://github.com/mbrubeck/agate/releases/tag/v${version}";
+    changelog = "https://github.com/mbrubeck/agate/releases/tag/v${finalAttrs.version}";
     description = "Very simple server for the Gemini hypertext protocol";
     mainProgram = "agate";
     longDescription = ''
@@ -61,10 +52,12 @@ rustPlatform.buildRustPackage rec {
       static files. It uses async I/O, and should be quite efficient even when
       running on low-end hardware and serving many concurrent requests.
     '';
-    license = with lib.licenses; [
-      asl20
-      mit
-    ];
+    license =
+      with lib.licenses;
+      OR [
+        asl20
+        mit
+      ];
     maintainers = with lib.maintainers; [ jk ];
   };
-}
+})

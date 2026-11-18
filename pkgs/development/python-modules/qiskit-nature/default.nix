@@ -1,54 +1,53 @@
 {
   lib,
-  pythonOlder,
   buildPythonPackage,
   fetchFromGitHub,
 
-  # build-system
+  # build
   setuptools,
 
-  # Python Inputs
-  h5py,
-  numpy,
-  psutil,
-  qiskit-terra,
-  rustworkx,
-  scikit-learn,
+  # runtime dependencies
+  qiskit,
+  qiskit-algorithms,
   scipy,
+  numpy,
+  h5py,
+  rustworkx,
+  sympy,
   withPyscf ? false,
   pyscf,
-  # Check Inputs
+
+  # test dependencies
   pytestCheckHook,
   ddt,
   pylatexenc,
   qiskit-aer,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "qiskit-nature";
-  version = "0.7.2";
+  version = "0.8";
   pyproject = true;
 
-  disabled = pythonOlder "3.6";
-
   src = fetchFromGitHub {
-    owner = "Qiskit";
-    repo = pname;
-    rev = "refs/tags/${version}";
-    hash = "sha256-SVzg3McB885RMyAp90Kr6/iVKw3Su9ucTob2jBckBo0=";
+    owner = "qiskit-community";
+    repo = "qiskit-nature";
+    tag = finalAttrs.version;
+    hash = "sha256-ONSeZx83y2FCikPKxcITdGvSrJf5XhmcrrcejZPJ9u0=";
   };
 
   nativeBuildInputs = [ setuptools ];
 
-  propagatedBuildInputs = [
-    h5py
-    numpy
-    psutil
-    qiskit-terra
-    rustworkx
-    scikit-learn
+  dependencies = [
+    qiskit
+    qiskit-algorithms
     scipy
-  ] ++ lib.optional withPyscf pyscf;
+    numpy
+    h5py
+    rustworkx
+    sympy
+  ]
+  ++ lib.optional withPyscf pyscf;
 
   nativeCheckInputs = [
     pytestCheckHook
@@ -59,22 +58,16 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "qiskit_nature" ];
 
-  pytestFlagsArray = [ "--durations=10" ];
-
-  disabledTests = [
-    "test_two_qubit_reduction" # failure cause unclear
-  ];
-
-  meta = with lib; {
+  meta = {
     description = "Software for developing quantum computing programs";
     homepage = "https://qiskit.org";
-    downloadPage = "https://github.com/QISKit/qiskit-nature/releases";
+    downloadPage = "https://github.com/qiskit-community/qiskit-nature/releases";
     changelog = "https://qiskit.org/documentation/release_notes.html";
-    sourceProvenance = with sourceTypes; [
+    sourceProvenance = with lib.sourceTypes; [
       fromSource
       binaryNativeCode # drivers/gaussiand/gauopen/*.so
     ];
-    license = licenses.asl20;
-    maintainers = with maintainers; [ drewrisinger ];
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ chemonke ];
   };
-}
+})

@@ -1,26 +1,32 @@
-{ lib, stdenv, fetchFromGitHub, cmake, vulkan-headers }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  cmake,
+  vulkan-headers,
+}:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "volk";
-  version = "1.3.283.0";
+  version = "1.4.363.0";
 
   src = fetchFromGitHub {
     owner = "zeux";
     repo = "volk";
     rev = "vulkan-sdk-${finalAttrs.version}";
-    hash = "sha256-AoUStYeSTu6YmdyKgx0n3O+p3asb39GU6HSHgOhhFhQ=";
+    hash = "sha256-bewo8ZLkNrM9ja5QdXzfdcPaakKtDH0uV8TtGSTv/Q8=";
   };
 
   nativeBuildInputs = [ cmake ];
   buildInputs = [ vulkan-headers ];
 
-  cmakeFlags = ["-DVOLK_INSTALL=1"];
+  cmakeFlags = [ "-DVOLK_INSTALL=1" ];
 
-  meta = with lib; {
-    description = " Meta loader for Vulkan API";
+  meta = {
+    description = "Meta loader for Vulkan API";
     homepage = "https://github.com/zeux/volk";
-    platforms = platforms.all;
-    license = licenses.mit;
-    maintainers = with maintainers; [ k900 ];
+    platforms = lib.platforms.all;
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ k900 ];
   };
 })

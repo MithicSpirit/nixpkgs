@@ -1,45 +1,48 @@
 {
   lib,
-  aiohttp,
   buildPythonPackage,
-  cryptography,
   fetchFromGitHub,
-  pythonOlder,
-  requests,
-  setuptools,
+  hatchling,
+  cryptography,
+  pynacl,
+  websockets,
+  pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "simplepush";
-  version = "2.2.3";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.7";
+  version = "3.9.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "simplepush";
     repo = "simplepush-python";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-DvDPihhx1rzJN6iQP5rHluplJ1AaN0b/glcd+tZCues=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-xRYFvbrfhsd0qOLAH79sXKBVDdWxTq+cNGQni4783HA=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ hatchling ];
 
-  propagatedBuildInputs = [
-    aiohttp
-    cryptography
-    requests
+  dependencies = [
+    websockets
   ];
 
-  # Module has no tests
-  doCheck = false;
+  optional-dependencies = {
+    crypto = [ pynacl ];
+    legacy = [ cryptography ];
+  };
+
+  nativeCheckInputs = [
+    pytestCheckHook
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
 
   pythonImportsCheck = [ "simplepush" ];
 
-  meta = with lib; {
+  meta = {
     description = "Module to send push notifications via Simplepush";
     homepage = "https://github.com/simplepush/simplepush-python";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

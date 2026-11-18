@@ -4,10 +4,15 @@
   fetchurl,
   fetchFromGitHub,
   kernel,
+  kernelModuleMakeFlags,
 }:
 
 let
   version = "6.30.223.271";
+  # Patchset release number from rpmfusion, to more easily differentiate
+  # versions and updates. See `wl-kmod.spec` file:
+  # https://github.com/rpmfusion/wl-kmod/blob/master/wl-kmod.spec#L19
+  release = "63";
   hashes = {
     i686-linux = "sha256-T4twspOsjMXHDlca1dGHjQ8p0TOkb+eGmGjZwZtQWM0=";
     x86_64-linux = "sha256-X3l3TVvuyPdja1nA+wegMQju8eP9MkVjiyCFjHFBRL4=";
@@ -20,8 +25,8 @@ let
   rpmFusionPatches = fetchFromGitHub {
     owner = "rpmfusion";
     repo = "wl-kmod";
-    rev = "a04330284bfc38fd91eade6f8b28fa63cfcdc95e";
-    hash = "sha256-c72Pr/v+nxZPLEeNKbWnSpbH3gqYZaTgzMO9PlYQkf0=";
+    rev = "5156986093f0f12ed04fe913b0a2f9e996c24274";
+    hash = "sha256-bH4d2VVhtwFS7xNfCsKhErx3pj2euJTncMvOBy8Fj9E=";
   };
   patchset = [
     "wl-kmod-001_wext_workaround.patch"
@@ -51,10 +56,23 @@ let
     "wl-kmod-025_kernel_6.5_adaptation.patch"
     "wl-kmod-026_kernel_6.10_fix_empty_body_in_if_warning.patch"
     "wl-kmod-027_wpa_supplicant-2.11_add_max_scan_ie_len.patch"
+    "wl-kmod-028_kernel_6.12_adaptation.patch"
+    "wl-kmod-029_kernel_6.13_adaptation.patch"
+    "wl-kmod-030_kernel_6.14_adaptation.patch"
+    "wl-kmod-031_replace_EXTRA_CFLAGS_EXTRA_LDFLAGS_with_ccflags-y_ldflags-y.patch"
+    "wl-kmod-032_add_MODULE_DESCRIPTION_macro.patch"
+    "wl-kmod-033_disable_objtool_add_warning_unmaintained.patch"
+    "wl-kmod-034_kernel_6.15_adaptation_replace_del_timer_with_timer_delete.patch"
+    "wl-kmod-035_kernel_6.17_adaptation_fix_functions_prototypes.patch"
+    "wl-kmod-036_kernel_7.1_adaptation_replace_net_device_struct_with_wireless_dev_struct.patch"
+    "wl-kmod-037_kernel_6.13_remove_flush_scheduled_work.patch"
+    "wl-kmod-038_kernel_7.2_adaptation_remove_strncpy_function.patch"
   ];
 in
-stdenv.mkDerivation {
-  name = "broadcom-sta-${version}-${kernel.version}";
+stdenv.mkDerivation (finalAttrs: {
+  name = "${finalAttrs.pname}-${finalAttrs.version}-${release}-${kernel.version}";
+  pname = "broadcom-sta";
+  inherit version;
 
   src = fetchurl {
     url = "https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/${tarball}";
@@ -68,7 +86,23 @@ stdenv.mkDerivation {
 
   patches = map (patch: "${rpmFusionPatches}/${patch}") patchset;
 
-  makeFlags = [ "KBASE=${kernel.dev}/lib/modules/${kernel.modDirVersion}" ];
+  makeFlags = kernelModuleMakeFlags ++ [
+    "KBASE=${kernel.dev}/lib/modules/${kernel.modDirVersion}"
+    "INSTALL_MOD_PATH=${placeholder "out"}"
+    "INSTALL_MOD_DIR=kernel/net/wireless"
+    "DEPMOD=true"
+  ];
+
+  # Broadcom's Makefile has no modules_install target, so call kbuild's
+  # directly; it signs the module and writes the wl.ko.cer certificate
+  # aggregateModules expects.
+  installFlags = [
+    "-C"
+    "${kernel.dev}/lib/modules/${kernel.modDirVersion}/build"
+    "M=$(PWD)"
+  ];
+
+  installTargets = [ "modules_install" ];
 
   unpackPhase = ''
     runHook preUnpack
@@ -78,21 +112,31 @@ stdenv.mkDerivation {
     runHook postUnpack
   '';
 
-  installPhase = ''
-    runHook preInstall
-    binDir="$out/lib/modules/${kernel.modDirVersion}/kernel/net/wireless/"
-    docDir="$out/share/doc/broadcom-sta/"
-    mkdir -p "$binDir" "$docDir"
-    cp wl.ko "$binDir"
-    cp lib/LICENSE.txt "$docDir"
-    runHook postInstall
+  postInstall = ''
+    install -Dm644 lib/LICENSE.txt -t "$out/share/doc/broadcom-sta"
   '';
 
   meta = {
     description = "Kernel module driver for some Broadcom's wireless cards";
-    homepage = "http://www.broadcom.com/support/802.11/linux_sta.php";
+    homepage = "https://www.broadcom.com/support/download-search?pg=Legacy%20Products&pf=Legacy%20Wireless&pn&pa&po&dk&pl";
     license = lib.licenses.unfreeRedistributable;
-    maintainers = [ ];
-    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [
+      j0hax
+      nullcube
+    ];
+    platforms = [
+      "i686-linux"
+      "x86_64-linux"
+    ];
+    knownVulnerabilities = [
+      "CVE-2019-9501: heap buffer overflow, potentially allowing remote code execution by sending specially-crafted WiFi packets"
+      "CVE-2019-9502: heap buffer overflow, potentially allowing remote code execution by sending specially-crafted WiFi packets"
+      (
+        "The Broadcom STA wireless driver is not maintained "
+        + "and is incompatible with Linux kernel security mitigations. "
+        + "It is heavily recommended to replace the hardware and remove the driver. "
+        + "Proceed at your own risk!"
+      )
+    ];
   };
-}
+})

@@ -1,45 +1,42 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
-  typing-extensions,
+  setuptools,
   pytestCheckHook,
   pytest-asyncio,
+  pytest-cov-stub,
+  pytest-timeout,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "async-lru";
-  version = "2.0.4";
-
-  disabled = pythonOlder "3.8";
-
-  format = "setuptools";
+  version = "2.4.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "aio-libs";
     repo = "async-lru";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-S2sOkgtS+YdMtVP7UHD3+oR8Fem8roLhhgVVfh33PcM=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-QhzAHU9y1Wdckd6ZrdVvSU0BcO3TaTr6X5QrPNQ/pvM=";
   };
 
-  propagatedBuildInputs = lib.optionals (pythonOlder "3.11") [ typing-extensions ];
-
-  postPatch = ''
-    sed -i -e '/^addopts/d' -e '/^filterwarnings/,+2d' setup.cfg
-  '';
+  build-system = [ setuptools ];
 
   nativeCheckInputs = [
     pytestCheckHook
     pytest-asyncio
+    pytest-cov-stub
+    pytest-timeout
   ];
 
   pythonImportsCheck = [ "async_lru" ];
 
-  meta = with lib; {
+  meta = {
+    changelog = "https://github.com/aio-libs/async-lru/releases/tag/${finalAttrs.src.tag}";
     description = "Simple lru cache for asyncio";
     homepage = "https://github.com/wikibusiness/async_lru";
-    license = licenses.mit;
-    maintainers = with maintainers; [ dotlambda ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ dotlambda ];
   };
-}
+})

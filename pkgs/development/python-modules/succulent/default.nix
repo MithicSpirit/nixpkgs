@@ -4,51 +4,50 @@
   fetchFromGitHub,
   flask,
   lxml,
+  numpy,
   pandas,
   pyyaml,
   poetry-core,
   pytestCheckHook,
-  pythonOlder,
-  xmltodict,
 }:
 
 buildPythonPackage rec {
   pname = "succulent";
-  version = "0.3.4";
+  version = "0.5.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "firefly-cpp";
     repo = "succulent";
-    rev = "refs/tags/${version}";
-    hash = "sha256-lU4M/ObX2mhHgYsc72zLp87g1lJ6ikfTeEojEdJwjGs=";
+    tag = version;
+    hash = "sha256-gA+hIwHMdrCl48gAxXc5T8BaLciaUB6Z0uL+nRMTubc=";
   };
 
-  pythonRelaxDeps = [ "flask" ];
+  pythonRelaxDeps = [
+    "pandas"
+  ];
 
-  nativeBuildInputs = [
+  build-system = [
     poetry-core
   ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     flask
     lxml
+    numpy
     pandas
     pyyaml
-    xmltodict
   ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "succulent" ];
 
-  meta = with lib; {
+  meta = {
     description = "Collect POST requests";
     homepage = "https://github.com/firefly-cpp/succulent";
-    changelog = "https://github.com/firefly-cpp/succulent/blob/${version}/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ firefly-cpp ];
+    changelog = "https://github.com/firefly-cpp/succulent/releases/tag/${src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ firefly-cpp ];
   };
 }

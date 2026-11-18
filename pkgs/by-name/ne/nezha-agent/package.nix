@@ -1,39 +1,67 @@
 {
   lib,
   buildGoModule,
+  stdenv,
   fetchFromGitHub,
-  nezha-agent,
-  testers,
+  versionCheckHook,
+  nix-update-script,
 }:
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "nezha-agent";
-  version = "0.18.5";
+  version = "2.4.0";
 
   src = fetchFromGitHub {
     owner = "nezhahq";
     repo = "agent";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-LmWfs3aL+1lsX4ix2FjDP5g+A0wgcfziXdw5SaKlAdk=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-HiR2D+EiYB4N3HbzGz7W2v5RVq19ph22dyyBr4eCltI=";
   };
 
-  vendorHash = "sha256-frPAhiexFSt+KobMbf32h8xv7HMcPl5koEgSs8Nz3cs=";
+  vendorHash = "sha256-KDPTFTY8T9igj0FvDym2byzrUxQeUhbxn03ua3L8nNQ=";
 
   ldflags = [
     "-s"
-    "-w"
-    "-X main.version=${version}"
+    "-X github.com/nezhahq/agent/pkg/monitor.Version=${finalAttrs.version}"
+    "-X main.arch=${stdenv.hostPlatform.system}"
   ];
 
-  # The test failed due to a geoip request in the sandbox. Remove it to avoid network requirement
-  preCheck = ''
-    rm ./pkg/monitor/myip_test.go
+  # some tests bind to localhost
+  __darwinAllowLocalNetworking = true;
+  checkFlags =
+    let
+      # Skip tests that require network access
+      skippedTests = [
+        "TestLookupIP"
+        "TestGeoIPApi"
+        "TestFetchGeoIP"
+        "TestCloudflareDetection"
+      ]
+      ++ lib.optionals stdenv.hostPlatform.isDarwin [
+        # os/user.Current() cannot resolve the Nix build UID
+        "TestTask_RejectsMalformedFrame_OpOnlyCommandsUseLegacyBehavior/list_falls_back_to_home_directory"
+      ];
+    in
+    [ "-skip=^${builtins.concatStringsSep "$|^" skippedTests}$" ];
+
+  postInstall = ''
+    pushd $out/bin
+    mv agent nezha-agent
+
+    # for compatibility
+    ln -sr nezha-agent agent
+    popd
   '';
 
-  passthru.tests = {
-    version = testers.testVersion {
-      package = nezha-agent;
-      command = "${nezha-agent}/bin/agent -v";
-    };
+  doInstallCheck = true;
+
+  versionCheckProgramArg = "-v";
+
+  nativeInstallCheckInputs = [
+    versionCheckHook
+  ];
+
+  passthru = {
+    updateScript = nix-update-script { };
   };
 
   meta = {
@@ -41,5 +69,6 @@ buildGoModule rec {
     homepage = "https://github.com/nezhahq/agent";
     license = lib.licenses.asl20;
     maintainers = with lib.maintainers; [ moraxyc ];
+    mainProgram = "nezha-agent";
   };
-}
+})

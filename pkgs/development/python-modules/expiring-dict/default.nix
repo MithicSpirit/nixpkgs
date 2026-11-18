@@ -1,28 +1,45 @@
 {
   lib,
+  stdenv,
   buildPythonPackage,
   fetchPypi,
+  setuptools,
   sortedcontainers,
+  pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "expiring-dict";
-  version = "1.1.0";
-  format = "setuptools";
+  version = "1.1.2";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-PEBK2x5DaUaMt+Ub+8nEcNfi6GPv4qHHXU7XBtDc4aY=";
+    pname = "expiring_dict";
+    inherit (finalAttrs) version;
+    hash = "sha256-yoy4AjBOrlszoj7EwZAZthCt/aUMvEyb+jrVws04djE=";
   };
 
-  propagatedBuildInputs = [ sortedcontainers ];
+  build-system = [ setuptools ];
+
+  dependencies = [ sortedcontainers ];
 
   pythonImportsCheck = [ "expiring_dict" ];
 
-  meta = with lib; {
+  nativeCheckInputs = [ pytestCheckHook ];
+
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
+    # Flaky real-time assertions: https://github.com/dparker2/py-expiring-dict/issues/5
+    "test_class_ttl"
+    "test_set_ttl"
+    "test_class_ttl_twice"
+    "test_class_reset_ttl_with_reinsert"
+    "test_class_ttl_reinsert_after_delete"
+  ];
+
+  meta = {
     description = "Python dict with TTL support for auto-expiring caches";
     homepage = "https://github.com/dparker2/py-expiring-dict";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
-}
+})

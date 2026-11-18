@@ -1,26 +1,25 @@
 {
   lib,
   buildPythonPackage,
+  cacert,
   fetchPypi,
-  pythonOlder,
+  python,
   requests,
-  setuptools,
+  flit-core,
   typing-extensions,
 }:
 
 buildPythonPackage rec {
   pname = "stripe";
-  version = "10.7.0";
+  version = "15.5.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-ntrb2osKtZRajWo7WNTw0UyPTneE9b1+c6uF/jYBRe8=";
+    hash = "sha256-7oe2lkGfTWWgY3wxWDk96KIgHegbWJYyQYUXcT5OyO0=";
   };
 
-  build-system = [ setuptools ];
+  build-system = [ flit-core ];
 
   dependencies = [
     requests
@@ -30,13 +29,18 @@ buildPythonPackage rec {
   # Tests require network connectivity and there's no easy way to disable them
   doCheck = false;
 
+  postFixup = ''
+    rm $out/${python.sitePackages}/stripe/data/ca-certificates.crt
+    ln -s ${cacert}/etc/ssl/certs/ca-bundle.crt $out/${python.sitePackages}/stripe/data/ca-certificates.crt
+  '';
+
   pythonImportsCheck = [ "stripe" ];
 
-  meta = with lib; {
+  meta = {
     description = "Stripe Python bindings";
     homepage = "https://github.com/stripe/stripe-python";
     changelog = "https://github.com/stripe/stripe-python/blob/v${version}/CHANGELOG.md";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
 }

@@ -15,7 +15,7 @@ buildPythonPackage {
     owner = "bastienleonard";
     repo = "pysensors";
     rev = "ef46fc8eb181ecb8ad09b3d80bc002d23d9e26b3";
-    sha256 = "1xvbxnkz55fk5fpr514263c7s7s9r8hgrw4ybfaj5a0mligmmrfm";
+    hash = "sha256-1eVaX6QVqCKVW57w/CDKSR992DCChJKvK9OV8qfta/c=";
   };
 
   buildInputs = [ lm_sensors ];
@@ -26,16 +26,15 @@ buildPythonPackage {
 
   nativeCheckInputs = [ unittestCheckHook ];
 
-  unittestFlagsArray = [
-    "-s"
-    "tests"
+  unittestFlags = [
+    "--start-directory=tests"
   ];
 
-  meta = with lib; {
-    maintainers = with maintainers; [ guibou ];
+  meta = {
+    maintainers = with lib.maintainers; [ guibou ];
     description = "Easy hardware health monitoring in Python for Linux systems";
-    homepage = "https://pysensors.readthedocs.org";
-    license = licenses.bsd2;
-    platforms = platforms.linux;
+    homepage = "https://bastienleonard.github.io/pysensors/";
+    license = lib.licenses.bsd2;
+    platforms = lib.platforms.linux;
   };
 }

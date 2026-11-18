@@ -1,4 +1,11 @@
-{ stdenv, lib, fetchFromGitHub, ocaml, findlib, ocamlbuild }:
+{
+  stdenv,
+  lib,
+  fetchFromGitHub,
+  ocaml,
+  findlib,
+  ocamlbuild,
+}:
 
 stdenv.mkDerivation rec {
   pname = "ocaml${ocaml.version}-process";
@@ -8,10 +15,14 @@ stdenv.mkDerivation rec {
     owner = "dsheets";
     repo = "ocaml-process";
     rev = version;
-    sha256 = "0m1ldah5r9gcq09d9jh8lhvr77910dygx5m309k1jm60ah9mdcab";
+    hash = "sha256-S7FWE1TAVBlmAqOW/nwDIZ2TN6QIytQSwOylXKBqNFQ=";
   };
 
-  nativeBuildInputs = [ ocaml findlib ocamlbuild ];
+  nativeBuildInputs = [
+    ocaml
+    findlib
+    ocamlbuild
+  ];
   strictDeps = true;
 
   createFindlibDestdir = true;

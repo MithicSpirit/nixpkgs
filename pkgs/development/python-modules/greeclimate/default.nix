@@ -1,38 +1,38 @@
 {
-  stdenv,
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
-  setuptools,
-  netifaces,
+  gitMinimal,
+  ifaddr,
   pycryptodome,
   pytest-asyncio,
   pytestCheckHook,
+  setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "greeclimate";
-  version = "2.1.0";
+  version = "3.5.2";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "cmroche";
     repo = "greeclimate";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-SO7/uheAPVFZ1C2qrzP7jB88u6EH79f1+qMZIgHZaCE=";
+    tag = "v${version}";
+    hash = "sha256-qtdMEN4zMAA28/Co+T9HDu7OuRjTMdTRXJnWPiwuTSY=";
   };
+
+  pythonRelaxDeps = [ "pycryptodome" ];
 
   build-system = [ setuptools ];
 
   dependencies = [
-    netifaces
+    ifaddr
     pycryptodome
   ];
 
   nativeCheckInputs = [
+    gitMinimal
     pytest-asyncio
     pytestCheckHook
   ];
@@ -62,12 +62,11 @@ buildPythonPackage rec {
     "greeclimate.network"
   ];
 
-  meta = with lib; {
-    broken = stdenv.isDarwin;
+  meta = {
     description = "Discover, connect and control Gree based minisplit systems";
     homepage = "https://github.com/cmroche/greeclimate";
     changelog = "https://github.com/cmroche/greeclimate/blob/${src.rev}/CHANGELOG.md";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ dotlambda ];
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ dotlambda ];
   };
 }

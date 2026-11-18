@@ -1,6 +1,10 @@
-{ lib, fetchFromGitHub, buildDunePackage }:
+{
+  lib,
+  fetchFromGitHub,
+  buildDunePackage,
+}:
 
-buildDunePackage rec {
+buildDunePackage (finalAttrs: {
   pname = "ppx_derivers";
   version = "1.2.1";
 
@@ -8,15 +12,15 @@ buildDunePackage rec {
 
   src = fetchFromGitHub {
     owner = "diml";
-    repo = pname;
-    rev = version;
-    sha256 = "0yqvqw58hbx1a61wcpbnl9j30n495k23qmyy2xwczqs63mn2nkpn";
+    repo = "ppx_derivers";
+    rev = finalAttrs.version;
+    hash = "sha256-9k4rbB1G4894F95XPMQsiVgwZKJ2XcaDUaEviArHG3s=";
   };
 
   meta = {
     description = "Shared [@@deriving] plugin registry";
     license = lib.licenses.bsd3;
     maintainers = [ lib.maintainers.vbgl ];
-    inherit (src.meta) homepage;
+    inherit (finalAttrs.src.meta) homepage;
   };
-}
+})

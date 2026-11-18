@@ -4,39 +4,41 @@
   aresponses,
   buildPythonPackage,
   fetchFromGitHub,
-  poetry-core,
+  pyprojectVersionPatchHook,
   pytest-asyncio,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
+  syrupy,
+  uv-build,
   yarl,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "omnikinverter";
-  version = "1.0.0";
+  version = "2.0.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.11";
 
   src = fetchFromGitHub {
     owner = "klaasnicolaas";
     repo = "python-omnikinverter";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-W9VeRhsCXLLgOgvJcNNCGNmPvakPtKHAtwQAGtYJbcY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-kx/9WnSJR7GuZiOKYq/4L0Jb1Mg1E47zlJuURNgvY9M=";
   };
 
   __darwinAllowLocalNetworking = true;
 
   postPatch = ''
-    # Upstream doesn't set a version for the pyproject.toml
     substituteInPlace pyproject.toml \
-      --replace "0.0.0" "${version}" \
-      --replace "--cov" ""
+      --replace-fail 'uv_build>=0.12.13,<0.13' uv_build
   '';
 
-  nativeBuildInputs = [ poetry-core ];
+  nativeBuildInputs = [
+    pyprojectVersionPatchHook
+  ];
 
-  propagatedBuildInputs = [
+  build-system = [ uv-build ];
+
+  dependencies = [
     aiohttp
     yarl
   ];
@@ -44,16 +46,18 @@ buildPythonPackage rec {
   nativeCheckInputs = [
     aresponses
     pytest-asyncio
+    pytest-cov-stub
     pytestCheckHook
+    syrupy
   ];
 
   pythonImportsCheck = [ "omnikinverter" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module for the Omnik Inverter";
     homepage = "https://github.com/klaasnicolaas/python-omnikinverter";
-    changelog = "https://github.com/klaasnicolaas/python-omnikinverter/releases/tag/v${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/klaasnicolaas/python-omnikinverter/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

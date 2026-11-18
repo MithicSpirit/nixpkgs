@@ -13,8 +13,8 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "ilya-kolpakov";
     repo = "jsondate";
-    rev = "refs/tags/v${version}";
-    sha256 = "0nhvi48nc0bmad5ncyn6c9yc338krs3xf10bvv55xgz25c5gdgwy";
+    tag = "v${version}";
+    hash = "sha256-nr/2Civiv17K3gsE14fOE43BfGLGemZLU3UBZhGJG1o=";
     fetchSubmodules = true; # Fetching by tag does not work otherwise
   };
 

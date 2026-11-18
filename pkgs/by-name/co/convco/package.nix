@@ -1,36 +1,69 @@
-{ stdenv
-, lib
-, rustPlatform
-, fetchFromGitHub
-, cmake
-, libiconv
-, openssl
-, pkg-config
-, darwin
+{
+  stdenv,
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  cmake,
+  libiconv,
+  libgit2,
+  openssl,
+  gitMinimal,
+  pkg-config,
+  versionCheckHook,
+  writableTmpDirAsHomeHook,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "convco";
-  version = "0.5.2";
+  version = "0.7.2";
 
   src = fetchFromGitHub {
     owner = "convco";
-    repo = pname;
-    rev = "v${version}";
-    hash = "sha256-S5k0d29tuR0VkJrqCiWg1v+W2n9TrQCfMOInII4jxg0=";
+    repo = "convco";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-vzxIZdXmWASnafaeXt/QBgg9WXyMFwPclFeD+4oF4V0=";
   };
 
-  cargoHash = "sha256-cYb3syf+k4V0pCpekQ2tY73Gl6rDc9YMCXs3TKRtgpo=";
+  cargoHash = "sha256-f/jfriJeBgR3OkWj5S/NkTc/bhGjqU/yQHUfddUo2yQ=";
 
-  nativeBuildInputs = [ cmake pkg-config ];
+  strictDeps = true;
 
-  buildInputs = [ openssl ] ++ lib.optionals stdenv.isDarwin [ libiconv darwin.apple_sdk.frameworks.Security ];
+  nativeBuildInputs = [
+    cmake
+    pkg-config
+  ];
 
-  meta = with lib; {
+  buildInputs = [
+    openssl
+    (libgit2.override { withExperimentalSha256 = true; })
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    libiconv
+  ];
+
+  nativeCheckInputs = [
+    writableTmpDirAsHomeHook
+    gitMinimal
+  ];
+
+  checkFlags = [
+    # disable test requiring networking
+    "--skip=git::tests::test_find_last_unordered_prerelease"
+    "--skip=git::tests::test_find_matching_prerelease"
+    "--skip=git::tests::test_find_matching_prerelease_without_matching_release"
+  ];
+
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [ versionCheckHook ];
+
+  meta = {
     description = "Conventional commit cli";
     mainProgram = "convco";
     homepage = "https://github.com/convco/convco";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ hoverbear cafkafk ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      hoverbear
+      cafkafk
+    ];
   };
-}
+})

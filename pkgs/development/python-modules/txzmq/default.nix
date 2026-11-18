@@ -2,23 +2,26 @@
   lib,
   buildPythonPackage,
   fetchPypi,
+  setuptools,
   pytestCheckHook,
   pyzmq,
   twisted,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "txzmq";
   version = "1.0.0";
-  format = "setuptools";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit version;
+    inherit (finalAttrs) version;
     pname = "txZMQ";
     hash = "sha256-jWB9C/CcqUYAuOQvByHb5D7lOgRwGCNErHrOfljcYXc=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ setuptools ];
+
+  dependencies = [
     pyzmq
     twisted
   ];
@@ -27,10 +30,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "txzmq" ];
 
-  meta = with lib; {
+  meta = {
     description = "Twisted bindings for ZeroMQ";
     homepage = "https://github.com/smira/txZMQ";
-    license = licenses.mpl20;
+    license = lib.licenses.mpl20;
     maintainers = [ ];
   };
-}
+})

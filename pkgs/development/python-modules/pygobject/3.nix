@@ -11,27 +11,26 @@
   ncurses,
   meson,
   ninja,
-  pythonOlder,
   gnome,
   python,
+
+  withCairo ? true,
 }:
 
 buildPythonPackage rec {
   pname = "pygobject";
-  version = "3.48.2";
+  version = "3.58.0";
 
   outputs = [
     "out"
     "dev"
   ];
 
-  disabled = pythonOlder "3.8";
-
-  format = "other";
+  pyproject = false;
 
   src = fetchurl {
-    url = "mirror://gnome/sources/${pname}/${lib.versions.majorMinor version}/${pname}-${version}.tar.xz";
-    hash = "sha256-B5SutKm+MaCSrCBiG19U7CgPkYWUPTKLEFza5imK0ac=";
+    url = "mirror://gnome/sources/pygobject/${lib.versions.majorMinor version}/pygobject-${version}.tar.gz";
+    hash = "sha256-RQaGl94//kaEDKNpcF8jEYs0209962P27/B5pnNN3Mo=";
   };
 
   depsBuildBuild = [ pkg-config ];
@@ -44,35 +43,48 @@ buildPythonPackage rec {
   ];
 
   buildInputs = [
-    cairo
     glib
-  ] ++ lib.optionals stdenv.isDarwin [ ncurses ];
+  ]
+  ++ lib.optionals withCairo [
+    cairo
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [ ncurses ];
 
   propagatedBuildInputs = [
-    pycairo
     gobject-introspection # e.g. try building: python3Packages.urwid python3Packages.pydbus
+  ]
+  ++ lib.optionals withCairo [
+    pycairo
   ];
+
+  # Fixes https://github.com/NixOS/nixpkgs/issues/378447
+  preConfigure = lib.optionalString (stdenv.hostPlatform != stdenv.targetPlatform) ''
+    export PKG_CONFIG_PATH=${lib.getDev python}/lib/pkgconfig:$PKG_CONFIG_PATH
+    export PKG_CONFIG_PATH_FOR_BUILD=${lib.getDev python}/lib/pkgconfig:$PKG_CONFIG_PATH_FOR_BUILD
+  '';
 
   mesonFlags = [
     # This is only used for figuring out what version of Python is in
     # use, and related stuff like figuring out what the install prefix
     # should be, but it does need to be able to execute Python code.
-    "-Dpython=${python.pythonOnBuildForHost.interpreter}"
+    (lib.mesonOption "python" python.pythonOnBuildForHost.interpreter)
+
+    (lib.mesonEnable "pycairo" withCairo)
   ];
 
   passthru = {
     updateScript = gnome.updateScript {
-      packageName = pname;
-      attrPath = "python3.pkgs.${pname}3";
+      packageName = "pygobject";
+      attrPath = "python3.pkgs.pygobject3";
       versionPolicy = "odd-unstable";
     };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://pygobject.readthedocs.io/";
     description = "Python bindings for Glib";
-    license = licenses.lgpl21Plus;
-    maintainers = with maintainers; [ jtojnar ];
-    platforms = platforms.unix;
+    license = lib.licenses.lgpl21Plus;
+    teams = [ lib.teams.gnome ];
+    platforms = lib.platforms.unix;
   };
 }

@@ -3,26 +3,32 @@
   buildPythonPackage,
   fetchPypi,
   flask,
+  setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "flask-swagger-ui";
-  version = "4.11.1";
-  format = "setuptools";
+  version = "5.34.1";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-o3AZmngNZ4sy448b4Q1Nge+g7mPp/i+3Zv8aS2w32sg=";
+    pname = "flask_swagger_ui";
+    inherit (finalAttrs) version;
+    hash = "sha256-45wQLT9htNVGe3PGpNLkCE+ALaYt4HPD5WwPIutqU6o=";
   };
+
+  build-system = [ setuptools ];
+
+  dependencies = [ flask ];
 
   doCheck = false; # there are no tests
 
-  propagatedBuildInputs = [ flask ];
+  pythonImportsCheck = [ "flask_swagger_ui" ];
 
-  meta = with lib; {
-    homepage = "https://github.com/sveint/flask-swagger-ui";
-    license = licenses.mit;
+  meta = {
     description = "Swagger UI blueprint for Flask";
-    maintainers = with maintainers; [ vanschelven ];
+    homepage = "https://github.com/sveint/flask-swagger-ui";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ vanschelven ];
   };
-}
+})

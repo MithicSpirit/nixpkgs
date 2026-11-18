@@ -4,40 +4,36 @@
   fetchFromGitHub,
   testers,
   wakatime-cli,
+  writableTmpDirAsHomeHook,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "wakatime-cli";
-  version = "1.98.3";
+  version = "2.28.4";
 
   src = fetchFromGitHub {
     owner = "wakatime";
     repo = "wakatime-cli";
-    rev = "v${version}";
-    hash = "sha256-AoefP/hWdflCOjZtmKyjcjUfst3SXF+EHfJyPcACWPE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-HkLeRuhIcOnX7ZW3YwYYPQH9Rujb60UjczztNurLS3I=";
   };
 
-  vendorHash = "sha256-+9zdEIaKQlLcBwFaY5Fe5mpHWQDqfV+j1TPmDkdRjyk=";
+  vendorHash = "sha256-ElSlITp0zD77nn2afNeAn/Dn17je+hyKD+mCLevBZGE=";
 
   ldflags = [
     "-s"
     "-w"
-    "-X github.com/wakatime/wakatime-cli/pkg/version.Version=${version}"
+    "-X github.com/wakatime/wakatime-cli/pkg/version.Version=${finalAttrs.version}"
   ];
+
+  __darwinAllowLocalNetworking = true;
+
+  nativeCheckInputs = [ writableTmpDirAsHomeHook ];
 
   checkFlags =
     let
       skippedTests = [
-        # Tests requiring network
-        "TestFileExperts"
-        "TestSendHeartbeats"
-        "TestSendHeartbeats_ExtraHeartbeats"
-        "TestSendHeartbeats_IsUnsavedEntity"
-        "TestSendHeartbeats_NonExistingExtraHeartbeatsEntity"
-        "TestFileExperts_Err(Auth|Api|BadRequest)"
-
-        # Flaky tests
-        "TestLoadParams_ApiKey_FromVault_Err_Darwin"
+        "TestLoadParams_APIKey_FromVault_Err_Darwin"
       ];
     in
     [ "-skip=^${builtins.concatStringsSep "$|^" skippedTests}$" ];
@@ -54,4 +50,4 @@ buildGoModule rec {
     maintainers = with lib.maintainers; [ sigmanificient ];
     mainProgram = "wakatime-cli";
   };
-}
+})

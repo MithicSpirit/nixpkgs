@@ -2,71 +2,82 @@
   lib,
   aiofiles,
   aiohttp,
-  aioresponses,
-  aiounittest,
+  aiointercept,
   buildPythonPackage,
   ciso8601,
   fetchFromGitHub,
   freenub,
   poetry-core,
+  propcache,
   pyjwt,
+  pytest-asyncio,
+  pytest-cov-stub,
+  pytest-freezegun,
   pytestCheckHook,
   python-dateutil,
-  pythonOlder,
+  python-socketio,
   requests-mock,
   requests,
   typing-extensions,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "yalexs";
-  version = "8.4.1";
+  version = "9.2.13";
   pyproject = true;
 
-  disabled = pythonOlder "3.9";
-
   src = fetchFromGitHub {
-    owner = "bdraco";
+    owner = "Yale-Libs";
     repo = "yalexs";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-2n/+3VkKtwNlDgxoraIrx/ZUZ9TydybWIkLDTdbMd1w=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-KJgXxefAkFI6AmIkd6B2O7Iw017UPd/SV7AxV+JOkwM=";
   };
 
-  postPatch = ''
-    substituteInPlace pyproject.toml \
-      --replace-fail "-v -Wdefault --cov=yalexs --cov-report=term-missing:skip-covered" ""
-  '';
+  patches = [
+    # remove padding from refresh token fixture
+    ./456.patch
+  ];
 
   build-system = [ poetry-core ];
+
+  pythonRelaxDeps = [ "aiohttp" ];
 
   dependencies = [
     aiofiles
     aiohttp
     ciso8601
     freenub
+    propcache
     pyjwt
     python-dateutil
+    python-socketio
     requests
     typing-extensions
-  ];
-
-  # aiounittest is not supported on 3.12
-  doCheck = pythonOlder "3.12";
+  ]
+  ++ python-socketio.optional-dependencies.asyncio_client;
 
   nativeCheckInputs = [
-    aioresponses
-    aiounittest
+    aiointercept
+    pytest-asyncio
+    pytest-cov-stub
+    pytest-freezegun
     pytestCheckHook
     requests-mock
   ];
 
+  disabledTests = [
+    # aiohttp api breakage, remove when bumping to 9.2.8 or newer
+    "test__raise_response_exceptions"
+    "test_async_refresh_token"
+  ];
+
   pythonImportsCheck = [ "yalexs" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python API for Yale Access (formerly August) Smart Lock and Doorbell";
-    homepage = "https://github.com/bdraco/yalexs";
-    changelog = "https://github.com/bdraco/yalexs/releases/tag/v${version}";
-    license = with licenses; [ mit ];
-    maintainers = with maintainers; [ fab ];
+    homepage = "https://github.com/Yale-Libs/yalexs";
+    changelog = "https://github.com/Yale-Libs/yalexs/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

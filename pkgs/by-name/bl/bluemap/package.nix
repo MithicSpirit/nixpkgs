@@ -1,12 +1,20 @@
-{ lib, stdenvNoCC, fetchurl, makeWrapper, jre }:
-
+{
+  lib,
+  stdenvNoCC,
+  fetchurl,
+  makeWrapper,
+  javaPackages,
+}:
+let
+  jre = javaPackages.compiler.temurin-bin.jre-25;
+in
 stdenvNoCC.mkDerivation rec {
   pname = "bluemap";
-  version = "3.21";
+  version = "5.29";
 
   src = fetchurl {
     url = "https://github.com/BlueMap-Minecraft/BlueMap/releases/download/v${version}/BlueMap-${version}-cli.jar";
-    hash = "sha256-YWf69+nsMfqk2x9xGTt+tdnGvaU+6rPsiBLWsP89ngM=";
+    hash = "sha256-6DB2f6Y2S1K5MQ+1mFCOvefuxevoNgqYniQNmRr4mjo=";
   };
 
   dontUnpack = true;
@@ -24,7 +32,10 @@ stdenvNoCC.mkDerivation rec {
     homepage = "https://bluemap.bluecolored.de/";
     sourceProvenance = with lib.sourceTypes; [ binaryBytecode ];
     license = lib.licenses.mit;
-    maintainers = with lib.maintainers; [ dandellion h7x4 ];
+    maintainers = with lib.maintainers; [
+      dandellion
+      h7x4
+    ];
     mainProgram = "bluemap";
   };
 }

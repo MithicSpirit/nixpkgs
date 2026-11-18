@@ -1,31 +1,38 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, cmake
-, cyclonedds
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  cmake,
+  cyclonedds,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "cyclonedds-cxx";
-  version = "0.10.5";
+  version = "11.1.0";
 
-  outputs = ["out" "dev"];
+  outputs = [
+    "out"
+    "dev"
+  ];
 
   src = fetchFromGitHub {
     owner = "eclipse-cyclonedds";
     repo = "cyclonedds-cxx";
-    rev = version;
-    hash = "sha256-whFVEQec/Ca+dr6R7z9mMrNg315z3oIWchVT+vQ36So=";
+    tag = finalAttrs.version;
+    hash = "sha256-sTplnqRxVvui2YHcTMRjsbvKUxlPezyddS6AQWRbQi0=";
   };
 
   nativeBuildInputs = [ cmake ];
 
   buildInputs = [ cyclonedds ];
 
-  meta = with lib; {
-      description = "C++ binding for Eclipse Cyclone DDS";
-      homepage = "https://cyclonedds.io/";
-      license = with licenses; [ epl20 asl20 ];
-      maintainers = with maintainers; [ linbreux ];
-    };
-}
+  meta = {
+    description = "C++ binding for Eclipse Cyclone DDS";
+    homepage = "https://cyclonedds.io/";
+    license = with lib.licenses; [
+      epl20
+      asl20
+    ];
+    maintainers = with lib.maintainers; [ linbreux ];
+  };
+})

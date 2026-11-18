@@ -1,34 +1,36 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "rita";
-  version = "4.8.1";
+  version = "5.1.2";
 
   src = fetchFromGitHub {
     owner = "activecm";
     repo = "rita";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-By0JvQ4LTm+NEnRMadE1x2PiiYqnJQCsF3Fy+gHulXs=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-BGVq3JxHOGSMXEK3DoVRDNlWZ4yaf7Qjh/QRECmTFq0=";
   };
 
-  vendorHash = "sha256-KyC7VPgWlgKD6KWWRo3hFQHl2HjTub+VSMtJCpYE6Zk=";
+  vendorHash = "sha256-7QjrQHkyEYX1WkSuK3u0JVVVeYlAXalXnCsI3rZcJr4=";
 
   ldflags = [
     "-s"
-    "-w"
-    "-X=github.com/activecm/rita/config.Version=${version}"
-    "-X=github.com/activecm/rita/config.ExactVersion=${version}"
+    "-X=github.com/activecm/rita/v5/config.Version=${finalAttrs.version}"
   ];
 
-  meta = with lib; {
+  # Almost all tests require a live ClickHouse container via Docker
+  doCheck = false;
+
+  meta = {
     description = "Framework for detecting command and control communication through network traffic analysis";
     homepage = "https://github.com/activecm/rita";
-    changelog = "https://github.com/activecm/rita/releases/tag/v${version}";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/activecm/rita/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "rita";
   };
-}
+})

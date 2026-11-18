@@ -1,7 +1,7 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   setuptools,
   zope-interface,
   webob,
@@ -10,29 +10,24 @@
 
 buildPythonPackage rec {
   pname = "repoze-who";
-  version = "3.0.0";
+  version = "3.2.0";
   pyproject = true;
 
-  src = fetchPypi {
-    pname = "repoze.who";
-    inherit version;
-    hash = "sha256-6VWt8AwfCwxxXoKJeaI37Ev37nCCe9l/Xhe/gnYNyzA=";
+  src = fetchFromGitHub {
+    owner = "repoze";
+    repo = "repoze.who";
+    tag = version;
+    hash = "sha256-/Z+jbytIL5zZhNJ3B7HC9lDkK8pDwXu+gjxHPdnm890=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     zope-interface
     webob
   ];
 
   nativeCheckInputs = [ pytestCheckHook ];
-
-  # skip failing test
-  # OSError: [Errno 22] Invalid argument
-  preCheck = ''
-    rm repoze/who/plugins/tests/test_htpasswd.py
-  '';
 
   pythonImportsCheck = [ "repoze.who" ];
 
@@ -42,11 +37,11 @@ buildPythonPackage rec {
     "repoze.who.plugins"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "WSGI Authentication Middleware / API";
     homepage = "http://www.repoze.org";
     changelog = "https://github.com/repoze/repoze.who/blob/${version}/CHANGES.rst";
-    license = licenses.bsd0;
+    license = lib.licenses.bsd0;
     maintainers = [ ];
   };
 }

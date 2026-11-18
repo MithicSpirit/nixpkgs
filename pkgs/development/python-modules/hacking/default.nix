@@ -2,26 +2,28 @@
   lib,
   buildPythonPackage,
   ddt,
-  fetchPypi,
+  fetchFromGitHub,
   flake8,
   pbr,
-  pythonOlder,
   setuptools,
-  stestr,
+  stestrCheckHook,
   testscenarios,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "hacking";
-  version = "7.0.0";
+  version = "8.1.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-ubbC5SgPfVT6gsWP4JmD9oxbb2NKw/ozn4uhalcVyrc=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "hacking";
+    tag = finalAttrs.version;
+    hash = "sha256-C3MEVmGGi0yzsbpai9n8+TQGh3fozF4CfhOhwsTVYt0=";
   };
+
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
 
   postPatch = ''
     sed -i 's/flake8.*/flake8/' requirements.txt
@@ -36,22 +38,16 @@ buildPythonPackage rec {
 
   nativeCheckInputs = [
     ddt
-    stestr
+    stestrCheckHook
     testscenarios
   ];
 
-  checkPhase = ''
-    runHook preCheck
-    stestr run
-    runHook postCheck
-  '';
-
   pythonImportsCheck = [ "hacking" ];
 
-  meta = with lib; {
+  meta = {
     description = "OpenStack Hacking Guideline Enforcement";
     homepage = "https://github.com/openstack/hacking";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

@@ -1,32 +1,38 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "kubefwd";
-  version = "1.22.5";
+  version = "1.25.18";
 
   src = fetchFromGitHub {
     owner = "txn2";
     repo = "kubefwd";
-    rev = version;
-    hash = "sha256-xTd/1h9fW2GbZ2u3RsExbQouRZot9CUDuqNLItRySxM=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-WP9oBy0+i92FHPkxiR4YzpaZpFRHNYy/HYCpdAwAm8M=";
   };
 
-  vendorHash = "sha256-qAlzgPw1reDZYK+InlnAsBgVemVumWwLgEuYm+ALcCs=";
+  vendorHash = "sha256-aPl1MmAacMtEaEozaiCfGTKvBMYEhMwGniwNfIyNwBY=";
+
+  subPackages = [ "cmd/kubefwd" ];
 
   ldflags = [
     "-s"
     "-w"
-    "-X=main.Version=${version}"
+    "-X=main.Version=${finalAttrs.version}"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Bulk port forwarding Kubernetes services for local development";
-    homepage = "https://github.com/txn2/kubefwd";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ iogamaster ];
+    homepage = "https://kubefwd.com";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [
+      cjimti
+      iogamaster
+    ];
     mainProgram = "kubefwd";
   };
-}
+})

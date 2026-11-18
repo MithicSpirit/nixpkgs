@@ -9,23 +9,25 @@
   python-gnupg,
   requests,
   pytestCheckHook,
+  pyotp,
+  pytest-cov-stub,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "proton-core";
-  version = "0.1.16";
+  version = "0.7.4";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "ProtonVPN";
     repo = "python-proton-core";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-072XuHvgWludlFwp/tqLpuAU89vzifFhwQ01FuiCoL8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-WTxFGua0OhgqsxgZJUI3M+WvUeYF9MsYVIa6Us7UfZ0=";
   };
 
-  nativeBuildInputs = [ setuptools ];
+  build-system = [ setuptools ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     bcrypt
     aiohttp
     pyopenssl
@@ -33,14 +35,13 @@ buildPythonPackage rec {
     requests
   ];
 
-  postPatch = ''
-    substituteInPlace setup.cfg \
-      --replace "--cov=proton --cov-report html --cov-report term" ""
-  '';
+  nativeCheckInputs = [
+    pytestCheckHook
+    pytest-cov-stub
+    pyotp
+  ];
 
   pythonImportsCheck = [ "proton" ];
-
-  nativeCheckInputs = [ pytestCheckHook ];
 
   disabledTestPaths = [
     # Single test, requires internet connection
@@ -57,17 +58,24 @@ buildPythonPackage rec {
     # No working transports found
     "test_auto_works_on_prod"
     "test_ping"
+    "test_raw_ping"
     "test_successful"
     "test_without_pinning"
     # Failed assertions
     "test_bad_pinning_fingerprint_changed"
     "test_bad_pinning_url_changed"
+    # Bcrypt 72-byte limit exceeded
+    # https://github.com/ProtonVPN/python-proton-core/pull/10
+    "test_compute_v"
+    "test_generate_v"
+    "test_srp"
   ];
 
   meta = {
     description = "Core logic used by the other Proton components";
     homepage = "https://github.com/ProtonVPN/python-proton-core";
+    changelog = "https://github.com/ProtonVPN/python-proton-core/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.gpl3Only;
     maintainers = [ ];
   };
-}
+})

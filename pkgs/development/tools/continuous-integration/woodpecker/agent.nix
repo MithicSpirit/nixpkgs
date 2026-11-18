@@ -1,14 +1,20 @@
-{ buildGoModule, callPackage }:
+{ buildGo127Module, callPackage }:
 let
   common = callPackage ./common.nix { };
 in
-buildGoModule {
+buildGo127Module {
   pname = "woodpecker-agent";
-  inherit (common) version src ldflags postInstall vendorHash;
+  inherit (common)
+    version
+    src
+    ldflags
+    postInstall
+    vendorHash
+    ;
 
   subPackages = "cmd/agent";
 
-  CGO_ENABLED = 0;
+  env.CGO_ENABLED = 0;
 
   meta = common.meta // {
     description = "Woodpecker Continuous Integration agent";

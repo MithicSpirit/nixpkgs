@@ -1,34 +1,52 @@
 {
   lib,
   buildPythonPackage,
-  fetchFromGitHub,
+  fetchFromGitea,
+
+  # dependencies
   pyserial,
   asyncserial,
   jinja2,
   migen,
+
+  # tests
+  unittestCheckHook,
   numpy,
 }:
 
-buildPythonPackage {
+buildPythonPackage (finalAttrs: {
   pname = "misoc";
-  version = "0-unstable-2024-05-14";
+  version = "0.12-unstable-2026-10-02";
   format = "setuptools";
 
-  src = fetchFromGitHub {
-    owner = "m-labs";
+  src = fetchFromGitea {
+    domain = "git.m-labs.hk";
+    owner = "M-Labs";
     repo = "misoc";
-    rev = "fea9de558c730bc394a5936094ae95bb9d6fa726";
-    hash = "sha256-zZ9LnUwvTvBL9iNFfmNTklQnd0I4PmV0BApMSblTnc0=";
+    rev = "8a909c8b638fbec584048d6929d0c577f6be182d";
+    hash = "sha256-9/yKXGHhd3Ji/zIOlek0B2CrO/W09AuwNuDZOVuLOTI=";
   };
 
-  propagatedBuildInputs = [
+  dependencies = [
     pyserial
     asyncserial
     jinja2
     migen
   ];
 
-  nativeCheckInputs = [ numpy ];
+  nativeCheckInputs = [
+    unittestCheckHook
+    numpy
+  ];
+
+  disabledTestFiles = [
+    # Fails duea multiprocessing issue that's probably only relevant in the
+    # Nix sandbox.
+    "misoc/test/coaxpress/test_lineparser.py"
+  ];
+  preCheck = ''
+    rm ${lib.join " " finalAttrs.disabledTestFiles}
+  '';
 
   pythonImportsCheck = [ "misoc" ];
 
@@ -38,4 +56,4 @@ buildPythonPackage {
     license = lib.licenses.bsd2;
     maintainers = with lib.maintainers; [ doronbehar ];
   };
-}
+})

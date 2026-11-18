@@ -7,14 +7,14 @@
 
 buildPythonPackage rec {
   pname = "refoss-ha";
-  version = "1.2.4";
+  version = "1.2.6";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "ashionky";
     repo = "refoss_ha";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-DFP2lEZkjW5L94CnhJS04ydM66gnKzvgpiXOAejs768=";
+    tag = "v${version}";
+    hash = "sha256-hU4PzkJNacCLRkMr9mRqORNhEkqiztkprYssyVTpoOQ=";
   };
 
   build-system = [ setuptools ];

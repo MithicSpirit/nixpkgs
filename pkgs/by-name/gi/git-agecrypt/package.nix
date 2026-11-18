@@ -1,38 +1,50 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, rustPlatform
-, darwin
-, libgit2
-, git
-, pkg-config
-, zlib
+{
+  lib,
+  fetchFromGitHub,
+  rustPlatform,
+  libgit2,
+  git,
+  pkg-config,
+  zlib,
+  versionCheckHook,
+  nix-update-script,
 }:
 
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "git-agecrypt";
-  version = "unstable-2024-03-11";
+  version = "0.6.0";
 
   src = fetchFromGitHub {
     owner = "vlaci";
     repo = "git-agecrypt";
-    rev = "126be86c515466c5878a60561f754a9ab4af6ee8";
-    hash = "sha256-cmnBW/691mmLHq8tWpD3+zwCf7Wph5fcVdSxQGxqd1k=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-tN5APSipMAS/vFQV9SsFlTGA8K4eF2U10kBVAzp1z/E=";
   };
 
-  cargoHash = "sha256-FmlJeWMIIyTsg3TTLUia14et+aTgFCTkOr1J5dp0SGY=";
+  cargoHash = "sha256-xeucrpQb/fVN5XzPvr1VAR82/kAzj4DphdtqQUAzWpI=";
 
-  nativeBuildInputs = [ pkg-config git ];
+  nativeBuildInputs = [ pkg-config ];
 
-  buildInputs = [ libgit2 zlib ]
-    ++ lib.optional stdenv.isDarwin darwin.apple_sdk.frameworks.Security;
+  buildInputs = [
+    libgit2
+    zlib
+  ];
 
+  nativeCheckInputs = [ git ];
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  doInstallCheck = true;
 
-  meta = with lib; {
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "Alternative to git-crypt using age instead of GPG";
     homepage = "https://github.com/vlaci/git-agecrypt";
-    license = licenses.mpl20;
-    maintainers = with maintainers; [ kuznetsss ];
+    changelog = "https://github.com/vlaci/git-agecrypt/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.mpl20;
+    maintainers = with lib.maintainers; [
+      kuznetsss
+      vlaci
+    ];
     mainProgram = "git-agecrypt";
   };
-}
+})

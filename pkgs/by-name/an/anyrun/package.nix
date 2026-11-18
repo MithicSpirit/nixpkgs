@@ -1,59 +1,56 @@
-{ lib
-, rustPlatform
-, fetchFromGitHub
-, pkg-config
-, wrapGAppsHook3
-, atk
-, cairo
-, gdk-pixbuf
-, glib
-, gtk3
-, pango
-, stdenv
-, darwin
-, wayland
-, gtk-layer-shell
-, unstableGitUpdater
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+  pkg-config,
+  wrapGAppsHook4,
+  anyrun-provider,
+  aws-lc,
+  cairo,
+  gdk-pixbuf,
+  glib,
+  gtk4,
+  pango,
+  wayland,
+  gtk4-layer-shell,
+  nix-update-script,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "anyrun";
-  version = "0-unstable-2023-12-01";
+  version = "26.10.0";
 
   src = fetchFromGitHub {
-    owner = "kirottu";
+    owner = "anyrun-org";
     repo = "anyrun";
-    rev = "e14da6c37337ffa3ee1bc66965d58ef64c1590e5";
-    hash = "sha256-hI9+KBShsSfvWX7bmRa/1VI20WGat3lDXmbceMZzMS4=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-D1keVdbuuX6qM/tH8XRDPGv610oEvPKo9OhaHFluCFQ=";
   };
 
-  cargoHash = "sha256-apOQc9Z6YANoaeKcbNxBfAv7mmGFB+CagrYRPgC5wLY=";
+  cargoHash = "sha256-O37p+CCba7b29QDdXvkUQD2Nt3dsv+sv3waZMHpPMYY=";
 
-  strictDeps = true;
   enableParallelBuilding = true;
   doCheck = true;
 
   nativeBuildInputs = [
     pkg-config
-    wrapGAppsHook3
+    wrapGAppsHook4
   ];
 
   buildInputs = [
-    atk
+    aws-lc
     cairo
     gdk-pixbuf
     glib
-    gtk3
-    gtk-layer-shell
+    gtk4
+    gtk4-layer-shell
     pango
-  ] ++ lib.optionals stdenv.isDarwin [
-    darwin.apple_sdk.frameworks.Security
-  ] ++ lib.optionals stdenv.isLinux [
     wayland
   ];
 
   preFixup = ''
     gappsWrapperArgs+=(
+     --prefix PATH ":" ${lib.makeBinPath [ anyrun-provider ]}
      --prefix ANYRUN_PLUGINS : $out/lib
     )
   '';
@@ -62,13 +59,21 @@ rustPlatform.buildRustPackage rec {
     install -Dm444 anyrun/res/style.css examples/config.ron -t $out/share/doc/anyrun/examples/
   '';
 
-  passthru.updateScript = unstableGitUpdater { };
+  passthru = {
+    updateScript = nix-update-script { };
+    # This is used for detecting whether or not an Anyrun package has the provider
+    inherit anyrun-provider;
+  };
 
   meta = {
     description = "Wayland-native, highly customizable runner";
-    homepage = "https://github.com/kirottu/anyrun";
+    homepage = "https://github.com/anyrun-org/anyrun";
     license = lib.licenses.gpl3Only;
-    maintainers = with lib.maintainers; [ eclairevoyant NotAShelf ];
+    maintainers = with lib.maintainers; [
+      khaneliman
+      NotAShelf
+    ];
     mainProgram = "anyrun";
+    platforms = lib.platforms.linux;
   };
-}
+})

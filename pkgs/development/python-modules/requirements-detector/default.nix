@@ -6,46 +6,44 @@
   packaging,
   poetry-core,
   semver,
+  tomli,
   pytestCheckHook,
-  pythonOlder,
-  toml,
+  stdenv, # for meta.broken
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "requirements-detector";
-  version = "1.2.2";
+  version = "1.6.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
   src = fetchFromGitHub {
-    owner = "landscapeio";
+    owner = "prospector-dev";
     repo = "requirements-detector";
-    rev = "refs/tags/${version}";
-    hash = "sha256-qmrHFQRypBJOI1N6W/Dtc5ss9JGqoPhFlbqrLHcb6vc=";
+    tag = finalAttrs.version;
+    hash = "sha256-AdKVZUb3MTxh6mRJly0xcCm6ogu83m0IsKcamSUup7M=";
   };
 
   build-system = [ poetry-core ];
 
+  pythonRelaxDeps = lib.optionals stdenv.hostPlatform.isDarwin [ "astroid" ];
+
   dependencies = [
     astroid
     packaging
-    toml
     semver
+    tomli
   ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "requirements_detector" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python tool to find and list requirements of a Python project";
-    homepage = "https://github.com/landscapeio/requirements-detector";
-    changelog = "https://github.com/landscapeio/requirements-detector/releases/tag/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ kamadorueda ];
+    homepage = "https://github.com/prospector-dev/requirements-detector";
+    changelog = "https://github.com/prospector-dev/requirements-detector/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = [ ];
     mainProgram = "detect-requirements";
-    # https://github.com/landscapeio/requirements-detector/issues/48
-    broken = versionAtLeast astroid.version "3";
   };
-}
+})

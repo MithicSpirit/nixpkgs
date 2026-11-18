@@ -2,30 +2,38 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
+
+  # build-system
+  setuptools,
+  setuptools-scm,
+
+  # dependencies
   ipykernel,
   ipython,
-  pythonOlder,
   qtconsole,
   qtpy,
-  setuptools-scm,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "napari-console";
-  version = "0.0.9";
+  version = "0.1.5";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "napari";
     repo = "napari-console";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-3gOfiPx06G5c4eaLQ5kP45hUr6yw91esznJFacpO66Q=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-2Cbjm/SB2/ULrHkO0zS5VLgc+4T1lc/cx+mdABMpEG4=";
   };
 
-  build-system = [ setuptools-scm ];
+  build-system = [
+    setuptools
+    setuptools-scm
+  ];
 
+  pythonRelaxDeps = [
+    "ipykernel"
+  ];
   dependencies = [
     ipykernel
     ipython
@@ -36,12 +44,10 @@ buildPythonPackage rec {
   # Circular dependency: napari
   doCheck = false;
 
-  pythonImportsCheck = [ "napari_console" ];
-
-  meta = with lib; {
+  meta = {
     description = "Plugin that adds a console to napari";
     homepage = "https://github.com/napari/napari-console";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ SomeoneSerge ];
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ SomeoneSerge ];
   };
-}
+})

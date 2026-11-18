@@ -1,6 +1,11 @@
-{ lib, buildDunePackage, fetchFromGitHub
-, cohttp, dispatch, ptime
-, ounit
+{
+  lib,
+  buildDunePackage,
+  fetchFromGitHub,
+  cohttp,
+  dispatch,
+  ptime,
+  ounit,
 }:
 
 buildDunePackage rec {
@@ -14,10 +19,14 @@ buildDunePackage rec {
     owner = "inhabitedtype";
     repo = "ocaml-webmachine";
     rev = version;
-    sha256 = "03ynb1l2jjqba88m9r8m5hwlm8izpfp617r4vcab5kmdim1l2ffx";
+    hash = "sha256-3TlBQ42tzrIU2ySfYK67P6JKOSwV5VQRUgtLKWhY1g8=";
   };
 
-  propagatedBuildInputs = [ cohttp dispatch ptime ];
+  propagatedBuildInputs = [
+    cohttp
+    dispatch
+    ptime
+  ];
 
   checkInputs = [ ounit ];
 

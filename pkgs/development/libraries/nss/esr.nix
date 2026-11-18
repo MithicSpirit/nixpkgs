@@ -1,4 +1,6 @@
 import ./generic.nix {
-  version = "3.101.2";
-  hash = "sha256-i5K47pzQYOiD4vFHBN6VeqXEdPBOM7U1oSK0qSi2M2Y=";
+  version = "3.125";
+  hash = "sha256-pIRoFJYsQZzI+hJcNzTX+WT91tfXDygWE0RrirfyBPc=";
+  filename = "esr.nix";
+  versionRegex = "NSS_(3)_(125)(?:_(\\d+))?_RTM";
 }

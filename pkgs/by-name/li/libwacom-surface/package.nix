@@ -8,8 +8,8 @@ let
   libwacom-surface = fetchFromGitHub {
     owner = "linux-surface";
     repo = "libwacom-surface";
-    rev = "v2.12.2-1";
-    hash = "sha256-MreAwOaT8pd5NMWBpZDBbPz73DhcChgeXXBNyjw99Pw=";
+    tag = "v2.20.0-1";
+    hash = "sha256-3dts1RPfBN8nmJ344CPFKbNnzeFSJLeucg5rS3qgga0=";
   };
 in
 libwacom.overrideAttrs (prevAttrs: {
@@ -41,5 +41,6 @@ libwacom.overrideAttrs (prevAttrs: {
   meta = prevAttrs.meta // {
     homepage = "https://github.com/linux-surface/libwacom-surface";
     maintainers = with lib.maintainers; [ dotlambda ];
+    teams = [ ];
   };
 })

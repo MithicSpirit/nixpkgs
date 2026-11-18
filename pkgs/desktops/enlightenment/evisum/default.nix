@@ -1,20 +1,21 @@
-{ lib
-, stdenv
-, fetchurl
-, meson
-, ninja
-, pkg-config
-, efl
-, directoryListingUpdater
+{
+  lib,
+  stdenv,
+  fetchurl,
+  meson,
+  ninja,
+  pkg-config,
+  efl,
+  directoryListingUpdater,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "evisum";
-  version = "0.6.1";
+  version = "2.0.13";
 
   src = fetchurl {
-    url = "https://download.enlightenment.org/rel/apps/${pname}/${pname}-${version}.tar.xz";
-    sha256 = "gy8guN4T4pCJCBAmfPQe2Ey7DITi4goU9ng2MmEtrbk=";
+    url = "https://download.enlightenment.org/rel/apps/evisum/evisum-${finalAttrs.version}.tar.xz";
+    hash = "sha256-ntih3sFIbogai4tlG6YPla1nlgzxDbhGIkk0sYg5LD4=";
   };
 
   nativeBuildInputs = [
@@ -29,12 +30,12 @@ stdenv.mkDerivation rec {
 
   passthru.updateScript = directoryListingUpdater { };
 
-  meta = with lib; {
+  meta = {
     description = "System and process monitor written with EFL";
     mainProgram = "evisum";
-    homepage = "https://www.enlightenment.org";
-    license = with licenses; [ isc ];
-    platforms = platforms.linux;
-    maintainers = teams.enlightenment.members;
+    homepage = "https://git.enlightenment.org/enlightenment/evisum";
+    license = lib.licenses.isc;
+    platforms = lib.platforms.linux;
+    teams = [ lib.teams.enlightenment ];
   };
-}
+})

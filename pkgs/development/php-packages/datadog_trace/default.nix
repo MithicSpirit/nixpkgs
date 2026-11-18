@@ -1,71 +1,74 @@
 {
   lib,
+  php,
   stdenv,
   buildPecl,
   cargo,
+  cmake,
   rustc,
   fetchFromGitHub,
   rustPlatform,
   curl,
   pcre2,
+  valgrind,
   libiconv,
-  darwin,
+  pkg-config,
+  zstd,
 }:
 
 buildPecl rec {
   pname = "ddtrace";
-  version = "0.97.0";
+  version = "1.26.2";
 
   src = fetchFromGitHub {
     owner = "DataDog";
     repo = "dd-trace-php";
-    rev = version;
+    tag = version;
     fetchSubmodules = true;
-    hash = "sha256-Kx2HaWvRT+mFIs0LAAptx6nm9DQ83QEuyHNcEPEr7A4=";
+    hash = "sha256-35Pb68wFg/HwuN3qrxRFo/rN9rOdnx30vUScWPQGQ5s=";
   };
 
-  cargoDeps = rustPlatform.importCargoLock {
-    lockFile = ./Cargo.lock;
-    outputHashes = {
-      "datadog-profiling-5.0.0" = "sha256-/Z1vGpAHpU5EO80NXnzyAHN4s3iyA1jOquBS8MH1nOo=";
-    };
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit src;
+    hash = "sha256-IcyygiMLiaKkb+4W+YtTQuRrunego6KtbISw5u1egoI=";
   };
 
   env.NIX_CFLAGS_COMPILE = "-O2";
 
-  nativeBuildInputs =
-    [
-      cargo
-      rustc
-    ]
-    ++ lib.optionals stdenv.isLinux [
-      rustPlatform.bindgenHook
-      rustPlatform.cargoSetupHook
-    ]
-    ++ lib.optionals stdenv.isDarwin [
-      darwin.apple_sdk_11_0.rustPlatform.bindgenHook
-      darwin.apple_sdk_11_0.rustPlatform.cargoSetupHook
-    ];
+  configureFlags = [ "--enable-ddtrace-libddwaf-source" ];
 
-  buildInputs =
-    [
-      curl
-      pcre2
-    ]
-    ++ lib.optionals stdenv.isDarwin [
-      darwin.apple_sdk.frameworks.CoreFoundation
-      darwin.apple_sdk.frameworks.Security
-      libiconv
-    ];
+  dontUseCmakeConfigure = true;
+
+  nativeBuildInputs = [
+    cargo
+    cmake
+    pkg-config
+    rustc
+    rustPlatform.bindgenHook
+    rustPlatform.cargoSetupHook
+  ];
+
+  buildInputs = [
+    curl
+    pcre2
+    zstd
+  ]
+  ++ lib.optionals (!stdenv.hostPlatform.isDarwin) [
+    valgrind
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    libiconv
+  ];
 
   meta = {
-    changelog = "https://github.com/DataDog/dd-trace-php/blob/${src.rev}/CHANGELOG.md";
+    broken = lib.versionAtLeast php.version "8.6";
+    changelog = "https://github.com/DataDog/dd-trace-php/blob/${src.tag}/CHANGELOG.md";
     description = "Datadog Tracing PHP Client";
     homepage = "https://github.com/DataDog/dd-trace-php";
     license = with lib.licenses; [
       asl20
       bsd3
     ];
-    maintainers = lib.teams.php.members;
+    teams = [ lib.teams.php ];
   };
 }

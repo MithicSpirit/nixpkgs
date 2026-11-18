@@ -3,24 +3,21 @@
   buildPythonPackage,
   fetchPypi,
   llama-index-core,
-  poetry-core,
-  pythonOlder,
+  hatchling,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "llama-index-readers-database";
-  version = "0.1.4";
+  version = "0.7.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchPypi {
     pname = "llama_index_readers_database";
-    inherit version;
-    hash = "sha256-x71+szDNDZNaVc8AMXruKvxSNXg561ibE2+kx53zHfI=";
+    inherit (finalAttrs) version;
+    hash = "sha256-5Ffw3Ro7+vmskRI8xr1gRTxgEyMCn7GWHn6I4mEcnoY=";
   };
 
-  build-system = [ poetry-core ];
+  build-system = [ hatchling ];
 
   dependencies = [ llama-index-core ];
 
@@ -29,11 +26,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "llama_index.readers.database" ];
 
-  meta = with lib; {
+  meta = {
     description = "LlamaIndex Readers Integration for Databases";
     homepage = "https://github.com/run-llama/llama_index/tree/main/llama-index-integrations/readers/llama-index-readers-database";
     changelog = "https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/readers/llama-index-readers-database/CHANGELOG.md";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

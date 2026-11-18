@@ -2,7 +2,7 @@
   stdenv,
   lib,
   fetchurl,
-  substituteAll,
+  replaceVars,
   dconf,
   gettext,
   meson,
@@ -27,7 +27,7 @@
   pango,
   polkit,
   webkitgtk_6_0,
-  systemd,
+  systemdLibs,
   libadwaita,
   libnma-gtk4,
   tzdata,
@@ -37,16 +37,15 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "gnome-initial-setup";
-  version = "46.3";
+  version = "51.1";
 
   src = fetchurl {
     url = "mirror://gnome/sources/gnome-initial-setup/${lib.versions.major finalAttrs.version}/gnome-initial-setup-${finalAttrs.version}.tar.xz";
-    hash = "sha256-o/AQgp9NTI1J+Dqxz6uCG2GyeA6eC15Wicfv8/hE7T4=";
+    hash = "sha256-WIMIXTQbLs/24BzHyxrULy89LP9MQxRLR1QsgG/W5oI=";
   };
 
   patches = [
-    (substituteAll {
-      src = ./0001-fix-paths.patch;
+    (replaceVars ./0001-fix-paths.patch {
       inherit tzdata;
       tecla = gnome-tecla;
     })
@@ -58,7 +57,7 @@ stdenv.mkDerivation (finalAttrs: {
     meson
     ninja
     pkg-config
-    systemd
+    systemdLibs
     wrapGAppsHook4
   ];
 
@@ -95,11 +94,12 @@ stdenv.mkDerivation (finalAttrs: {
     updateScript = gnome.updateScript { packageName = "gnome-initial-setup"; };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Simple, easy, and safe way to prepare a new system";
     homepage = "https://gitlab.gnome.org/GNOME/gnome-initial-setup";
-    license = licenses.gpl2Plus;
-    platforms = platforms.linux;
-    maintainers = teams.gnome.members;
+    changelog = "https://gitlab.gnome.org/GNOME/gnome-initial-setup/-/blob/${finalAttrs.version}/NEWS?ref_type=tags";
+    license = lib.licenses.gpl2Plus;
+    platforms = lib.platforms.linux;
+    teams = [ lib.teams.gnome ];
   };
 })

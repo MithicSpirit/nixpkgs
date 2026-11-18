@@ -1,38 +1,56 @@
-{ lib
-, stdenv
-, fetchFromGitHub
-, cmake
-, pkg-config
-, libdrm
-, libva
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  cmake,
+  pkg-config,
+  libdrm,
+  libva,
+  nix-update-script,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "vpl-gpu-rt";
-  version = "24.2.5";
+  version = "26.3.5";
 
-  outputs = [ "out" "dev" ];
+  outputs = [
+    "out"
+    "dev"
+  ];
 
   src = fetchFromGitHub {
     owner = "intel";
     repo = "vpl-gpu-rt";
-    rev = "intel-onevpl-${version}";
-    sha256 = "sha256-WYlA8+i8TTFHsU4+doLcv75F9MR2V/BEuNGGLgM4p1s=";
+    rev = "intel-onevpl-${finalAttrs.version}";
+    hash = "sha256-YNLgCpxz8rARPClzWN/w484LWOdfA+v8KUB3TiCbUxU=";
   };
 
-  nativeBuildInputs = [ cmake pkg-config ];
+  nativeBuildInputs = [
+    cmake
+    pkg-config
+  ];
 
-  buildInputs = [ libdrm libva ];
+  buildInputs = [
+    libdrm
+    libva
+  ];
+
+  passthru.updateScript = nix-update-script {
+    extraArgs = [
+      "--use-github-releases"
+      "--version-regex=intel-onevpl-(.*)"
+    ];
+  };
 
   meta = {
     description = "oneAPI Video Processing Library Intel GPU implementation";
     homepage = "https://github.com/intel/vpl-gpu-rt";
-    changelog = "https://github.com/intel/vpl-gpu-rt/releases/tag/${src.rev}";
-    license = [ lib.licenses.mit ];
-    platforms = lib.platforms.linux;
-    # CMake adds x86 specific compiler flags in <source>/builder/FindGlobals.cmake
-    # NOTE: https://github.com/oneapi-src/oneVPL-intel-gpu/issues/303
-    broken = !stdenv.hostPlatform.isx86;
-    maintainers = with lib.maintainers; [ evanrichter pjungkamp ];
+    changelog = "https://github.com/intel/vpl-gpu-rt/releases/tag/${finalAttrs.src.rev}";
+    license = lib.licenses.mit;
+    platforms = [ "x86_64-linux" ];
+    maintainers = with lib.maintainers; [
+      evanrichter
+      pjungkamp
+    ];
   };
-}
+})

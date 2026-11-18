@@ -1,17 +1,21 @@
-{ lib, mkDiscoursePlugin, fetchFromGitHub }:
+{
+  lib,
+  mkDiscoursePlugin,
+  fetchFromGitHub,
+}:
 
 mkDiscoursePlugin {
   name = "discourse-yearly-review";
   src = fetchFromGitHub {
     owner = "discourse";
     repo = "discourse-yearly-review";
-    rev = "59b98bab5ee370da4774f60ea7b5122dddcbd83a";
-    sha256 = "sha256-OIptI6T5n021AsWO/eYK3ntL0JJG7+f4OmZwdxGcfFg=";
+    rev = "a4e9ee393de923332609d0436e3c1c8757f6cb1c";
+    sha256 = "sha256-WHU7vYTnavX3waJWjHn11kg70TCoFH9cdmdPRSsNZO4=";
   };
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/discourse/discourse-yearly-review";
-    maintainers = with maintainers; [ talyz ];
-    license = licenses.mit;
+    maintainers = with lib.maintainers; [ talyz ];
+    license = lib.licenses.mit;
     description = "Publishes an automated Year in Review topic";
   };
 }

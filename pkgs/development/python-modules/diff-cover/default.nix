@@ -3,10 +3,9 @@
   buildPythonPackage,
   chardet,
   fetchPypi,
+  hatchling,
   jinja2,
-  jinja2-pluralize,
   pluggy,
-  poetry-core,
   pycodestyle,
   pyflakes,
   pygments,
@@ -14,33 +13,32 @@
   pytest-datadir,
   pytest-mock,
   pytestCheckHook,
-  pythonOlder,
   tomli,
 }:
 
 buildPythonPackage rec {
   pname = "diff-cover";
-  version = "9.1.1";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.7";
+  version = "10.6.0";
+  pyproject = true;
 
   src = fetchPypi {
     pname = "diff_cover";
     inherit version;
-    hash = "sha256-te0glVs+ve6UR25CnP2fEyThwZoExKrjKok7EcNnPx4=";
+    hash = "sha256-jRGU37U39wSArJfJxF3UByHPTDJsmQP76ZfbZ6TbYZU=";
   };
 
-  nativeBuildInputs = [ poetry-core ];
+  build-system = [ hatchling ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     chardet
     jinja2
-    jinja2-pluralize
     pluggy
     pygments
-    tomli
   ];
+
+  optional-dependencies = {
+    toml = [ tomli ];
+  };
 
   nativeCheckInputs = [
     pycodestyle
@@ -51,20 +49,14 @@ buildPythonPackage rec {
     pytestCheckHook
   ];
 
-  disabledTests = [
-    # Tests check for flake8
-    "file_does_not_exist"
-    # Comparing console output doesn't work reliable
-    "console"
-  ];
-
   pythonImportsCheck = [ "diff_cover" ];
 
-  meta = with lib; {
+  meta = {
     description = "Automatically find diff lines that need test coverage";
     homepage = "https://github.com/Bachmann1234/diff-cover";
     changelog = "https://github.com/Bachmann1234/diff_cover/releases/tag/v${version}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ dzabraev ];
+    license = lib.licenses.asl20;
+    maintainers = [ ];
+    mainProgram = "diff-cover";
   };
 }

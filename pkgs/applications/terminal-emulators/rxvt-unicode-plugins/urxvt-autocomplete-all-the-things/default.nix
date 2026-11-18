@@ -1,4 +1,8 @@
-{ lib, stdenv, fetchFromGitHub }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+}:
 
 stdenv.mkDerivation rec {
   pname = "urxvt-autocomplete-all-the-things";
@@ -8,7 +12,7 @@ stdenv.mkDerivation rec {
     owner = "Vifon";
     repo = "autocomplete-ALL-the-things";
     rev = version;
-    sha256 = "06xd59c6gd9rglwq4km93n2p078k7v4x300lqrg1f32vvnjvs7sr";
+    hash = "sha256-WR+9pd1bDBdexhSA0ck+Ex1whR2pToI5fTm1Z1gqrRs=";
   };
 
   installPhase = ''
@@ -16,12 +20,11 @@ stdenv.mkDerivation rec {
     cp autocomplete-ALL-the-things $out/lib/urxvt/perl
   '';
 
-  meta = with lib; {
+  meta = {
     description = "urxvt plugin allowing user to easily complete arbitrary text";
     homepage = "https://github.com/Vifon/autocomplete-ALL-the-things";
-    license = licenses.gpl3;
-    maintainers = with maintainers; [ nickhu ];
-    platforms = with platforms; unix;
+    license = lib.licenses.gpl3;
+    maintainers = with lib.maintainers; [ nickhu ];
+    platforms = with lib.platforms; unix;
   };
 }
-

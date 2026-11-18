@@ -1,59 +1,60 @@
 {
   lib,
   aiohttp,
-  aresponses,
+  aioresponses,
   buildPythonPackage,
   fetchFromGitHub,
   mashumaro,
   orjson,
   poetry-core,
+  pyprojectVersionPatchHook,
   pytest-asyncio,
+  pytest-cov-stub,
   pytestCheckHook,
-  pythonOlder,
+  syrupy,
+  yarl,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "open-meteo";
-  version = "0.3.1";
-  format = "pyproject";
-
-  disabled = pythonOlder "3.11";
+  version = "1.0.1";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "frenck";
     repo = "python-open-meteo";
-    rev = "v${version}";
-    hash = "sha256-IB+dfQ4bb4dMYYQUVH9YbP3arvfgt4SooPlOKP3AVI8=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-rTHHqFiar2W5LTuuXKfUv0tnvjXuNbkfzT80DWXpYiE=";
   };
 
-  postPatch = ''
-    # Upstream doesn't set a version for the pyproject.toml
-    substituteInPlace pyproject.toml \
-      --replace "0.0.0" "${version}" \
-      --replace "--cov" ""
-  '';
+  nativeBuildInputs = [
+    pyprojectVersionPatchHook
+  ];
 
-  nativeBuildInputs = [ poetry-core ];
+  build-system = [ poetry-core ];
 
-  propagatedBuildInputs = [
+  dependencies = [
     aiohttp
     mashumaro
     orjson
+    yarl
   ];
 
   nativeCheckInputs = [
-    aresponses
+    aioresponses
     pytest-asyncio
+    pytest-cov-stub
     pytestCheckHook
+    syrupy
   ];
 
   pythonImportsCheck = [ "open_meteo" ];
 
-  meta = with lib; {
-    changelog = "https://github.com/frenck/python-open-meteo/releases/tag/v${version}";
+  meta = {
+    changelog = "https://github.com/frenck/python-open-meteo/releases/tag/${finalAttrs.version}";
     description = "Python client for the Open-Meteo API";
     homepage = "https://github.com/frenck/python-open-meteo";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

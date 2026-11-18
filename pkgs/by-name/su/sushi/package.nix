@@ -1,34 +1,39 @@
-{ lib, stdenv
-, fetchurl
-, pkg-config
-, meson
-, gettext
-, gobject-introspection
-, evince
-, glib
-, gnome
-, gtksourceview4
-, gjs
-, libsoup_3
-, webkitgtk_4_1
-, icu
-, wrapGAppsHook3
-, gst_all_1
-, gdk-pixbuf
-, librsvg
-, gtk3
-, harfbuzz
-, ninja
-, libepoxy
+{
+  lib,
+  stdenv,
+  blueprint-compiler,
+  fetchurl,
+  pkg-config,
+  meson,
+  gettext,
+  gobject-introspection,
+  glib,
+  gnome,
+  gtksourceview5,
+  gjs,
+  libsoup_3,
+  webkitgtk_6_0,
+  wrapGAppsHook4,
+  gst_all_1,
+  gtk4,
+  libadwaita,
+  harfbuzz,
+  ninja,
+  papers,
+  fribidi,
+  libglycin,
+  libglycin-gtk4,
+  glycin-loaders,
+  python3,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "sushi";
-  version = "46.0";
+  version = "51.2";
 
   src = fetchurl {
-    url = "mirror://gnome/sources/sushi/${lib.versions.major version}/sushi-${version}.tar.xz";
-    hash = "sha256-lghbqqQwqyFCxgaqtcR+L7sv0+two1ITfmXFmlig8sY=";
+    url = "mirror://gnome/sources/sushi/${lib.versions.major finalAttrs.version}/sushi-${finalAttrs.version}.tar.xz";
+    hash = "sha256-kowBVb1WZAmL201ZGAbnDoIZpLZr9GyVOC9yWJ5Omm4=";
   };
 
   nativeBuildInputs = [
@@ -37,28 +42,37 @@ stdenv.mkDerivation rec {
     ninja
     gettext
     gobject-introspection
-    wrapGAppsHook3
+    blueprint-compiler
+    python3
+    wrapGAppsHook4
   ];
 
   buildInputs = [
     glib
-    gtk3
-    evince
-    icu
     harfbuzz
     gjs
-    gtksourceview4
-    gdk-pixbuf
-    librsvg
+    gtk4
+    libglycin
+    libglycin.setupHook
+    libglycin-gtk4
+    glycin-loaders
+    libadwaita
+    gtksourceview5
     libsoup_3
-    webkitgtk_4_1
-    libepoxy
+    webkitgtk_6_0
+    papers
+    fribidi
     gst_all_1.gstreamer
     gst_all_1.gst-plugins-base
     (gst_all_1.gst-plugins-good.override { gtkSupport = true; })
     gst_all_1.gst-plugins-bad
     gst_all_1.gst-plugins-ugly
   ];
+
+  postPatch = ''
+    substituteInPlace meson.build \
+      --replace-fail "gjs = find_program('gjs', 'gjs-console')" "gjs = find_program('${lib.getExe gjs}')"
+  '';
 
   # See https://github.com/NixOS/nixpkgs/issues/31168
   postInstall = ''
@@ -75,12 +89,15 @@ stdenv.mkDerivation rec {
     };
   };
 
-  meta = with lib; {
-    homepage = "https://en.wikipedia.org/wiki/Sushi_(software)";
+  strictDeps = true;
+
+  meta = {
+    homepage = "https://gitlab.gnome.org/GNOME/sushi";
+    changelog = "https://gitlab.gnome.org/GNOME/sushi/-/blob/${finalAttrs.version}/NEWS?ref_type=tags";
     description = "Quick previewer for Nautilus";
     mainProgram = "sushi";
-    maintainers = teams.gnome.members;
-    license = licenses.gpl2Plus;
-    platforms = platforms.linux;
+    teams = [ lib.teams.gnome ];
+    license = lib.licenses.gpl2Plus;
+    platforms = lib.platforms.linux;
   };
-}
+})

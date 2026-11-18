@@ -4,39 +4,39 @@
   botocore,
   buildPythonPackage,
   cached-property,
-  click,
   click-option-group,
+  click,
   fetchFromGitHub,
   jinja2,
   markdown,
+  moto,
   policy-sentry,
   pytestCheckHook,
-  pythonOlder,
   pyyaml,
   schema,
-  setuptools,
+  uv-build,
 }:
 
 buildPythonPackage rec {
   pname = "cloudsplaining";
-  version = "0.6.3";
+  version = "0.9.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.6";
 
   src = fetchFromGitHub {
     owner = "salesforce";
     repo = "cloudsplaining";
-    rev = "refs/tags/${version}";
-    hash = "sha256-mRWfb14zKS141cYzShXY+OoHWfs9PB1oJu3spsvv6mI=";
+    tag = version;
+    hash = "sha256-10iUNeSn71o6B4DRrCt6Yw7b/2bwCd0ZFyf9LwMAM6U=";
   };
 
   postPatch = ''
-    # Ignore pinned versions
-    sed -i "s/'\(.*\)\(==\|>=\).*'/'\1'/g" requirements.txt
+    substituteInPlace pyproject.toml \
+      --replace-fail "uv_build~=0.11.0" "uv_build"
   '';
 
-  build-system = [ setuptools ];
+  pythonRelaxDeps = true;
+
+  build-system = [ uv-build ];
 
   dependencies = [
     boto3
@@ -51,7 +51,10 @@ buildPythonPackage rec {
     schema
   ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  nativeCheckInputs = [
+    moto
+    pytestCheckHook
+  ];
 
   disabledTests = [
     "test_policy_expansion"
@@ -60,12 +63,12 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "cloudsplaining" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python module for AWS IAM security assessment";
     homepage = "https://github.com/salesforce/cloudsplaining";
-    changelog = "https://github.com/salesforce/cloudsplaining/releases/tag/${version}";
-    license = licenses.bsd3;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/salesforce/cloudsplaining/releases/tag/${src.tag}";
+    license = lib.licenses.bsd3;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "cloudsplaining";
   };
 }

@@ -1,37 +1,46 @@
 {
   lib,
+  stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  poetry-core,
   pytestCheckHook,
-  pythonOlder,
+  uv-build,
 }:
 
 buildPythonPackage rec {
   pname = "govee-local-api";
-  version = "1.5.1";
+  version = "3.3.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.10";
 
   src = fetchFromGitHub {
     owner = "Galorhallen";
     repo = "govee-local-api";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-pmExXQmkkjeMHegXV/b94a95qkoOHA7SJOkR1NUV4lE=";
+    tag = "v${version}";
+    hash = "sha256-JjrO9lOIrkp595+O6usa8wVrKmWyoywHEeIOP5HxL0Q=";
   };
 
-  build-system = [ poetry-core ];
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "uv_build>=0.11.30,<0.12" "uv_build"
+  '';
+
+  build-system = [ uv-build ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "govee_local_api" ];
 
-  meta = with lib; {
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
+    "test_reuseaddr_and_broadcast_are_set"
+  ];
+
+  __darwinAllowLocalNetworking = true;
+
+  meta = {
     description = "Library to communicate with Govee local API";
     homepage = "https://github.com/Galorhallen/govee-local-api";
-    changelog = "https://github.com/Galorhallen/govee-local-api/releases/tag/v${version}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/Galorhallen/govee-local-api/releases/tag/${src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
 }

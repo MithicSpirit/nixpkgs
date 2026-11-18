@@ -14,17 +14,16 @@
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pyopenweathermap";
-  version = "0.1.1";
+  version = "0.3.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "freekode";
     repo = "pyopenweathermap";
-    # https://github.com/freekode/pyopenweathermap/issues/2
-    rev = "refs/tags/v${version}";
-    hash = "sha256-OGalKlZP4pKKWKypjM5nVesvFAGLgvvRjMWzrEIp+VQ=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-+mfGX9ZsB/NnTE9ChOeM7a7ms4KbxaaqEIJ6SucyrTo=";
   };
 
   build-system = [ poetry-core ];
@@ -36,17 +35,16 @@ buildPythonPackage rec {
     pytestCheckHook
   ];
 
-  pytestFlagsArray = [
-    "-m"
-    "'not network'"
+  disabledTestMarks = [
+    "network"
   ];
 
   pythonImportsCheck = [ "pyopenweathermap" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library for OpenWeatherMap API for Home Assistant";
     homepage = "https://github.com/freekode/pyopenweathermap";
-    license = licenses.mit;
-    maintainers = with maintainers; [ hexa ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ hexa ];
   };
-}
+})

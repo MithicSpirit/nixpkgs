@@ -1,4 +1,12 @@
-{ lib, stdenv, fetchurl, qtbase, qtsvg, qttools, qmake }:
+{
+  lib,
+  stdenv,
+  fetchurl,
+  qtbase,
+  qtsvg,
+  qttools,
+  qmake,
+}:
 
 stdenv.mkDerivation rec {
   pname = "qwt";
@@ -6,10 +14,14 @@ stdenv.mkDerivation rec {
 
   src = fetchurl {
     url = "mirror://sourceforge/qwt/qwt-${version}.tar.bz2";
-    sha256 = "sha256-mUYNMcEV7kEXsBddiF9HwsWQ14QgbwmBXcBY++Xt4fY=";
+    hash = "sha256-mUYNMcEV7kEXsBddiF9HwsWQ14QgbwmBXcBY++Xt4fY=";
   };
 
-  propagatedBuildInputs = [ qtbase qtsvg qttools ];
+  propagatedBuildInputs = [
+    qtbase
+    qtsvg
+    qttools
+  ];
   nativeBuildInputs = [ qmake ];
 
   postPatch = ''
@@ -20,12 +32,15 @@ stdenv.mkDerivation rec {
 
   dontWrapQtApps = true;
 
-  meta = with lib; {
+  meta = {
     description = "Qt widgets for technical applications";
     homepage = "http://qwt.sourceforge.net/";
     # LGPL 2.1 plus a few exceptions (more liberal)
-    license = licenses.qwt;
-    platforms = platforms.unix;
-    maintainers = [ maintainers.bjornfor ];
+    license = with lib.licenses; [
+      lgpl21Only
+      qwtException
+    ];
+    platforms = lib.platforms.unix;
+    maintainers = [ lib.maintainers.bjornfor ];
   };
 }

@@ -1,4 +1,10 @@
-{ lib, rel, buildKodiAddon, fetchzip, addonUpdateScript }:
+{
+  lib,
+  rel,
+  buildKodiAddon,
+  fetchzip,
+  addonUpdateScript,
+}:
 
 buildKodiAddon rec {
   pname = "simplecache";
@@ -7,7 +13,7 @@ buildKodiAddon rec {
 
   src = fetchzip {
     url = "https://mirrors.kodi.tv/addons/${lib.toLower rel}/${namespace}/${namespace}-${version}.zip";
-    sha256 = "sha256-xdOBIi99nspcDIKkjxcW1r/BqL8O9NxdDViTuvMtUmo=";
+    hash = "sha256-xdOBIi99nspcDIKkjxcW1r/BqL8O9NxdDViTuvMtUmo=";
   };
 
   passthru = {
@@ -17,10 +23,10 @@ buildKodiAddon rec {
     };
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/kodi-community-addons/script.module.simplecache";
-    description = "A simple object cache for Kodi addons";
-    license = licenses.asl20;
-    maintainers = teams.kodi.members;
+    description = "Simple object cache for Kodi addons";
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.kodi ];
   };
 }

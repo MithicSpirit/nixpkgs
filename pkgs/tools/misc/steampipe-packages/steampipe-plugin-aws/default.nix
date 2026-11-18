@@ -6,25 +6,38 @@
   steampipe,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "steampipe-plugin-aws";
-  version = "0.145.0";
+  version = "1.34.1";
+
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "turbot";
     repo = "steampipe-plugin-aws";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-Nh+GlnAA3dwRD0EFhUXqPXJtwUMmLzUtwFSJcaECpbc=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-VM82348h5EYzV6cZwjm+MG9sd2uPjKOsurlrhC7oxxs=";
   };
 
-  vendorHash = "sha256-h0+ffKSyEU7lSqbL+LwqRZp563AlAGpzMbtg3qdOjrk=";
+  vendorHash = "sha256-Hwb0xq2jbE14dFijFUEDAxxsqzdaIox2NxaPjNu0tBc=";
 
   ldflags = [
     "-s"
     "-w"
   ];
 
-  doCheck = true;
+  checkFlags =
+    let
+      # Requires network access
+      skippedTests = [
+        "TestEndpointUrlSignsWithConnectionKeys"
+        "TestEndpointUrlUsesConnectionProfile"
+        "TestEndpointUrlAssumesRoleAtConnectionEndpoint"
+        "TestEndpointUrlBeatsServiceEndpointEnv"
+        "TestEndpointUrlFromEnvWhenNotConfigured"
+      ];
+    in
+    [ "-skip=^${lib.concatStringsSep "$|^" skippedTests}$" ];
 
   installPhase = ''
     runHook preInstall
@@ -40,12 +53,12 @@ buildGoModule rec {
   passthru.updateScript = nix-update-script { };
 
   meta = {
-    changelog = "https://github.com/turbot/steampipe-plugin-aws/blob/v${version}/CHANGELOG.md";
+    changelog = "https://github.com/turbot/steampipe-plugin-aws/blob/${finalAttrs.src.tag}/CHANGELOG.md";
     description = "AWS Plugin for Steampipe";
     homepage = "https://github.com/turbot/steampipe-plugin-aws";
-    license = lib.licenses.apsl20;
+    license = lib.licenses.asl20;
     longDescription = "Use SQL to instantly query AWS resources across regions and accounts.";
     maintainers = with lib.maintainers; [ anthonyroussel ];
     platforms = steampipe.meta.platforms;
   };
-}
+})

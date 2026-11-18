@@ -3,7 +3,7 @@
   stdenv,
   buildPythonPackage,
   fetchFromGitHub,
-  fetchpatch2,
+  fetchpatch,
 
   # build-system
   cmake,
@@ -23,40 +23,47 @@
   # tests
   opencv4,
   numpy,
-  pympler,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pillow-heif";
-  version = "0.17.0";
+  version = "1.8.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "bigcat88";
     repo = "pillow_heif";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-fKh4UbTVj74YxH2vvL24DNmMxg10GSYAmduwuRneE+0=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-UO8FlVPlxBAM/8kM9jh+GTCsqLSRSsrEpFdxIG/AxMA=";
   };
 
   patches = [
-    (fetchpatch2 {
-      # fix libheif 1.18 support in tests
-      url = "https://github.com/bigcat88/pillow_heif/commit/a59434e9ca1138e47e322ddef2adc79e684384f1.patch";
-      hash = "sha256-yVT/pnO5KWMnsO95EPCZgyhx6FIJOhsna7t0zpTjWpE=";
+    # fix compatibility with libheif 1.23.7
+    (fetchpatch {
+      url = "https://github.com/bigcat88/pillow_heif/commit/558ee2bfbe85a64b4371bcc1bc067883c5f9573d.diff";
+      excludes = [
+        "CHANGELOG.md"
+        "LICENSES_bundled.txt"
+        "libheif/*"
+      ];
+      hash = "sha256-ToIAnz4PH87gyIBTnB57n3hA9BZXxtw0tS9mW4LUAGA=";
     })
   ];
 
   postPatch = ''
     sed -i '/addopts/d' pyproject.toml
+    substituteInPlace setup.py \
+      --replace-warn ', "-Werror"' ""
   '';
 
   nativeBuildInputs = [
     cmake
     nasm
     pkg-config
-    setuptools
   ];
+
+  build-system = [ setuptools ];
 
   dontUseCmakeConfigure = true;
 
@@ -68,52 +75,50 @@ buildPythonPackage rec {
   ];
 
   env = {
-    # clang-16: error: argument unused during compilation: '-fno-strict-overflow'
-    NIX_CFLAGS_COMPILE = lib.optionalString stdenv.cc.isClang "-Wno-unused-command-line-argument";
-
     RELEASE_FULL_FLAG = 1;
   };
 
-  propagatedBuildInputs = [ pillow ];
+  dependencies = [ pillow ];
 
   pythonImportsCheck = [ "pillow_heif" ];
 
   nativeCheckInputs = [
     opencv4
     numpy
-    pympler
     pytestCheckHook
   ];
 
-  disabledTests =
-    [
-      # Time based
-      "test_decode_threads"
-    ]
-    ++ lib.optionals stdenv.isDarwin [
-      # https://github.com/bigcat88/pillow_heif/issues/89
-      # not reproducible in nixpkgs
-      "test_opencv_crash"
-    ]
-    ++ lib.optionals (stdenv.isLinux && stdenv.isAarch64) [
-      # RuntimeError: Encoder plugin generated an error: Unsupported bit depth: Bit depth not supported by x265
-      "test_open_heif_compare_non_standard_modes_data"
-      "test_open_save_disable_16bit"
-      "test_save_bgr_16bit_to_10_12_bit"
-      "test_save_bgra_16bit_to_10_12_bit"
-      "test_premultiplied_alpha"
-      "test_hdr_save"
-      "test_I_color_modes_to_10_12_bit"
-    ];
+  disabledTests = [
+    # Time sensitive speed test, not reproducible
+    "test_decode_threads"
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    # https://github.com/bigcat88/pillow_heif/issues/89
+    # not reproducible in nixpkgs
+    "test_opencv_crash"
+  ]
+  ++ lib.optionals (stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64) [
+    # RuntimeError: Encoder plugin generated an error: Unsupported bit depth: Bit depth not supported by x265
+    "test_open_heif_compare_non_standard_modes_data"
+    "test_open_save_disable_16bit"
+    "test_save_bgr_16bit_to_10_12_bit"
+    "test_save_bgra_16bit_to_10_12_bit"
+    "test_premultiplied_alpha"
+    "test_hdr_save"
+    "test_I_color_modes_to_10_12_bit"
+  ];
 
   meta = {
-    changelog = "https://github.com/bigcat88/pillow_heif/releases/tag/v${version}";
+    changelog = "https://github.com/bigcat88/pillow_heif/releases/tag/${finalAttrs.src.tag}";
     description = "Python library for working with HEIF images and plugin for Pillow";
     homepage = "https://github.com/bigcat88/pillow_heif";
     license = with lib.licenses; [
       bsd3
       lgpl3
     ];
-    maintainers = with lib.maintainers; [ dandellion ];
+    maintainers = with lib.maintainers; [
+      dandellion
+      kuflierl
+    ];
   };
-}
+})

@@ -4,22 +4,19 @@
   classify-imports,
   fetchFromGitHub,
   pytestCheckHook,
-  pythonOlder,
   setuptools,
 }:
 
 buildPythonPackage rec {
   pname = "reorder-python-imports";
-  version = "3.13.0";
+  version = "3.19.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "asottile";
-    repo = "reorder_python_imports";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-N0hWrrUeojlUDZx2Azs/y2kCaknQ62hHdp0J2ZXPElY=";
+    repo = "reorder-python-imports";
+    tag = "v${version}";
+    hash = "sha256-LH4h9c9rF8zShgOJYnWJu4n8Uj70oUDHHtFv9FzV82o=";
   };
 
   build-system = [ setuptools ];
@@ -34,11 +31,11 @@ buildPythonPackage rec {
   # and therefore fails the assertion
   disabledTests = [ "test_success_messages_are_printed_on_stderr" ];
 
-  meta = with lib; {
+  meta = {
     description = "Tool for automatically reordering python imports";
-    homepage = "https://github.com/asottile/reorder_python_imports";
-    license = licenses.mit;
-    maintainers = with maintainers; [ gador ];
+    homepage = "https://github.com/asottile/reorder-python-imports";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ gador ];
     mainProgram = "reorder-python-imports";
   };
 }

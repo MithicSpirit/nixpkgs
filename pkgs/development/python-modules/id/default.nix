@@ -4,32 +4,25 @@
   fetchFromGitHub,
   flit-core,
   pretend,
-  pydantic,
   pytestCheckHook,
-  pythonOlder,
   requests,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "id";
-  version = "1.4.0";
+  version = "1.6.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "di";
     repo = "id";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-lmUBy0hJAxfF65RcBP7tTizrg8j2Zypu4sKgOUQCYh8=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-qO9zUjJ2ATpulFANJw7XJexIs71XXMuEB8C0acoDnxI=";
   };
 
   build-system = [ flit-core ];
 
-  dependencies = [
-    pydantic
-    requests
-  ];
+  dependencies = [ requests ];
 
   nativeCheckInputs = [
     pretend
@@ -38,11 +31,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "id" ];
 
-  meta = with lib; {
+  meta = {
     description = "Tool for generating OIDC identities";
     homepage = "https://github.com/di/id";
-    changelog = "https://github.com/di/id/blob/${version}/CHANGELOG.md";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/di/id/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

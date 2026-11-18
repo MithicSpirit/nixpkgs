@@ -1,6 +1,5 @@
 {
   lib,
-  backports-strenum,
   buildPythonPackage,
   fetchFromGitHub,
   pytestCheckHook,
@@ -8,32 +7,35 @@
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "archinfo";
-  version = "9.2.117";
+  # Keep angr-management, angr, archinfo, cle, and pyvex in sync.
+  # nixpkgs-update: no auto update
+  version = "10.0.5";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
+  disabled = pythonOlder "3.12";
 
   src = fetchFromGitHub {
     owner = "angr";
     repo = "archinfo";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-eMhj+OQEfkD4AgwNEEVil7p/XoaREsM+72/bN72XnzE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-iM1w+H+MNoWOjSn0ugGztl0Bn2VoxIkasmna9L43KPc=";
   };
 
   build-system = [ setuptools ];
-
-  dependencies = lib.optionals (pythonOlder "3.11") [ backports-strenum ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "archinfo" ];
 
-  meta = with lib; {
+  meta = {
     description = "Classes with architecture-specific information";
     homepage = "https://github.com/angr/archinfo";
-    license = with licenses; [ bsd2 ];
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.bsd2;
+    maintainers = with lib.maintainers; [
+      connornelson
+      fab
+    ];
   };
-}
+})

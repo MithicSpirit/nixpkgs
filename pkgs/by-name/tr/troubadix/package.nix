@@ -3,30 +3,35 @@
   fetchFromGitHub,
   git,
   python3,
+  writableTmpDirAsHomeHook,
 }:
 
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication (finalAttrs: {
   pname = "troubadix";
-  version = "24.8.2";
+  version = "26.11.0";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "greenbone";
     repo = "troubadix";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-rBExXotfI4uG4ns3x1cJTQ0PGABG7ZlziBrqcsa3dOg=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-w05VRVNS4zLd0FyhknVUNKTtvy5ZNyVZ2+6p4pBQrtg=";
   };
 
-  pythonRelaxDeps = [ "validators" ];
+  pythonRelaxDeps = [
+    "codespell"
+    "pontos"
+    "validators"
+  ];
 
   build-system = with python3.pkgs; [ poetry-core ];
-
 
   dependencies = with python3.pkgs; [
     chardet
     charset-normalizer
     pkgs.codespell
     gitpython
+    networkx
     pontos
     python-magic
     validators
@@ -35,11 +40,8 @@ python3.pkgs.buildPythonApplication rec {
   nativeCheckInputs = with python3.pkgs; [
     git
     pytestCheckHook
+    writableTmpDirAsHomeHook
   ];
-
-  preCheck = ''
-    export HOME=$(mktemp -d)
-  '';
 
   pythonImportsCheck = [ "troubadix" ];
 
@@ -50,12 +52,12 @@ python3.pkgs.buildPythonApplication rec {
     "testgit"
   ];
 
-  meta = with lib; {
+  meta = {
     description = "Linting tool for NASL files";
     homepage = "https://github.com/greenbone/troubadix";
-    changelog = "https://github.com/greenbone/troubadix/releases/tag/v${version}";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/greenbone/troubadix/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "troubadix";
   };
-}
+})

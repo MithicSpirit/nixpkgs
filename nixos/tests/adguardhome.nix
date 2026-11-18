@@ -2,7 +2,9 @@
   name = "adguardhome";
 
   nodes = {
-    nullConf = { services.adguardhome.enable = true; };
+    nullConf = {
+      services.adguardhome.enable = true;
+    };
 
     emptyConf = {
       services.adguardhome = {
@@ -12,11 +14,20 @@
       };
     };
 
-    schemaVersionBefore23 = {
+    deprecatedHostPortConf = {
       services.adguardhome = {
         enable = true;
 
-        settings.schema_version = 20;
+        host = "127.0.0.1";
+        port = 12345;
+      };
+    };
+
+    syslogConf = {
+      services.adguardhome = {
+        enable = true;
+
+        settings.log.file = "syslog";
       };
     };
 
@@ -25,7 +36,11 @@
         enable = true;
 
         mutableSettings = false;
-        settings.dns.bootstrap_dns = [ "127.0.0.1" ];
+        settings = {
+          dns.bootstrap_dns = [ "127.0.0.1" ];
+          http.doh.insecure_enabled = true;
+          http.address = "127.0.0.1:43074";
+        };
       };
     };
 
@@ -38,62 +53,73 @@
       };
     };
 
-    dhcpConf = { lib, ... }: {
-      virtualisation.vlans = [ 1 ];
+    dhcpConf =
+      { lib, ... }:
+      {
+        virtualisation.vlans = [ 1 ];
 
-      networking = {
-        # Configure static IP for DHCP server
-        useDHCP = false;
-        interfaces."eth1" = lib.mkForce {
+        networking = {
+          # Configure static IP for DHCP server
           useDHCP = false;
-          ipv4 = {
-            addresses = [{
-              address = "10.0.10.1";
-              prefixLength = 24;
-            }];
+          interfaces."eth1" = lib.mkForce {
+            useDHCP = false;
+            ipv4 = {
+              addresses = [
+                {
+                  address = "10.0.10.1";
+                  prefixLength = 24;
+                }
+              ];
 
-            routes = [{
-              address = "10.0.10.0";
-              prefixLength = 24;
-            }];
+              routes = [
+                {
+                  address = "10.0.10.0";
+                  prefixLength = 24;
+                }
+              ];
+            };
           };
+
+          # Required for DHCP
+          firewall.allowedUDPPorts = [
+            67
+            68
+          ];
         };
 
-        # Required for DHCP
-        firewall.allowedUDPPorts = [ 67 68 ];
-      };
-
-      services.adguardhome = {
-        enable = true;
-        allowDHCP = true;
-        mutableSettings = false;
-        settings = {
-          dns.bootstrap_dns = [ "127.0.0.1" ];
-          dhcp = {
-            # This implicitly enables CAP_NET_RAW
-            enabled = true;
-            interface_name = "eth1";
-            local_domain_name = "lan";
-            dhcpv4 = {
-              gateway_ip = "10.0.10.1";
-              range_start = "10.0.10.100";
-              range_end = "10.0.10.101";
-              subnet_mask = "255.255.255.0";
+        services.adguardhome = {
+          enable = true;
+          allowDHCP = true;
+          mutableSettings = false;
+          settings = {
+            dns.bootstrap_dns = [ "127.0.0.1" ];
+            dhcp = {
+              # This implicitly enables CAP_NET_RAW
+              enabled = true;
+              interface_name = "eth1";
+              local_domain_name = "lan";
+              dhcpv4 = {
+                gateway_ip = "10.0.10.1";
+                range_start = "10.0.10.100";
+                range_end = "10.0.10.101";
+                subnet_mask = "255.255.255.0";
+              };
             };
           };
         };
       };
-    };
 
-    client = { lib, ... }: {
-      virtualisation.vlans = [ 1 ];
-      networking = {
-        interfaces.eth1 = {
-          useDHCP = true;
-          ipv4.addresses = lib.mkForce [ ];
+    client =
+      { lib, ... }:
+      {
+        virtualisation.vlans = [ 1 ];
+        networking = {
+          interfaces.eth1 = {
+            useDHCP = true;
+            ipv4.addresses = lib.mkForce [ ];
+          };
         };
       };
-    };
   };
 
   testScript = ''
@@ -105,14 +131,29 @@
       emptyConf.wait_for_unit("adguardhome.service")
       emptyConf.wait_for_open_port(3000)
 
-    with subtest("Default schema_version 23 config test"):
-      schemaVersionBefore23.wait_for_unit("adguardhome.service")
-      schemaVersionBefore23.wait_for_open_port(3000)
+    with subtest("Only setting the deprecated port option works"):
+      deprecatedHostPortConf.wait_for_unit("adguardhome.service")
+      deprecatedHostPortConf.wait_for_open_port(12345)
+      deprecatedHostPortConf.succeed(
+          "grep -qFx '  address: 127.0.0.1:12345' /var/lib/AdGuardHome/AdGuardHome.yaml"
+      )
+
+    with subtest("Logging to syslog test"):
+      # AdGuard is expected to fail when it cannot connect to syslog
+      # hence its sufficient to look whether the service starts at all
+      syslogConf.wait_for_unit("adguardhome.service")
+      syslogConf.wait_for_open_port(3000)
 
     with subtest("Declarative config test, DNS will be reachable"):
       declarativeConf.wait_for_unit("adguardhome.service")
       declarativeConf.wait_for_open_port(53)
-      declarativeConf.wait_for_open_port(3000)
+      declarativeConf.wait_for_open_port(43074)
+      declarativeConf.succeed(
+          "grep -qFx '  address: 127.0.0.1:43074' /var/lib/AdGuardHome/AdGuardHome.yaml"
+      )
+      declarativeConf.succeed(
+          "grep -qFx '    insecure_enabled: true' /var/lib/AdGuardHome/AdGuardHome.yaml"
+      )
 
     with subtest("Mixed config test, check whether merging works"):
       mixedConf.wait_for_unit("adguardhome.service")

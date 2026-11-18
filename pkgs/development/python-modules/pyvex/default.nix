@@ -3,63 +3,76 @@
   stdenv,
   bitstring,
   buildPythonPackage,
+  buildPackages,
   cffi,
-  fetchPypi,
-  pycparser,
+  cmake,
+  fetchFromGitHub,
+  ninja,
+  pytestCheckHook,
   pythonOlder,
-  setuptools,
+  scikit-build-core,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pyvex";
-  version = "9.2.117";
+  # Keep angr-management, angr, archinfo, cle, and pyvex in sync.
+  # nixpkgs-update: no auto update
+  version = "10.0.5";
   pyproject = true;
 
-  disabled = pythonOlder "3.11";
+  disabled = pythonOlder "3.12";
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-hW5uCploPx7+Q8RYZSm6bp/SkbPftkfMkhLvBjHJuBc=";
+  src = fetchFromGitHub {
+    owner = "angr";
+    repo = "pyvex";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-3tYpSYdPZQ1aKAVonG9sMHZSjAguGIXQwNFSgL9J6bY=";
+    fetchSubmodules = true;
   };
 
-  build-system = [ setuptools ];
+  build-system = [
+    cffi
+    scikit-build-core
+  ];
 
   dependencies = [
     bitstring
     cffi
-    pycparser
   ];
 
-  postPatch = lib.optionalString stdenv.isDarwin ''
+  depsBuildBuild = [ buildPackages.stdenv.cc ];
+
+  nativeBuildInputs = [
+    cmake
+    ninja
+  ];
+
+  dontUseCmakeConfigure = true;
+
+  postPatch = lib.optionalString stdenv.hostPlatform.isDarwin ''
     substituteInPlace vex/Makefile-gcc \
       --replace-fail '/usr/bin/ar' 'ar'
   '';
 
-  setupPyBuildFlags = lib.optionals stdenv.isLinux [
-    "--plat-name"
-    "linux"
-  ];
-
   preBuild = ''
     export CC=${stdenv.cc.targetPrefix}cc
-    substituteInPlace pyvex_c/Makefile \
-      --replace-fail 'AR=ar' 'AR=${stdenv.cc.targetPrefix}ar'
   '';
 
-  # No tests are available on PyPI, GitHub release has tests
-  # Switch to GitHub release after all angr parts are present
-  doCheck = false;
+  nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "pyvex" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python interface to libVEX and VEX IR";
     homepage = "https://github.com/angr/pyvex";
-    license = with licenses; [
+    license = with lib.licenses; [
       bsd2
       gpl3Plus
-      lgpl3Plus
+      lgpl21Plus
     ];
-    maintainers = with maintainers; [ fab ];
+    maintainers = with lib.maintainers; [
+      connornelson
+      fab
+    ];
   };
-}
+})

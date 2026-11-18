@@ -4,25 +4,26 @@
   fetchPypi,
   setuptools,
   setuptools-scm,
-  fusepy,
-  fuse,
-  openssl,
+  pkgs,
+  pytestCheckHook,
 }:
 
 buildPythonPackage rec {
   pname = "acme-tiny";
-  version = "5.0.1";
+  version = "5.0.3";
   pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    sha256 = "378549808eece574c3b5dcea82b216534949423d5c7ac241d9419212d676bc8d";
+    pname = "acme_tiny";
+    inherit version;
+    hash = "sha256-LV64B+JZhq69qbBJ2dFG8YW6/q1u+x6MxB1rQrm8pjw=";
   };
 
   patchPhase = ''
-    substituteInPlace acme_tiny.py --replace-fail '"openssl"' '"${openssl.bin}/bin/openssl"'
-    substituteInPlace tests/test_module.py --replace-fail '"openssl"' '"${openssl.bin}/bin/openssl"'
-    substituteInPlace tests/utils.py --replace-fail /etc/ssl/openssl.cnf ${openssl.out}/etc/ssl/openssl.cnf
+    substituteInPlace acme_tiny.py tests/utils.py tests/test_module.py \
+      --replace-fail '"openssl"' '"${lib.getExe pkgs.openssl}"'
+    substituteInPlace tests/utils.py \
+      --replace-fail /etc/ssl/openssl.cnf ${pkgs.openssl.out}/etc/ssl/openssl.cnf
   '';
 
   build-system = [
@@ -31,18 +32,22 @@ buildPythonPackage rec {
   ];
 
   nativeCheckInputs = [
-    fusepy
-    fuse
+    pytestCheckHook
   ];
 
-  doCheck = false; # seems to hang, not sure
+  doCheck = false; # fails to setup pebble
+
+  preCheck = ''
+    export ACME_TINY_PEBBLE_BIN=${lib.getExe pkgs.pebble}
+    export ACME_TINY_DOMAIN=localhost
+  '';
 
   pythonImportsCheck = [ "acme_tiny" ];
 
-  meta = with lib; {
+  meta = {
     description = "Tiny script to issue and renew TLS certs from Let's Encrypt";
     mainProgram = "acme-tiny";
     homepage = "https://github.com/diafygi/acme-tiny";
-    license = licenses.mit;
+    license = lib.licenses.mit;
   };
 }

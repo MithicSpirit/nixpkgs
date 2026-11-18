@@ -7,9 +7,12 @@
 mkKdeDerivation {
   pname = "kcachegrind";
 
-  extraNativeBuildInputs = [qttools];
+  extraNativeBuildInputs = [ qttools ];
 
   qtWrapperArgs = [
-    "--suffix PATH : ${lib.makeBinPath [ graphviz ]}"
+    "--suffix"
+    "PATH"
+    ":"
+    (lib.makeBinPath [ graphviz ])
   ];
 }

@@ -2,69 +2,71 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  cmake,
-  pkg-config,
-  curl,
   boost,
-  liboauth,
+  cmake,
+  curl,
+  html-tidy,
   jsoncpp,
-  htmlcxx,
+  ninja,
+  nix-update-script,
+  pkg-config,
   rhash,
   tinyxml-2,
-  help2man,
-  html-tidy,
-  libsForQt5,
-  testers,
-  lgogdownloader,
-
-  enableGui ? true,
+  versionCheckHook,
+  writableTmpDirAsHomeHook,
+  zlib,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "lgogdownloader";
-  version = "3.15";
+  version = "3.20";
+
+  __structuredAttrs = true;
+  strictDeps = true;
 
   src = fetchFromGitHub {
     owner = "Sude-";
     repo = "lgogdownloader";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-h2N5pRwwZZ3jAvRrT4Ebk4N5WO9tQjDrp8KRqriwUi4=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-4sok6SXGOLYe/2c/POb84fJ/D7X//TCnXj+1tOidIq0=";
   };
 
   nativeBuildInputs = [
     cmake
+    ninja
     pkg-config
-    help2man
+  ];
+
+  buildInputs = [
+    boost
+    curl
     html-tidy
-  ] ++ lib.optional enableGui libsForQt5.wrapQtAppsHook;
+    jsoncpp
+    rhash
+    tinyxml-2
+    zlib
+  ];
 
-  buildInputs =
-    [
-      boost
-      curl
-      htmlcxx
-      jsoncpp
-      liboauth
-      rhash
-      tinyxml-2
-    ]
-    ++ lib.optionals enableGui [
-      libsForQt5.qtbase
-      libsForQt5.qtwebengine
-    ];
+  doInstallCheck = true;
 
-  cmakeFlags = lib.optional enableGui "-DUSE_QT_GUI=ON";
+  nativeInstallCheckInputs = [
+    versionCheckHook
+    writableTmpDirAsHomeHook
+  ];
 
-  passthru.tests = {
-    version = testers.testVersion { package = lgogdownloader; };
-  };
+  versionCheckKeepEnvironment = [ "HOME" ];
+  passthru.updateScript = nix-update-script { };
 
   meta = {
-    description = "Unofficial downloader to GOG.com for Linux users. It uses the same API as the official GOGDownloader";
-    mainProgram = "lgogdownloader";
-    homepage = "https://github.com/Sude-/lgogdownloader";
+    description = "Unofficial GOG.com downloader";
+    homepage = "https://sites.google.com/site/gogdownloader/";
+    changelog = "https://github.com/Sude-/lgogdownloader/releases/tag/${finalAttrs.src.tag}";
     license = lib.licenses.wtfpl;
-    maintainers = with lib.maintainers; [ _0x4A6F ];
-    platforms = lib.platforms.linux;
+    maintainers = with lib.maintainers; [
+      _0x4A6F
+      keenanweaver
+    ];
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
+    mainProgram = "lgogdownloader";
   };
-}
+})

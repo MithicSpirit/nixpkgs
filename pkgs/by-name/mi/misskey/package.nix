@@ -3,42 +3,81 @@
   lib,
   nixosTests,
   fetchFromGitHub,
+  nix-update-script,
   nodejs,
-  pnpm,
+  pnpm_12,
+  fetchPnpmDeps,
+  pnpmConfigHook,
   makeWrapper,
   python3,
+  dart-sass,
+  node-gyp,
   bash,
   jemalloc,
   ffmpeg-headless,
   writeShellScript,
-  ...
 }:
-
+let
+  pnpm = pnpm_12;
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "misskey";
-
-  version = "2024.5.0";
+  version = "2026.10.1";
 
   src = fetchFromGitHub {
     owner = "misskey-dev";
-    repo = finalAttrs.pname;
-    rev = finalAttrs.version;
-    hash = "sha256-nKf+SfuF6MQtNO53E6vN9CMDvQzKMv3PrD6gs9Qa86w=";
+    repo = "misskey";
+    tag = finalAttrs.version;
+    hash = "sha256-6N2YUs/iw4KCBM8ltjjwxTMJTstNXxNbXWQeZQPUXG0=";
     fetchSubmodules = true;
   };
 
+  postPatch = ''
+    # Misskey converts its YAML config to JSON at runtime, which doesn't work
+    # because it tries to write it to the Nix store. As a workaround, hardcode
+    # this to a path which the service can write to until a better solution is
+    # supported, upstream.
+    # https://github.com/misskey-dev/misskey/issues/17075
+    substituteInPlace packages/backend/src/config.ts \
+      --replace-fail \
+        "resolve(projectBuiltDir, '.config.json')" \
+        "resolve('/run/misskey/default.json')"
+    substituteInPlace {.,packages/backend}/package.json \
+      --replace-fail "pnpm compile-config && " ""
+
+    # Misskey complains about nodejs version being too old https://github.com/misskey-dev/misskey/blob/14554ff2b49d9b1a26d9a1444e783f08eaa29444/packages/backend/package.json#L7
+    substituteInPlace pnpm-workspace.yaml \
+      --replace-fail 'engineStrict: true' 'engineStrict: false'
+  '';
+
   nativeBuildInputs = [
     nodejs
-    pnpm.configHook
+    pnpmConfigHook
+    pnpm
     makeWrapper
     python3
+    dart-sass
+    node-gyp # for sharp and re2
   ];
 
-  # https://nixos.org/manual/nixpkgs/unstable/#javascript-pnpm
-  pnpmDeps = pnpm.fetchDeps {
-    inherit (finalAttrs) pname version src;
-    hash = "sha256-A1JBLa6lIw5tXFuD2L3vvkH6pHS5rlwt8vU2+UUQYdg=";
+  pnpmDeps = fetchPnpmDeps {
+    inherit (finalAttrs)
+      pname
+      version
+      src
+      postPatch
+      ;
+    inherit pnpm;
+    fetcherVersion = 5;
+    hash = "sha256-mZ4fnibh35jpUfR9w+yP6Zg7LQTmDxDqCNQzOXz7Ph0=";
   };
+
+  preBuild = ''
+    # In darwin sandboxed build, scripts will try to call preinstalled sed outside of the sandbox
+    patchShebangs packages/*/node_modules/.bin
+    patchShebangs packages/*/*/node_modules/.bin
+    patchShebangs packages-private/*/node_modules/.bin
+  '';
 
   buildPhase = ''
     runHook preBuild
@@ -53,12 +92,12 @@ stdenv.mkDerivation (finalAttrs: {
     export npm_config_nodedir=${nodejs}
     (
       cd node_modules/.pnpm/node_modules/re2
-      pnpm run rebuild
+      pnpm run rebuild --nodedir=${nodejs}
     )
-    (
-      cd node_modules/.pnpm/node_modules/sharp
-      pnpm run install
-    )
+
+    # Force sass-embedded npm package to use our dart-sass instead of bundled binaries.
+    substituteInPlace node_modules/.pnpm/sass-embedded@*/node_modules/sass-embedded/dist/lib/src/compiler-path.js \
+      --replace-fail 'compilerCommand = (() => {' 'compilerCommand = (() => { return ["${lib.getExe dart-sass}"];'
 
     pnpm build
 
@@ -74,10 +113,12 @@ stdenv.mkDerivation (finalAttrs: {
         fi
       '';
     in
+    # bash
     ''
       runHook preInstall
 
       mkdir -p $out/data
+      sed -i '/"packageManager":/d' package.json
       cp -r . $out/data
 
       # Set up symlink for use at runtime
@@ -89,7 +130,9 @@ stdenv.mkDerivation (finalAttrs: {
       makeWrapper ${pnpm}/bin/pnpm $out/bin/misskey \
         --run "${checkEnvVarScript} || exit" \
         --chdir $out/data \
-        --add-flags run \
+        --add-flag "--config.store-dir=/tmp/pnpm-store" \
+        --add-flag "--config.verify-deps-before-run=false" \
+        --add-flag run \
         --set-default NODE_ENV production \
         --prefix PATH : ${
           lib.makeBinPath [
@@ -102,7 +145,7 @@ stdenv.mkDerivation (finalAttrs: {
           lib.makeLibraryPath [
             jemalloc
             ffmpeg-headless
-            stdenv.cc.cc.lib
+            stdenv.cc.cc
           ]
         }
 
@@ -110,15 +153,22 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
   passthru = {
-    inherit (finalAttrs) pnpmDeps;
     tests.misskey = nixosTests.misskey;
+    updateScript = nix-update-script {
+      extraArgs = [
+        "--version-regex"
+        "^([0-9.]+)$"
+      ];
+    };
   };
 
   meta = {
-    description = "🌎 An interplanetary microblogging platform 🚀";
+    description = "Open source, federated social media platform";
     homepage = "https://misskey-hub.net/";
+    changelog = "https://github.com/misskey-dev/misskey/blob/${finalAttrs.src.rev}/CHANGELOG.md";
     license = lib.licenses.agpl3Only;
     maintainers = [ lib.maintainers.feathecutie ];
+    teams = [ lib.teams.ngi ];
     platforms = lib.platforms.unix;
     mainProgram = "misskey";
   };

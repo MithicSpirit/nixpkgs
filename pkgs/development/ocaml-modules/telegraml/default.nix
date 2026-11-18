@@ -1,13 +1,14 @@
-{ batteries
-, buildDunePackage
-, cohttp-lwt-unix
-, fetchFromGitHub
-, lib
-, logs
-, yojson
+{
+  batteries,
+  buildDunePackage,
+  cohttp-lwt-unix,
+  fetchFromGitHub,
+  lib,
+  logs,
+  yojson,
 }:
 
-buildDunePackage rec {
+buildDunePackage {
   pname = "telegraml";
   version = "unstable-2021-06-17";
 
@@ -15,7 +16,7 @@ buildDunePackage rec {
     owner = "nv-vn";
     repo = "TelegraML";
     rev = "3e28933a287e5eacd34c46b434c487f155397abc";
-    sha256 = "sha256-2bMHARatwl8Zl/fWppvwbH6Ut+igJVKzwyQb8Q4gem4=";
+    hash = "sha256-2bMHARatwl8Zl/fWppvwbH6Ut+igJVKzwyQb8Q4gem4=";
   };
 
   postPatch = ''
@@ -29,10 +30,10 @@ buildDunePackage rec {
     yojson
   ];
 
-  meta = with lib; {
+  meta = {
     description = "OCaml library implementing the Telegram bot API";
     homepage = "https://github.com/nv-vn/TelegraML/";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
   };
 }

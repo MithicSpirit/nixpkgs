@@ -1,11 +1,44 @@
-{ stdenv, lib, fetchurl, fetchpatch, fixDarwinDylibNames, testers, buildPackages, updateAutotoolsGnuConfigScriptsHook }:
+{
+  stdenv,
+  lib,
+  fetchurl,
+  fetchpatch,
+  fixDarwinDylibNames,
+  testers,
+  buildPackages,
+  updateAutotoolsGnuConfigScriptsHook,
+}:
 
 let
   make-icu = (import ./make-icu.nix) {
-    inherit stdenv lib buildPackages fetchurl fixDarwinDylibNames testers updateAutotoolsGnuConfigScriptsHook;
+    inherit
+      stdenv
+      lib
+      buildPackages
+      fetchurl
+      fixDarwinDylibNames
+      testers
+      updateAutotoolsGnuConfigScriptsHook
+      ;
   };
 in
 {
+  icu79 = make-icu {
+    version = "79.1";
+    hash = "sha256-Bvpj7LUhBI+AgvEq2Yj2tnjZDL2IqvziTLyUkCsZHZk=";
+  };
+  icu78 = make-icu {
+    version = "78.3";
+    hash = "sha256-Oi56R2BLpwLzRYeDCOb+/sphLuiVz0pfIi55Vfq/4MA=";
+  };
+  icu77 = make-icu {
+    version = "77.1";
+    hash = "sha256-WI5DH3cyfDkDH/u4hDwOO8EiwhE3RIX6h9xfP6/yQGE=";
+  };
+  icu76 = make-icu {
+    version = "76.1";
+    hash = "sha256-36y0a/5HR0EEcs4+EUS/KKEC/uqk44dbrJtMbPMPTz4=";
+  };
   icu75 = make-icu {
     version = "75.1";
     hash = "sha256-y5aN8+TS6H6LEcSaXQHHh70TuVRSgPxmQvgmUnYYyu8=";
@@ -30,10 +63,6 @@ in
     version = "70.1";
     hash = "sha256-jSBUKMF78Tu1NTAGae0oszihV7HAGuZtMdDT4tR8P9U=";
   };
-  icu69 = make-icu {
-    version = "69.1";
-    hash = "sha256-TLp7es0dPELES7DBS+ZjcJjH+vKzMM6Ha8XzuRXQl0U=";
-  };
   icu67 = make-icu {
     version = "67.1";
     hash = "sha256-lKgM1vJRpTvSqZf28bWsZlP+eR36tm4esCJ3QPuG1dw=";
@@ -53,7 +82,7 @@ in
       # https://bugzilla.mozilla.org/show_bug.cgi?id=1499398
       (fetchpatch {
         url = "https://github.com/unicode-org/icu/commit/8baff8f03e07d8e02304d0c888d0bb21ad2eeb01.patch";
-        sha256 = "1awfa98ljcf95a85cssahw6bvdnpbq5brf1kgspy14w4mlmhd0jb";
+        hash = "sha256-S4IGK62Ek+CvfjO4vApe17a9DIdKa1aQKskxSVFSjqs=";
       })
     ];
     patchFlags = [ "-p3" ];

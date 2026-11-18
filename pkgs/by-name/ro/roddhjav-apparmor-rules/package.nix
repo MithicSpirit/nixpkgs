@@ -7,13 +7,13 @@
 
 stdenvNoCC.mkDerivation {
   pname = "roddhjav-apparmor-rules";
-  version = "0-unstable-2024-08-26";
+  version = "0-unstable-2025-10-25";
 
   src = fetchFromGitHub {
     owner = "roddhjav";
     repo = "apparmor.d";
-    rev = "96d774a9ebae3fe61623029389d763e0c73aa362";
-    hash = "sha256-re4uiXt4No4OEeNm6hc52lkQ8lqkAoF1xy2BjIIi3A8=";
+    rev = "6aaa6e79183d489c84f9baad821354e72b322c46";
+    hash = "sha256-fDjajIA06USViGWNKvnqg2V6dc1Hzqt/9q8PbKWvKxA=";
   };
 
   dontConfigure = true;

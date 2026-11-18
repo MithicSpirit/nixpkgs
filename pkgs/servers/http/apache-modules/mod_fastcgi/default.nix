@@ -1,4 +1,9 @@
-{ lib, stdenv, fetchFromGitHub, apacheHttpd }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  apacheHttpd,
+}:
 
 stdenv.mkDerivation rec {
   pname = "mod_fastcgi";
@@ -21,6 +26,7 @@ stdenv.mkDerivation rec {
   meta = {
     homepage = "https://github.com/FastCGI-Archives/mod_fastcgi";
     description = "Provide support for the FastCGI protocol";
+    license = lib.licenses.unfreeRedistributable;
 
     longDescription = ''
       mod_fastcgi is a module for the Apache web server that enables

@@ -1,7 +1,7 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   coreutils,
   setuptools,
   pbr,
@@ -9,41 +9,31 @@
   keystoneauth1,
   requests,
   warlock,
-  oslo-utils,
+  openstacksdk,
   oslo-i18n,
+  oslo-utils,
   wrapt,
   pyopenssl,
-  pythonOlder,
-  stestr,
+  stestrCheckHook,
   testscenarios,
   ddt,
   requests-mock,
-  writeText,
 }:
-let
-  pname = "python-glanceclient";
-  version = "4.7.0";
 
-  disabledTests = [
-    "test_http_chunked_response"
-    "test_v1_download_has_no_stray_output_to_stdout"
-    "test_v2_requests_valid_cert_verification"
-    "test_download_has_no_stray_output_to_stdout"
-    "test_v2_download_has_no_stray_output_to_stdout"
-    "test_v2_requests_valid_cert_verification_no_compression"
-    "test_log_request_id_once"
-  ];
-in
-buildPythonPackage {
-  inherit pname version;
+buildPythonPackage (finalAttrs: {
+  pname = "python-glanceclient";
+  version = "4.13.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.8";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-wZRS7xLaPEhLadIqiIznp0kQvbh4O76RJIxg76U3iBA=";
+  src = fetchFromGitHub {
+    owner = "openstack";
+    repo = "python-glanceclient";
+    tag = finalAttrs.version;
+    hash = "sha256-5KwZ5XVosCUFObXaraVPWOO6ZdeMYWO+n2IsUwojFJg=";
   };
+
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
 
   postPatch = ''
     substituteInPlace glanceclient/tests/unit/v1/test_shell.py \
@@ -65,24 +55,29 @@ buildPythonPackage {
   ];
 
   nativeCheckInputs = [
-    stestr
-    testscenarios
     ddt
+    openstacksdk
     requests-mock
+    stestrCheckHook
+    testscenarios
   ];
 
-  checkPhase = ''
-    runHook preCheck
-    stestr run -e ${writeText "disabled-tests" (lib.concatStringsSep "\n" disabledTests)}
-    runHook postCheck
-  '';
+  # Skip tests which require networking.
+  disabledTests = [
+    "glanceclient.tests.unit.test_http.TestClient.test_http_chunked_response"
+    "glanceclient.tests.unit.test_http.TestClient.test_log_request_id_once"
+  ];
+
+  disabledTestsRegex = [
+    ''glanceclient\.tests\.unit\.test_ssl\.TestHTTPSVerifyCert\..*''
+  ];
 
   pythonImportsCheck = [ "glanceclient" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python bindings for the OpenStack Images API";
     homepage = "https://github.com/openstack/python-glanceclient/";
-    license = licenses.asl20;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.asl20;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

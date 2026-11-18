@@ -9,21 +9,19 @@
   nix-update-script,
 }:
 
-let
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "git-igitt";
-  version = "0.1.18";
-in
-rustPlatform.buildRustPackage {
-  inherit pname version;
+  version = "0.2.1";
+  __structuredAttrs = true;
 
   src = fetchFromGitHub {
-    owner = "mlange-42";
-    repo = pname;
-    rev = version;
-    hash = "sha256-JXEWnekL9Mtw0S3rI5aeO1HB9kJ7bRJDJ6EJ4ATlFeQ=";
+    owner = "git-bahn";
+    repo = "git-igitt";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-3heVYUe9bAApkZVMM0uAj54X6Hx0lvs7sx4bIJ0elJw=";
   };
 
-  cargoHash = "sha256-5UgcgM/WuyApNFCd8YBodx9crJP3+Bygu9nSBJqPCaQ=";
+  cargoHash = "sha256-0LH7CVeXxyRXcyCS5NZ0b5Gst5AHsF/4wF7hcOppNxI=";
 
   nativeBuildInputs = [ pkg-config ];
 
@@ -41,10 +39,13 @@ rustPlatform.buildRustPackage {
 
   meta = {
     description = "Interactive, cross-platform Git terminal application with clear git graphs arranged for your branching model";
-    homepage = "https://github.com/mlange-42/git-igitt";
+    homepage = "https://github.com/git-bahn/git-igitt";
     license = lib.licenses.mit;
     sourceProvenance = [ lib.sourceTypes.fromSource ];
-    maintainers = [ lib.maintainers.pinage404 ];
+    maintainers = with lib.maintainers; [
+      matthiasbeyer
+      pinage404
+    ];
     mainProgram = "git-igitt";
   };
-}
+})

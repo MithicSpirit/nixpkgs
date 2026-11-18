@@ -1,53 +1,84 @@
-{ lib
-, autoAddDriverRunpath
-, cmake
-, darwin
-, fetchFromGitHub
-, nix-update-script
-, stdenv
+{
+  lib,
+  buildPackages,
+  autoAddDriverRunpath,
+  cmake,
+  ctestCheckHook,
+  fetchFromGitHub,
+  installShellFiles,
+  stdenv,
 
-, config
-, cudaSupport ? config.cudaSupport
-, cudaPackages ? { }
+  config,
+  # The SYCL build uses the oneAPI stdenv, which a CUDA build would replace.
+  cudaSupport ? config.cudaSupport && !syclSupport,
+  cudaPackages ? { },
 
-, rocmSupport ? config.rocmSupport
-, rocmPackages ? { }
+  rocmSupport ? config.rocmSupport,
+  rocmPackages ? { },
+  rocmGpuTargets ? rocmPackages.clr.localGpuTargets or rocmPackages.clr.gpuTargets,
 
-, openclSupport ? false
-, clblast
+  syclSupport ? false,
+  intel-oneapi-toolkit,
+  level-zero,
 
-, blasSupport ? builtins.all (x: !x) [ cudaSupport metalSupport openclSupport rocmSupport vulkanSupport ]
-, blas
+  cpuArchDynamicDispatch ? true,
 
-, pkg-config
-, metalSupport ? stdenv.isDarwin && stdenv.isAarch64 && !openclSupport
-, vulkanSupport ? false
-, rpcSupport ? false
-, shaderc
-, vulkan-headers
-, vulkan-loader
-, ninja
-, git
+  openclSupport ? false,
+  clblast,
+
+  blasSupport ? builtins.all (x: !x) [
+    cudaSupport
+    metalSupport
+    openclSupport
+    rocmSupport
+    syclSupport
+    vulkanSupport
+  ],
+  blas,
+
+  fetchNpmDeps,
+  nodejs_latest,
+  npmHooks,
+
+  pkg-config,
+  python3,
+  metalSupport ? stdenv.hostPlatform.isDarwin && !openclSupport,
+  vulkanSupport ? false,
+  rpcSupport ? false,
+  openssl,
+  shaderc,
+  vulkan-headers,
+  vulkan-loader,
+  spirv-headers,
+  ninja,
 }:
 
 let
+  # Upstream reads these from git, which the release tarball does not ship.
+  # They are purely informational: `llama-server --version`, `/props`, and the web UI.
+  buildNumber = "12359";
+  buildCommit = "b1b770d";
+
   # It's necessary to consistently use backendStdenv when building with CUDA support,
   # otherwise we get libstdc++ errors downstream.
-  # cuda imposes an upper bound on the gcc version, e.g. the latest gcc compatible with cudaPackages_11 is gcc11
-  effectiveStdenv = if cudaSupport then cudaPackages.backendStdenv else stdenv;
-  inherit (lib) cmakeBool cmakeFeature optionals optionalString;
+  # cuda imposes an upper bound on the gcc version
+  effectiveStdenv =
+    if cudaSupport then
+      cudaPackages.backendStdenv
+    # The SYCL backend needs the oneAPI DPC++ compiler.
+    else if syclSupport then
+      intel-oneapi-toolkit.stdenv
+    else
+      stdenv;
+  inherit (lib)
+    cmakeBool
+    cmakeFeature
+    optionals
+    optionalString
+    ;
 
-  darwinBuildInputs =
-    with darwin.apple_sdk.frameworks;
-    [
-      Accelerate
-      CoreVideo
-      CoreGraphics
-    ]
-    ++ optionals metalSupport [ MetalKit ];
-
-   cudaBuildInputs = with cudaPackages; [
-    cuda_cccl # <nv/target>
+  cudaBuildInputs = with cudaPackages; [
+    cccl # <nv/target>
 
     # A temporary hack for reducing the closure size, remove once cudaPackages
     # have stopped using lndir: https://github.com/NixOS/nixpkgs/issues/271792
@@ -62,107 +93,218 @@ let
   ];
 
   vulkanBuildInputs = [
-    shaderc
+    spirv-headers
     vulkan-headers
     vulkan-loader
   ];
+
+  buildCc = buildPackages.stdenv.cc;
 in
 effectiveStdenv.mkDerivation (finalAttrs: {
   pname = "llama-cpp";
-  version = "3645";
+  version = "1.0.0";
 
-  src = fetchFromGitHub {
-    owner = "ggerganov";
-    repo = "llama.cpp";
-    rev = "refs/tags/b${finalAttrs.version}";
-    hash = "sha256-Vev4X9wXyTksHop4q9ysym0zEaMBt51CIOqIf5jymK0=";
-    leaveDotGit = true;
-    postFetch = ''
-      git -C "$out" rev-parse --short HEAD > $out/COMMIT
-      find "$out" -name .git -print0 | xargs -0 rm -rf
-    '';
-  };
+  __structuredAttrs = true;
+  strictDeps = true;
 
-  postPatch = ''
-    substituteInPlace ./ggml/src/ggml-metal.m \
-      --replace-fail '[bundle pathForResource:@"ggml-metal" ofType:@"metal"];' "@\"$out/bin/ggml-metal.metal\";"
-
-    substituteInPlace ./scripts/build-info.sh \
-      --replace-fail 'build_number="0"' 'build_number="${finalAttrs.version}"' \
-      --replace-fail 'build_commit="unknown"' "build_commit=\"$(cat COMMIT)\""
-  '';
-
-  nativeBuildInputs = [ cmake ninja pkg-config git ]
-    ++ optionals cudaSupport [
-    cudaPackages.cuda_nvcc
-    autoAddDriverRunpath
+  outputs = [
+    "out"
+    "dev"
   ];
 
-  buildInputs = optionals effectiveStdenv.isDarwin darwinBuildInputs
-    ++ optionals cudaSupport cudaBuildInputs
+  src = fetchFromGitHub {
+    owner = "ggml-org";
+    repo = "llama.cpp";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-aYziwYzK9Zj7sopAEsrANhMGs4BO0F2g0cDCGmYLxDA=";
+  };
+
+  nativeBuildInputs = [
+    cmake
+    installShellFiles
+    ninja
+    nodejs_latest
+    npmHooks.npmConfigHook
+    pkg-config
+  ]
+  ++ optionals cudaSupport [
+    cudaPackages.cuda_nvcc
+    autoAddDriverRunpath
+  ]
+  # `glslc` is used at build time to compile the shaders
+  ++ optionals vulkanSupport [
+    shaderc
+  ];
+
+  depsBuildBuild = optionals (stdenv.buildPlatform != stdenv.hostPlatform) [
+    # llama-ui-embed under tools/ui needs a host compiler
+    buildCc
+  ];
+
+  buildInputs =
+    optionals cudaSupport cudaBuildInputs
     ++ optionals openclSupport [ clblast ]
     ++ optionals rocmSupport rocmBuildInputs
+    ++ optionals syclSupport [
+      intel-oneapi-toolkit
+      level-zero
+    ]
     ++ optionals blasSupport [ blas ]
-    ++ optionals vulkanSupport vulkanBuildInputs;
+    ++ optionals vulkanSupport vulkanBuildInputs
+    ++ [ openssl ];
+
+  # Fortify adds __memcpy_chk references to the SYCL device code, which the GPU
+  # driver cannot resolve when it compiles the kernels at runtime.
+  hardeningDisable = optionals syclSupport [
+    "fortify"
+    "fortify3"
+  ];
+
+  npmRoot = "tools/ui";
+  npmDepsHash = "sha256-0OJIueUN5oD/V2NtVcXTiRW59u2tJIG3OxW8aJ8JDBY=";
+  npmDeps = fetchNpmDeps {
+    name = "${finalAttrs.pname}-${finalAttrs.version}-npm-deps";
+    inherit (finalAttrs) src;
+    patches = finalAttrs.patches or [ ];
+    preBuild = ''
+      pushd ${finalAttrs.npmRoot}
+    '';
+    hash = finalAttrs.npmDepsHash;
+  };
+
+  preConfigure = ''
+    pushd ${finalAttrs.npmRoot}
+    LLAMA_BUILD_NUMBER=${buildNumber} npm run build
+    popd
+  '';
 
   cmakeFlags = [
-    # -march=native is non-deterministic; override with platform-specific flags if needed
-    (cmakeBool "GGML_NATIVE" false)
+    (cmakeBool "GGML_NATIVE" false) # -march=native would make builds non-deterministic
+    (cmakeBool "LLAMA_BUILD_EXAMPLES" false)
     (cmakeBool "LLAMA_BUILD_SERVER" true)
+    (cmakeBool "LLAMA_BUILD_TESTS" (finalAttrs.finalPackage.doCheck or false))
+    (cmakeBool "LLAMA_TESTS_INSTALL" false)
+    (cmakeBool "LLAMA_BUILD_IS_DEV" false)
+    (cmakeBool "LLAMA_OPENSSL" true)
     (cmakeBool "BUILD_SHARED_LIBS" true)
     (cmakeBool "GGML_BLAS" blasSupport)
     (cmakeBool "GGML_CLBLAST" openclSupport)
     (cmakeBool "GGML_CUDA" cudaSupport)
-    (cmakeBool "GGML_HIPBLAS" rocmSupport)
+    (cmakeBool "GGML_HIP" rocmSupport)
     (cmakeBool "GGML_METAL" metalSupport)
     (cmakeBool "GGML_RPC" rpcSupport)
+    (cmakeBool "GGML_SYCL" syclSupport)
     (cmakeBool "GGML_VULKAN" vulkanSupport)
+    (cmakeFeature "LLAMA_BUILD_NUMBER" buildNumber)
+    (cmakeFeature "LLAMA_BUILD_COMMIT" buildCommit)
   ]
-      ++ optionals cudaSupport [
-        (cmakeFeature "CMAKE_CUDA_ARCHITECTURES" cudaPackages.flags.cmakeCudaArchitecturesString)
-      ]
-      ++ optionals rocmSupport [
-        (cmakeFeature "CMAKE_C_COMPILER" "hipcc")
-        (cmakeFeature "CMAKE_CXX_COMPILER" "hipcc")
+  ++ optionals cpuArchDynamicDispatch [
+    # Build all CPU backend variants for runtime dynamic dispatch.
+    # This avoids illegal instructions on older CPUs and gives optimal performance
+    # on newer ones without needing separate builds.
+    # Enabling AVX2 can make CPU inference 13x faster compared to NixOS's x86_64 defaults.
+    # Note it is not a bug that the CPU variant .so files are placed in `bin/`
+    # (as opposed to `lib/`) alongside the executables by upstream's `CMakeLists.txt` design:
+    # * https://github.com/ggml-org/llama.cpp/blob/b46812de78f8fbcb6cf0154947e8633ebc78d9ac/ggml/src/CMakeLists.txt#L249-L252
+    # * https://github.com/ggml-org/llama.cpp/blob/b46812de78f8fbcb6cf0154947e8633ebc78d9ac/ggml/src/ggml-backend-reg.cpp#L480-L486
+    (cmakeBool "GGML_CPU_ALL_VARIANTS" true)
+    (cmakeBool "GGML_BACKEND_DL" true)
+    # Let libggml find the backends when it is loaded from another package.
+    (cmakeFeature "GGML_BACKEND_DIR" "${placeholder "out"}/bin")
+  ]
+  ++ optionals cudaSupport [
+    (cmakeFeature "CMAKE_CUDA_ARCHITECTURES" cudaPackages.flags.cmakeCudaArchitecturesString)
+  ]
+  ++ optionals rocmSupport [
+    (cmakeFeature "CMAKE_HIP_COMPILER" "${rocmPackages.clr.hipClangPath}/clang++")
+    (cmakeFeature "CMAKE_HIP_ARCHITECTURES" (builtins.concatStringsSep ";" rocmGpuTargets))
+  ]
+  ++ optionals metalSupport [
+    (cmakeFeature "CMAKE_C_FLAGS" "-D__ARM_FEATURE_DOTPROD=1")
+    (cmakeBool "LLAMA_METAL_EMBED_LIBRARY" true)
+  ]
+  ++ optionals (stdenv.buildPlatform != stdenv.hostPlatform) [
+    (cmakeFeature "HOST_CXX_COMPILER" (lib.getExe' buildCc "${buildCc.targetPrefix}c++"))
+  ];
 
-        # Build all targets supported by rocBLAS. When updating search for TARGET_LIST_ROCM
-        # in https://github.com/ROCmSoftwarePlatform/rocBLAS/blob/develop/CMakeLists.txt
-        # and select the line that matches the current nixpkgs version of rocBLAS.
-        # Should likely use `rocmPackages.clr.gpuTargets`.
-        "-DAMDGPU_TARGETS=gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx940;gfx941;gfx942;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102"
-      ]
-      ++ optionals metalSupport [
-        (cmakeFeature "CMAKE_C_FLAGS" "-D__ARM_FEATURE_DOTPROD=1")
-        (cmakeBool "LLAMA_METAL_EMBED_LIBRARY" true)
-      ] ++ optionals rpcSupport [
-        # This is done so we can move rpc-server out of bin because llama.cpp doesn't
-        # install rpc-server in their install target.
-        "-DCMAKE_SKIP_BUILD_RPATH=ON"
-      ];
+  postInstall = optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd llama-server --bash <($out/bin/llama-server --completion-bash)
+  '';
 
-  # upstream plans on adding targets at the cmakelevel, remove those
-  # additional steps after that
-  postInstall = ''
-    # Match previous binary name for this package
-    ln -sf $out/bin/llama-cli $out/bin/llama
+  doCheck = true;
 
-    mkdir -p $out/include
-    cp $src/include/llama.h $out/include/
-  '' + optionalString rpcSupport "cp bin/rpc-server $out/bin/llama-rpc-server";
+  # Use CTest to skip disabled tests.
+  dontUseNinjaCheck = true;
 
-  passthru.updateScript = nix-update-script {
-    attrPath = "llama-cpp";
-    extraArgs = [ "--version-regex" "b(.*)" ];
-  };
+  __darwinAllowLocalNetworking = true;
 
-  meta = with lib; {
-    description = "Inference of Meta's LLaMA model (and others) in pure C/C++";
-    homepage = "https://github.com/ggerganov/llama.cpp/";
-    license = licenses.mit;
+  nativeCheckInputs = [
+    ctestCheckHook
+    (python3.withPackages (ps: [ ps.jinja2 ]))
+  ];
+
+  preCheck =
+    optionalString metalSupport ''
+      export GGML_METAL_DEVICES=0
+    ''
+    # The SYCL backend exits on this check when there is no device.
+    + optionalString syclSupport ''
+      export GGML_SYCL_USE_ASYNC_MEM_OP=0
+    '';
+
+  disabledTests = [
+    # Network needed.
+    "test-tokenizers-ggml-vocabs"
+    "test-download-model"
+    "test-arg-parser"
+    "test-thread-safety"
+    "test-llama-context-model"
+    # Tests convert_hf_to_gguf, which is not installed, and needs torch.
+    "test-conversion-fp8"
+    "test-kv-cache-scales"
+  ]
+  # icpx DAZ/FTZ makes nlohmann treat 5e-324 as 0 and pass 0.0 to Python.
+  ++ optionals syclSupport [
+    "test-jinja-py"
+  ];
+
+  passthru.updateScript = ./update.sh;
+
+  meta = {
+    description =
+      "Inference of Meta's LLaMA model (and others) in pure C/C++"
+      + optionalString cudaSupport ", with CUDA support"
+      + optionalString rocmSupport ", with ROCm support"
+      + optionalString syclSupport ", with SYCL support"
+      + optionalString vulkanSupport ", with Vulkan support";
+    homepage = "https://github.com/ggml-org/llama.cpp";
+    license =
+      if syclSupport then
+        # Parts of the SYCL backend come from LLVM.
+        lib.licenses.AND [
+          lib.licenses.mit
+          (lib.licenses.WITH lib.licenses.asl20 lib.licenses.llvm-exception)
+        ]
+      else
+        lib.licenses.mit;
     mainProgram = "llama";
-    maintainers = with maintainers; [ dit7ya elohmeier philiptaron ];
-    platforms = platforms.unix;
+    maintainers = with lib.maintainers; [
+      booxter
+      philiptaron
+      recutita
+      xddxdd
+      yuannan
+    ];
+    teams = [ lib.teams.cuda ];
+    platforms =
+      if syclSupport then
+        lib.intersectLists lib.platforms.unix intel-oneapi-toolkit.meta.platforms
+      else
+        lib.platforms.unix;
     badPlatforms = optionals (cudaSupport || openclSupport) lib.platforms.darwin;
-    broken = (metalSupport && !effectiveStdenv.isDarwin);
+    broken =
+      metalSupport && !effectiveStdenv.hostPlatform.isDarwin
+      # ggml-sycl needs icpx as the C++ compiler, which the CUDA stdenv replaces.
+      || cudaSupport && syclSupport;
   };
 })

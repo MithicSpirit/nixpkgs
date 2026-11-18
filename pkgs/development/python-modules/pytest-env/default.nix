@@ -5,18 +5,19 @@
   hatch-vcs,
   hatchling,
   pytest,
+  python-dotenv,
   pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "pytest-env";
-  version = "1.1.3";
-  format = "pyproject";
+  version = "1.7.0";
+  pyproject = true;
 
   src = fetchPypi {
     pname = "pytest_env";
-    inherit version;
-    hash = "sha256-/NfcI7tx79PTVjK94bvl7oyNxEidZhf7AQZ0iA2WIWs=";
+    inherit (finalAttrs) version;
+    hash = "sha256-DB3BEB+406s2Eej41le6BsPAwWf8hckEV+WyfyUI9D4=";
   };
 
   nativeBuildInputs = [
@@ -26,12 +27,14 @@ buildPythonPackage rec {
 
   buildInputs = [ pytest ];
 
+  dependencies = [ python-dotenv ];
+
   nativeCheckInputs = [ pytestCheckHook ];
 
-  meta = with lib; {
+  meta = {
     description = "Pytest plugin used to set environment variables";
     homepage = "https://github.com/MobileDynasty/pytest-env";
-    license = licenses.mit;
-    maintainers = with maintainers; [ erikarvstedt ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ erikarvstedt ];
   };
-}
+})

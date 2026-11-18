@@ -1,54 +1,69 @@
 {
   lib,
-  appdirs,
   buildPythonPackage,
-  cryptography,
   fetchFromGitHub,
-  flit-core,
+
+  # build-system
+  uv-build,
+
+  # dependencies
+  cryptography,
   id,
-  importlib-resources,
-  pretend,
+  platformdirs,
   pydantic,
   pyjwt,
-  pyopenssl,
-  pytestCheckHook,
-  pythonOlder,
   requests,
+  rfc3161-client,
+  rfc8785,
   rich,
-  securesystemslib,
-  sigstore-protobuf-specs,
+  sigstore-models,
   sigstore-rekor-types,
   tuf,
+
+  # tests
+  pretend,
+  pytestCheckHook,
+  writableTmpDirAsHomeHook,
+
+  # passthru
+  nix-update-script,
 }:
 
-buildPythonPackage rec {
-  pname = "sigstore-python";
-  version = "2.1.5";
+buildPythonPackage (finalAttrs: {
+  pname = "sigstore";
+  version = "4.5.1";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "sigstore";
     repo = "sigstore-python";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-lqmrM4r1yPVCcvWNC9CKYMyryuIyliI2Y+TAYgAwA1Y=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-YpqkKyhgr8cZ3NxVGVmTkv1Wz+lqkBikHY4N2LVK/UI=";
   };
 
-  build-system = [ flit-core ];
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail 'uv_build>=0.12.0,<0.13.0' uv_build
+  '';
+
+  build-system = [ uv-build ];
+
+  pythonRelaxDeps = [
+    "rich"
+    "tuf"
+  ];
 
   dependencies = [
-    appdirs
     cryptography
     id
-    importlib-resources
+    platformdirs
     pydantic
     pyjwt
-    pyopenssl
     requests
+    rfc3161-client
+    rfc8785
     rich
-    securesystemslib
-    sigstore-protobuf-specs
+    sigstore-models
     sigstore-rekor-types
     tuf
   ];
@@ -56,11 +71,8 @@ buildPythonPackage rec {
   nativeCheckInputs = [
     pretend
     pytestCheckHook
+    writableTmpDirAsHomeHook
   ];
-
-  preCheck = ''
-    export HOME=$(mktemp -d)
-  '';
 
   pythonImportsCheck = [ "sigstore" ];
 
@@ -75,14 +87,21 @@ buildPythonPackage rec {
     "test_sign_rekor_entry_consistent"
     "test_verification_materials_retrieves_rekor_entry"
     "test_verifier"
+    "test_fix_bundle_fixes_missing_checkpoint"
+    "test_trust_root_bundled_get"
+    "test_fix_bundle_upgrades_bundle"
+    "test_trust_root_tuf_caches_and_requests"
+    "test_regression_verify_legacy_bundle"
   ];
 
-  meta = with lib; {
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "Codesigning tool for Python packages";
     homepage = "https://github.com/sigstore/sigstore-python";
-    changelog = "https://github.com/sigstore/sigstore-python/blob/${version}/CHANGELOG.md";
-    license = licenses.asl20;
-    maintainers = [ ];
+    changelog = "https://github.com/sigstore/sigstore-python/blob/${finalAttrs.src.tag}/CHANGELOG.md";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ bot-wxt1221 ];
     mainProgram = "sigstore";
   };
-}
+})

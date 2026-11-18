@@ -1,7 +1,6 @@
 {
   lib,
   buildPythonPackage,
-  pythonOlder,
   fetchFromGitHub,
   cython,
   setuptools,
@@ -12,16 +11,14 @@
 
 buildPythonPackage rec {
   pname = "quadprog";
-  version = "0.1.12";
+  version = "0.1.14";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "quadprog";
     repo = "quadprog";
     rev = "v${version}";
-    hash = "sha256-3S846PaNfZ4j3r6Vi2o6+Jk+2kC/P7tMSQQiB/Kx8nI=";
+    hash = "sha256-pSiDQsSxcSZ9Wphq9zltIGOxnfRn+YuKKiI1X7N6CGc=";
   };
 
   nativeBuildInputs = [
@@ -36,11 +33,11 @@ buildPythonPackage rec {
     scipy
   ];
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/quadprog/quadprog";
     changelog = "https://github.com/quadprog/quadprog/releases/tag/v${version}";
     description = "Quadratic Programming Solver";
-    license = licenses.gpl2Plus;
-    maintainers = with maintainers; [ wegank ];
+    license = lib.licenses.gpl2Plus;
+    maintainers = with lib.maintainers; [ wegank ];
   };
 }

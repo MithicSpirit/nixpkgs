@@ -1,15 +1,29 @@
-{ buildDunePackage
-, menhirLib, menhirSdk
+{
+  lib,
+  buildDunePackage,
+  replaceVars,
+  ocaml,
+  menhirGLR,
+  menhirLib,
+  menhirSdk,
 }:
 
-buildDunePackage rec {
+buildDunePackage {
   pname = "menhir";
-
-  minimalOCamlVersion = "4.03";
 
   inherit (menhirLib) version src;
 
-  buildInputs = [ menhirLib menhirSdk ];
+  buildInputs = [
+    menhirGLR
+    menhirLib
+    menhirSdk
+  ];
+
+  patches = [
+    (replaceVars ./menhir-suggest-menhirLib.patch {
+      libdir = "${lib.getDev menhirLib}/lib/ocaml/${ocaml.version}/site-lib/menhirLib";
+    })
+  ];
 
   meta = menhirSdk.meta // {
     description = "LR(1) parser generator for OCaml";

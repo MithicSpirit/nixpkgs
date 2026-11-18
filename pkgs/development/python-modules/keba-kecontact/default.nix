@@ -3,39 +3,39 @@
   asyncio-dgram,
   buildPythonPackage,
   fetchFromGitHub,
-  netifaces,
-  pythonOlder,
+  hatchling,
+  ifaddr,
+  pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "keba-kecontact";
-  version = "3.0.3";
-  format = "setuptools";
-
-  disabled = pythonOlder "3.7";
+  version = "4.3.1";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "dannerph";
     repo = "keba-kecontact";
-    rev = "refs/tags/${version}";
-    hash = "sha256-gR1ut2IjrU/JMy8/ZFv0jQTB6c3A/tZqtXMpQsapuj0=";
+    tag = finalAttrs.version;
+    hash = "sha256-Ir/7lP8TDyOTwIMXKv2d9HYuT9onxrQskdkNhQYaOvU=";
   };
 
-  propagatedBuildInputs = [
+  build-system = [ hatchling ];
+
+  dependencies = [
     asyncio-dgram
-    netifaces
+    ifaddr
   ];
 
-  # Module has no tests
-  doCheck = false;
+  nativeCheckInputs = [ pytestCheckHook ];
 
   pythonImportsCheck = [ "keba_kecontact" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python library for controlling KEBA charging stations";
     homepage = "https://github.com/dannerph/keba-kecontact";
-    changelog = "https://github.com/dannerph/keba-kecontact/releases/tag/${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/dannerph/keba-kecontact/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ fab ];
   };
-}
+})

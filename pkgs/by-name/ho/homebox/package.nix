@@ -2,29 +2,32 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
-  pnpm,
+  pnpm_10,
+  fetchPnpmDeps,
+  pnpmConfigHook,
   nodejs,
   go,
   git,
   cacert,
+  nixosTests,
 }:
 let
   pname = "homebox";
-  version = "0.13.0";
+  version = "0.27.1";
   src = fetchFromGitHub {
     owner = "sysadminsmedia";
     repo = "homebox";
-    rev = "v${version}";
-    hash = "sha256-mhb4q0ja94TjvOzl28WVb3uzkR9MKlqifFJgUo6hfrA=";
+    tag = "v${version}";
+    hash = "sha256-dsZurmNjtJ8Dzpu/SPipI2/0ucZe/eQ5/sOdUovW6fo=";
   };
 in
 buildGoModule {
   inherit pname version src;
 
-  vendorHash = "sha256-QRmP6ichKjwDWEx13sEs1oetc4nojGyJnKafAATTNTA=";
+  vendorHash = "sha256-1vpEn0KqzAn0aMdvb134zD2OwPSutB16aLm163nuCLw=";
   modRoot = "backend";
   # the goModules derivation inherits our buildInputs and buildPhases
-  # Since we do pnpm thing in those it fails if we don't explicitely remove them
+  # Since we do pnpm thing in those it fails if we don't explicitly remove them
   overrideModAttrs = _: {
     nativeBuildInputs = [
       go
@@ -34,10 +37,12 @@ buildGoModule {
     preBuild = "";
   };
 
-  pnpmDeps = pnpm.fetchDeps {
+  pnpmDeps = fetchPnpmDeps {
     inherit pname version;
     src = "${src}/frontend";
-    hash = "sha256-MdTZJ/Ichpwc54r7jZjiFD12YOdRzHSuzRZ/PnDk2mY=";
+    pnpm = pnpm_10;
+    fetcherVersion = 3;
+    hash = "sha256-irtyrx4gK2G6eZdscG+yghzgxnjbpAp0sGhkuaPt3/A=";
   };
   pnpmRoot = "../frontend";
 
@@ -55,29 +60,52 @@ buildGoModule {
   '';
 
   nativeBuildInputs = [
-    pnpm
-    pnpm.configHook
+    pnpmConfigHook
+    pnpm_10
     nodejs
   ];
 
-  CGO_ENABLED = 0;
-  GOOS = "linux";
+  env.CGO_ENABLED = 0;
   doCheck = false;
+
+  tags = [
+    "nodynamic"
+  ];
 
   ldflags = [
     "-s"
     "-w"
     "-extldflags=-static"
-    "-X main.version=${version}"
-    "-X main.commit=${version}"
+    "-X main.version=${src.tag}"
+    "-X main.commit=${src.tag}"
   ];
+  installPhase = ''
+    runHook preInstall
+
+    mkdir -p $out/bin
+    cp -r $GOPATH/bin/api $out/bin/
+
+    runHook postInstall
+  '';
+
+  passthru = {
+    tests = {
+      inherit (nixosTests) homebox;
+    };
+  };
 
   meta = {
     mainProgram = "api";
-    homepage = "https://hay-kot.github.io/homebox/";
+    homepage = "https://homebox.software/";
     description = "Inventory and organization system built for the Home User";
-    maintainers = with lib.maintainers; [ patrickdag ];
-    license = lib.licenses.agpl3Only;
+    maintainers = with lib.maintainers; [
+      patrickdag
+      tebriel
+    ];
+    license = [
+      lib.licenses.agpl3Only
+      lib.licenses.mit
+    ];
     platforms = lib.platforms.linux;
   };
 }

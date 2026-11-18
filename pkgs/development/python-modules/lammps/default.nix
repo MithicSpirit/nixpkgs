@@ -9,11 +9,15 @@ let
   LAMMPS_SHARED_LIB = "${lib.getLib lammps}/lib/liblammps${stdenv.hostPlatform.extensions.library}";
 in
 buildPythonPackage {
+  format = "setuptools";
   inherit (lammps) pname version src;
 
   env = {
+    # Needed for tests
     inherit LAMMPS_SHARED_LIB;
   };
+  # Don't perform checks if GPU is enabled - because libcuda.so cannot be opened in the sandbox
+  doCheck = if lammps.passthru.packages ? GPU then !lammps.passthru.packages.GPU else true;
   preConfigure = ''
     cd python
     # Upstream assumes that the shared library is located in the same directory
@@ -27,7 +31,6 @@ buildPythonPackage {
 
   pythonImportsCheck = [
     "lammps"
-    "lammps.pylammps"
   ];
 
   # We could potentially run other examples, but some of them are so old that

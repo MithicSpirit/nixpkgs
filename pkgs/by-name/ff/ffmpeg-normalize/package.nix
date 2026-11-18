@@ -4,23 +4,39 @@
   fetchPypi,
   ffmpeg,
 }:
+
 python3Packages.buildPythonApplication rec {
   pname = "ffmpeg-normalize";
-  version = "1.28.3";
+  version = "1.44.0";
+  pyproject = true;
 
   src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-8wNPuVRQRQpFK6opgwqdKYMYmAFRqq8p/T5V9kC8QaY=";
+    inherit version;
+    pname = "ffmpeg_normalize";
+    hash = "sha256-7Y4f1psfVHHcPkEcrYEG/mog8dYP9zmCc0rJpoUmugg=";
   };
 
-  propagatedBuildInputs = [
-    ffmpeg
-    python3Packages.ffmpeg-progress-yield
+  build-system = with python3Packages; [ uv-build ];
+
+  dependencies =
+    with python3Packages;
+    [
+      colorlog
+      ffmpeg-progress-yield
+      mutagen
+    ]
+    ++ [ ffmpeg ];
+
+  pythonRelaxDeps = [
+    "colorlog"
   ];
-  dependencies = with python3Packages; [ colorlog ];
 
   checkPhase = ''
+    runHook preCheck
+
     $out/bin/ffmpeg-normalize --help > /dev/null
+
+    runHook postCheck
   '';
 
   meta = {

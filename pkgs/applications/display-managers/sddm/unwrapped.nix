@@ -1,12 +1,27 @@
-{ stdenv, lib, fetchFromGitHub
-, cmake, pkg-config, qttools
-, libxcb, libXau, pam, qtbase, qtdeclarative
-, qtquickcontrols2 ? null, systemd, xkeyboardconfig
-, nixosTests
+{
+  stdenv,
+  lib,
+  fetchFromGitHub,
+  fetchpatch,
+  cmake,
+  pkg-config,
+  qttools,
+  libxcb,
+  libxau,
+  pam,
+  qtbase,
+  qtdeclarative,
+  qtquickcontrols2 ? null,
+  systemdSupport ? true,
+  systemdLibs,
+  xkeyboard-config,
+  nixosTests,
+  docutils,
 }:
 let
   isQt6 = lib.versions.major qtbase.version == "6";
-in stdenv.mkDerivation(finalAttrs: {
+in
+stdenv.mkDerivation (finalAttrs: {
   pname = "sddm-unwrapped";
   version = "0.21.0";
 
@@ -17,27 +32,52 @@ in stdenv.mkDerivation(finalAttrs: {
     hash = "sha256-r5mnEWham2WnoEqRh5tBj/6rn5mN62ENOCmsLv2Ht+w=";
   };
 
+  outputs = [
+    "out"
+    "man"
+  ];
+
   patches = [
     ./greeter-path.patch
     ./sddm-ignore-config-mtime.patch
     ./sddm-default-session.patch
+
+    (fetchpatch {
+      name = "sddm-fix-cmake-4.patch";
+      url = "https://github.com/sddm/sddm/commit/228778c2b4b7e26db1e1d69fe484ed75c5791c3a.patch";
+      hash = "sha256-Okt9LeZBhTDhP7NKBexWAZhkK6N6j9dFkAEgpidSnzE=";
+    })
+
+    (fetchpatch {
+      name = "fix-display-wayland.patch";
+      url = "https://github.com/sddm/sddm/commit/da0b64d8e2378c4bce16cbea6cac2ffc89ad1a4a.patch";
+      hash = "sha256-APLtRhnOwsbuhaXBm/JTpYyRnsIRExHjuyeJrNZhNoU=";
+    })
+
   ];
 
   postPatch = ''
     substituteInPlace src/greeter/waylandkeyboardbackend.cpp \
-      --replace "/usr/share/X11/xkb/rules/evdev.xml" "${xkeyboardconfig}/share/X11/xkb/rules/evdev.xml"
+      --replace "/usr/share/X11/xkb/rules/evdev.xml" "${xkeyboard-config}/share/X11/xkb/rules/evdev.xml"
   '';
 
-  nativeBuildInputs = [ cmake pkg-config qttools ];
+  nativeBuildInputs = [
+    cmake
+    pkg-config
+    qttools
+    docutils
+  ];
 
   buildInputs = [
     libxcb
-    libXau
+    libxau
     pam
     qtbase
     qtdeclarative
     qtquickcontrols2
-    systemd
+  ]
+  ++ lib.optionals systemdSupport [
+    systemdLibs
   ];
 
   # We will wrap manually later
@@ -45,6 +85,8 @@ in stdenv.mkDerivation(finalAttrs: {
 
   cmakeFlags = [
     (lib.cmakeBool "BUILD_WITH_QT6" isQt6)
+    (lib.cmakeBool "BUILD_MAN_PAGES" true)
+    (lib.cmakeBool "NO_SYSTEMD" (!systemdSupport))
     "-DCONFIG_FILE=/etc/sddm.conf"
     "-DCONFIG_DIR=/etc/sddm.conf.d"
 
@@ -56,16 +98,16 @@ in stdenv.mkDerivation(finalAttrs: {
     "-DUID_MIN=1000"
     "-DUID_MAX=29999"
 
-    # we still want to run the DM on VT 7 for the time being, as 1-6 are
-    # occupied by getties by default
-    "-DSDDM_INITIAL_VT=7"
+    "-DSDDM_INITIAL_VT=1"
 
     "-DQT_IMPORTS_DIR=${placeholder "out"}/${qtbase.qtQmlPrefix}"
     "-DCMAKE_INSTALL_SYSCONFDIR=${placeholder "out"}/etc"
+    "-DDBUS_CONFIG_DIR=${placeholder "out"}/share/dbus-1/system.d"
+  ]
+  ++ lib.optionals systemdSupport [
     "-DSYSTEMD_SYSTEM_UNIT_DIR=${placeholder "out"}/lib/systemd/system"
     "-DSYSTEMD_SYSUSERS_DIR=${placeholder "out"}/lib/sysusers.d"
     "-DSYSTEMD_TMPFILES_DIR=${placeholder "out"}/lib/tmpfiles.d"
-    "-DDBUS_CONFIG_DIR=${placeholder "out"}/share/dbus-1/system.d"
   ];
 
   postInstall = ''
@@ -79,11 +121,13 @@ in stdenv.mkDerivation(finalAttrs: {
 
   passthru.tests = { inherit (nixosTests) sddm; };
 
-  meta = with lib; {
+  meta = {
     description = "QML based X11 display manager";
-    homepage    = "https://github.com/sddm/sddm";
-    maintainers = with maintainers; [ abbradar ttuegel k900 ];
-    platforms   = platforms.linux;
-    license     = licenses.gpl2Plus;
+    homepage = "https://github.com/sddm/sddm";
+    maintainers = with lib.maintainers; [
+      k900
+    ];
+    platforms = lib.platforms.linux;
+    license = lib.licenses.gpl2Plus;
   };
 })

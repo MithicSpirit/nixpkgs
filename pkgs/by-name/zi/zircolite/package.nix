@@ -1,41 +1,43 @@
-{ lib
-, fetchFromGitHub
-, makeWrapper
-, python3
+{
+  lib,
+  fetchFromGitHub,
+  makeWrapper,
+  python3,
 }:
 
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication (finalAttrs: {
   pname = "zircolite";
-  version = "2.20.0";
-  format = "other";
+  version = "4.7.1";
+  pyproject = false;
 
   src = fetchFromGitHub {
     owner = "wagga40";
     repo = "Zircolite";
-    rev = "refs/tags/${version}";
-    hash = "sha256-a7xwF0amsh2SycOjtZpk3dylcBGG9uYd7vmbnz/f9Ug=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-BnWjlUJ+kL7KO3dsZ1gEUqhiv4ncbuf+nWiYzuFytrU=";
   };
 
   __darwinAllowLocalNetworking = true;
 
-  build-system = [
-    makeWrapper
-  ];
+  build-system = [ makeWrapper ];
 
-  dependencies = with python3.pkgs; [
-    aiohttp
-    colorama
-    elastic-transport
-    elasticsearch
-    evtx
-    jinja2
-    lxml
-    orjson
-    requests
-    tqdm
-    urllib3
-    xxhash
-  ] ++ elasticsearch.optional-dependencies.async;
+  dependencies =
+    with python3.pkgs;
+    [
+      aiohttp
+      colorama
+      elastic-transport
+      elasticsearch
+      evtx
+      jinja2
+      lxml
+      orjson
+      requests
+      tqdm
+      urllib3
+      xxhash
+    ]
+    ++ elasticsearch.optional-dependencies.async;
 
   installPhase = ''
     runHook preInstall
@@ -50,12 +52,12 @@ python3.pkgs.buildPythonApplication rec {
     runHook postInstall
   '';
 
-  meta = with lib; {
+  meta = {
     description = "SIGMA-based detection tool for EVTX, Auditd, Sysmon and other logs";
-    mainProgram = "zircolite";
     homepage = "https://github.com/wagga40/Zircolite";
-    changelog = "https://github.com/wagga40/Zircolite/releases/tag/${version}";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/wagga40/Zircolite/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [ fab ];
+    mainProgram = "zircolite";
   };
-}
+})

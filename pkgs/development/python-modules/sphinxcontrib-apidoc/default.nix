@@ -1,20 +1,25 @@
 {
   lib,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   pbr,
   setuptools,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "sphinxcontrib-apidoc";
-  version = "0.5.0";
+  version = "0.6.0";
   pyproject = true;
 
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-Ze/NkiEqX4I3FfuV7gmLRYprsJpe5hfZ7T3q2XF3zVU=";
+  src = fetchFromGitHub {
+    owner = "sphinx-contrib";
+    repo = "apidoc";
+    tag = finalAttrs.version;
+    hash = "sha256-zJmthFeeLsEkVPiFO/42AEhfCj+e85v8nNRd6v7SlZI=";
   };
+
+  # Manually set version since pbr wants to get it from git (not in a tarball)
+  env.PBR_VERSION = finalAttrs.version;
 
   postPatch = ''
     # break infite recursion, remove pytest 4 requirement
@@ -31,10 +36,10 @@ buildPythonPackage rec {
 
   pythonNamespaces = [ "sphinxcontrib" ];
 
-  meta = with lib; {
+  meta = {
     description = "Sphinx extension for running sphinx-apidoc on each build";
     homepage = "https://github.com/sphinx-contrib/apidoc";
-    license = licenses.bsd2;
-    maintainers = teams.openstack.members;
+    license = lib.licenses.bsd2;
+    teams = [ lib.teams.openstack ];
   };
-}
+})

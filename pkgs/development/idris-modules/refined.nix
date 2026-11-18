@@ -1,8 +1,9 @@
-{ build-idris-package
-, fetchFromGitHub
-, lib
+{
+  build-idris-package,
+  fetchFromGitHub,
+  lib,
 }:
-build-idris-package  {
+build-idris-package {
   pname = "refined";
   version = "2017-12-28";
 
@@ -12,7 +13,7 @@ build-idris-package  {
     owner = "janschultecom";
     repo = "idris-refined";
     rev = "e21cdef16106a77b42d193806c1749ba6448a128";
-    sha256 = "1am7kfc51p2zlml954v8cl9xvx0g0f1caq7ni3z36xvsd7fh47yh";
+    hash = "sha256-0B8C3Wl6dzP+iPZgxYIDD/TdE2Vok5JopV/cUJibp6o=";
   };
 
   meta = {

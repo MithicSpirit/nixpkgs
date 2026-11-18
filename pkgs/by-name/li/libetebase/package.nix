@@ -1,28 +1,35 @@
-{ rustPlatform
-, fetchFromGitHub
-, pkg-config
-, openssl
-, lib
-, stdenv
-, testers
-, libetebase
+{
+  rustPlatform,
+  fetchFromGitHub,
+  pkg-config,
+  libsodium,
+  openssl,
+  lib,
+  stdenv,
+  testers,
+  libetebase,
 }:
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "libetebase";
-  version = "0.5.6";
+  version = "0.5.8";
 
   src = fetchFromGitHub {
     owner = "etesync";
     repo = "libetebase";
-    rev = "v${version}";
-    hash = "sha256-cXuOKfyMdk+YzDi0G8i44dyBRf4Ez5+AlCKG43BTSSU=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-B+MfnYbxIbgMHFWWOYhap1MEbV3/NNYuR9goJDTNn9A=";
   };
 
-  cargoHash = "sha256-GUNj5GrY04CXnej3WDKZmW4EeJhoCl2blHSDfEkQKtE=";
+  cargoHash = "sha256-ZLQFERi38+0SUxWaYAL4AepgVuAQKo9pxjcMkzA55BM=";
+
+  env.SODIUM_USE_PKG_CONFIG = true;
 
   nativeBuildInputs = [ pkg-config ];
 
-  buildInputs = [ openssl ];
+  buildInputs = [
+    libsodium
+    openssl
+  ];
 
   postInstall = ''
     install -d $out/lib/pkgconfig
@@ -34,12 +41,12 @@ rustPlatform.buildRustPackage rec {
 
   passthru.tests.pkgs-config = testers.testMetaPkgConfig libetebase;
 
-  meta = with lib; {
-    description = "A C library for Etebase";
+  meta = {
+    description = "C library for Etebase";
     homepage = "https://www.etebase.com/";
-    license = licenses.bsd3;
-    broken = stdenv.isDarwin;
-    maintainers = with maintainers; [ laalsaas ];
+    license = lib.licenses.bsd3;
+    broken = stdenv.hostPlatform.isDarwin;
+    maintainers = with lib.maintainers; [ laalsaas ];
     pkgConfigModules = [ "etebase" ];
   };
-}
+})

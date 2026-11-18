@@ -1,29 +1,32 @@
-{ lib
-, buildGoModule
-, fetchFromGitHub
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "gungnir";
-  version = "1.0.9";
+  version = "1.4.0";
 
   src = fetchFromGitHub {
     owner = "g0ldencybersec";
     repo = "gungnir";
-    rev = "v${version}";
-    hash = "sha256-A4MPRsUSeYwKlhCHByty6T33wEp/BopZMDWOnOqlQqQ=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-rmv/EmG8tsno8GVPY079zS9UZ8UE/uxbtO+D/Co/eWs=";
   };
 
-  vendorHash = "sha256-r2aU59L0fnSdc/lpR04K/GQ1eZ7ihV+tKlyuS6sPX2o=";
+  vendorHash = "sha256-1JAGkrzW2RzGK47Y/YMbXclJqCkbGK8XJEimbg8ETL8=";
 
-  ldflags = [ "-s" "-w" ];
+  ldflags = [
+    "-s"
+    "-w"
+  ];
 
-  meta = with lib; {
+  meta = {
     description = "Command-line tool that continuously monitors certificate transparency (CT) logs for newly issued SSL/TLS certificates";
     homepage = "https://github.com/g0ldencybersec/gungnir";
-    license = licenses.mit;
-    maintainers = with maintainers; [ cherrykitten ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ cherrykitten ];
     mainProgram = "gungnir";
   };
-}
-
+})

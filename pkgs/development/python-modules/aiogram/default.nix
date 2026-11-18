@@ -1,12 +1,14 @@
 {
   lib,
+  aiodns,
   aiofiles,
-  aiohttp,
   aiohttp-socks,
+  aiohttp,
   aresponses,
   babel,
   buildPythonPackage,
   certifi,
+  cryptography,
   fetchFromGitHub,
   gitUpdater,
   hatchling,
@@ -19,71 +21,80 @@
   pytest-asyncio,
   pytest-lazy-fixture,
   pytestCheckHook,
-  pythonOlder,
   pytz,
   redis,
+  uvloop,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "aiogram";
-  version = "3.12.0";
+  version = "3.31.0";
   pyproject = true;
-
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "aiogram";
     repo = "aiogram";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-5W7GuWZsUjTwjgKnNs7j4wZhOME1Giz757cM3sKuSQY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-bW21mt1Vs4nDHopvd/fW7okRVI124CntXOxv1QCFWaY=";
   };
 
   build-system = [ hatchling ];
 
-
-  pythonRelaxDeps = [ "pydantic" ];
+  pythonRelaxDeps = [ "aiohttp" ];
 
   dependencies = [
     aiofiles
     aiohttp
-    babel
     certifi
     magic-filter
     pydantic
   ];
 
+  optional-dependencies = {
+    fast = [
+      aiodns
+      uvloop
+    ];
+    mongo = [
+      motor
+      pymongo
+    ];
+    redis = [ redis ];
+    proxy = [ aiohttp-socks ];
+    i18n = [ babel ];
+    signature = [ cryptography ];
+  };
+
   nativeCheckInputs = [
-    aiohttp-socks
     aresponses
-    motor
     pycryptodomex
-    pymongo
     pytest-aiohttp
     pytest-asyncio
     pytest-lazy-fixture
     pytestCheckHook
     pytz
-    redis
-  ];
+  ]
+  ++ lib.flatten (builtins.attrValues finalAttrs.passthru.optional-dependencies);
 
-  pytestFlagsArray = [
-    "-W"
-    "ignore::pluggy.PluggyTeardownRaisedWarning"
-    "-W"
-    "ignore::pytest.PytestDeprecationWarning"
-    "-W"
-    "ignore::DeprecationWarning"
+  pytestFlags = [
+    # DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slate...
+    "-Wignore::DeprecationWarning"
   ];
 
   pythonImportsCheck = [ "aiogram" ];
 
-  passthru.updateScript = gitUpdater { rev-prefix = "v"; };
+  passthru.updateScript = gitUpdater {
+    rev-prefix = "v";
+    ignoredVersions = "4.1";
+  };
 
-  meta = with lib; {
+  __darwinAllowLocalNetworking = true;
+
+  meta = {
     description = "Modern and fully asynchronous framework for Telegram Bot API";
     homepage = "https://github.com/aiogram/aiogram";
-    changelog = "https://github.com/aiogram/aiogram/releases/tag/v${version}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ sikmir ];
+    changelog = "https://github.com/aiogram/aiogram/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ sikmir ];
   };
-}
+})

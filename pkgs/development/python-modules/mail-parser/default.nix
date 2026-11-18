@@ -2,46 +2,64 @@
   lib,
   buildPythonPackage,
   python,
-  glibcLocales,
+  extract-msg,
   fetchFromGitHub,
-  six,
-  simplejson,
+  hatchling,
+  pyprojectVersionPatchHook,
+  pytest-cov-stub,
+  pytest-mock,
+  pytestCheckHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "mail-parser";
-  version = "3.15.0";
-  format = "setuptools";
+  version = "4.10.0";
+  pyproject = true;
 
   src = fetchFromGitHub {
     owner = "SpamScope";
-    repo = pname;
-    rev = "v${version}";
-    sha256 = "0da2qr4p8jnjw6jdhbagm6slfcjnjyyjkszwfcfqvcywh1zm1sdw";
+    repo = "mail-parser";
+    tag = finalAttrs.version;
+    hash = "sha256-eiLnNTkBanoJkBthOLsblL0VEWNUKtGV1c2obMuUXJA=";
   };
 
-  LC_ALL = "en_US.utf-8";
+  postPatch = ''
+    substituteInPlace pyproject.toml \
+      --replace-fail "hatchling>=1.27,<1.32" "hatchling"
+  '';
 
-  nativeBuildInputs = [ glibcLocales ];
-  propagatedBuildInputs = [
-    simplejson
-    six
-  ];
+  build-system = [ hatchling ];
 
-  # Taken from .travis.yml
-  checkPhase = ''
-    ${python.interpreter} tests/test_main.py
+  nativeBuildInputs = [ pyprojectVersionPatchHook ];
+
+  optional-dependencies = {
+    outlook = [ extract-msg ];
+  };
+
+  pythonImportsCheck = [ "mailparser" ];
+
+  nativeCheckInputs = [
+    pytest-cov-stub
+    pytest-mock
+    pytestCheckHook
+  ]
+  ++ lib.concatAttrValues finalAttrs.passthru.optional-dependencies;
+
+  # Taken from .github/workflows/main.yml
+  postCheck = ''
     ${python.interpreter} -m mailparser -v
     ${python.interpreter} -m mailparser -h
     ${python.interpreter} -m mailparser -f tests/mails/mail_malformed_3 -j
+    ${python.interpreter} -m mailparser -f tests/mails/mail_outlook_1 -j
     cat tests/mails/mail_malformed_3 | ${python.interpreter} -m mailparser -k -j
   '';
 
-  meta = with lib; {
-    description = "Mail parser for python 2 and 3";
-    mainProgram = "mailparser";
+  meta = {
+    description = "Mail parser";
     homepage = "https://github.com/SpamScope/mail-parser";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ psyanticy ];
+    changelog = "https://github.com/SpamScope/mail-parser/releases/tag/${finalAttrs.src.tag}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ psyanticy ];
+    mainProgram = "mail-parser";
   };
-}
+})

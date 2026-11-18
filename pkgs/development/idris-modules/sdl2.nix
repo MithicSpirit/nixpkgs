@@ -1,10 +1,11 @@
-{ build-idris-package
-, fetchFromGitHub
-, effects
-, lib
-, pkg-config
-, SDL2
-, SDL2_gfx
+{
+  build-idris-package,
+  fetchFromGitHub,
+  effects,
+  lib,
+  pkg-config,
+  SDL2,
+  SDL2_gfx,
 }:
 build-idris-package rec {
   pname = "sdl2";
@@ -27,7 +28,7 @@ build-idris-package rec {
     owner = "steshaw";
     repo = "idris-sdl2";
     rev = version;
-    sha256 = "1jslnlzyw04dcvcd7xsdjqa7waxzkm5znddv76sv291jc94xhl4a";
+    hash = "sha256-ilDYSWIyJLG1Obs1+0udvyt+FJZN99PYZo0A7j+1VMs=";
   };
 
   meta = {

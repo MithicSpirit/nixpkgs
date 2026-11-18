@@ -1,88 +1,129 @@
 {
-  fetchurl,
-  stdenvNoCC,
   lib,
+  stdenvNoCC,
+  fetchurl,
+  dpkg,
   makeWrapper,
-  p7zip,
-  asar,
-  jq,
-  python3,
   electron,
-  fetchFromGitHub,
-  electronArguments ? "",
-  trayEnabled ? true,
+  libayatana-appindicator,
+  asar,
+  _7zz,
 }:
-stdenvNoCC.mkDerivation rec {
-  pname = "yandex-music";
-  version = "5.13.2";
+let
+  version = "5.127.0";
 
-  src = fetchFromGitHub {
-    owner = "cucumber-sp";
-    repo = "yandex-music-linux";
-    rev = "v${version}";
-    hash = "sha256-yQX2GEulAQ02BndpwAAwGdTYtUlNXCgsCUdmXxPwtKU=";
+  linuxSrc = fetchurl {
+    url = "https://desktop.app.music.yandex.net/stable/Yandex_Music_amd64_${version}.deb";
+    hash = "sha256-Xn/B6hjE+ijGSf453yw6av+tTRvwBQFDgVaazCOOVXs=";
   };
 
-  nativeBuildInputs = [
-    p7zip
-    asar
-    jq
-    python3
-    makeWrapper
-  ];
+  darwinSrc = fetchurl {
+    url = "https://desktop.app.music.yandex.net/stable/Yandex_Music_universal_${version}.dmg";
+    hash = "sha256-v/jCKcsY6LXVAxyoBfRZji6w/FmZlQR2jl1MWz8It88=";
+  };
+in
+stdenvNoCC.mkDerivation {
+  pname = "yandex-music";
+  inherit version;
 
-  passthru.updateScript = ./update.sh;
+  src = if stdenvNoCC.hostPlatform.isDarwin then darwinSrc else linuxSrc;
 
-  ymExe =
-    let
-      ym_info = builtins.fromJSON (builtins.readFile ./ym_info.json);
-    in
-    fetchurl {
-      url = ym_info.ym.exe_link;
-      sha256 = ym_info.ym.exe_sha256;
-    };
+  nativeBuildInputs =
+    if stdenvNoCC.hostPlatform.isDarwin then
+      [ _7zz ]
+    else
+      [
+        dpkg
+        makeWrapper
+        asar
+      ];
 
-  buildPhase = ''
+  dontConfigure = true;
+
+  sourceRoot = ".";
+
+  unpackPhase =
+    if stdenvNoCC.hostPlatform.isDarwin then
+      ''
+        runHook preUnpack
+        7zz x -snld "-xr!*:com.apple.*" $src
+        runHook postUnpack
+      ''
+    else
+      ''
+        runHook preUnpack
+        dpkg-deb -x $src .
+        runHook postUnpack
+      '';
+
+  buildPhase = lib.optionalString stdenvNoCC.hostPlatform.isLinux ''
     runHook preBuild
-    bash "./repack.sh" -o "./app" "$ymExe"
+
+    asar extract opt/Яндекс\ Музыка/resources/app.asar app
+
+    # Fix tray icon by providing assets from the host electron
+    substituteInPlace app/index.js \
+      --replace-warn "process.resourcesPath" "require('path').join(__dirname, '..')"
+
+    asar pack app app.asar
+
     runHook postBuild
   '';
 
-  installPhase = ''
-    runHook preInstall
+  installPhase =
+    if stdenvNoCC.hostPlatform.isDarwin then
+      ''
+        runHook preInstall
 
-    mkdir -p "$out/share/nodejs"
-    mv app/yandex-music.asar "$out/share/nodejs"
+        mkdir -p $out/Applications
+        cp -r "Яндекс Музыка.app" "$out/Applications/Yandex Music.app"
 
-    CONFIG_FILE="$out/share/yandex-music.conf"
-    echo "TRAY_ENABLED=${if trayEnabled then "1" else "0"}" >> "$CONFIG_FILE"
-    echo "ELECTRON_ARGS=\"${electronArguments}\"" >> "$CONFIG_FILE"
+        runHook postInstall
+      ''
+    else
+      ''
+        runHook preInstall
 
+        mkdir -p $out/bin $out/share/yandex-music
+        install -Dm644 app.asar $out/share/yandex-music/app.asar
+        cp -r opt/Яндекс\ Музыка/resources/assets $out/share/yandex-music/assets
 
-    install -Dm755 "$src/templates/yandex-music.sh" "$out/bin/yandex-music"
-    substituteInPlace "$out/bin/yandex-music"                                  \
-      --replace-fail "%electron_path%" "${electron}/bin/electron"              \
-      --replace-fail "%asar_path%" "$out/share/nodejs/yandex-music.asar"
+        cp -r usr/share/applications $out/share/
+        cp -r usr/share/icons $out/share/
 
-    wrapProgram "$out/bin/yandex-music"                                        \
-      --set-default YANDEX_MUSIC_CONFIG "$CONFIG_FILE"
+        mv $out/share/applications/yandexmusic.desktop $out/share/applications/yandex-music.desktop
 
-    install -Dm644 "./app/favicon.png" "$out/share/pixmaps/yandex-music.png"
-    install -Dm644 "./app/favicon.png" "$out/share/icons/hicolor/48x48/apps/yandex-music.png"
-    install -Dm644 "./app/favicon.svg" "$out/share/icons/hicolor/scalable/apps/yandex-music.svg"
+        substituteInPlace $out/share/applications/yandex-music.desktop \
+          --replace-fail "/opt/Яндекс Музыка/yandexmusic" "$out/bin/yandex-music" \
+          --replace-fail "Name=Яндекс Музыка" "Name=Yandex Music" \
+          --replace-fail "StartupWMClass=Яндекс Музыка" "StartupWMClass=yandexmusic"
 
-    install -Dm644 "$src/templates/desktop" "$out/share/applications/yandex-music.desktop"
+        makeWrapper ${electron}/bin/electron $out/bin/yandex-music \
+          --run 'if [ -d "$HOME/.config/yandex-music" ] && [ ! -d "$HOME/.config/YandexMusic" ]; then mv "$HOME/.config/yandex-music" "$HOME/.config/YandexMusic"; fi' \
+          --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ libayatana-appindicator ]}" \
+          --add-flags "$out/share/yandex-music/app.asar" \
+          --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}"
 
-    runHook postInstall
-  '';
+        runHook postInstall
+      '';
+
+  passthru.updateScript = ./update.sh;
 
   meta = {
-    description = "Yandex Music - Personal recommendations, selections for any occasion and new music";
-    homepage = "https://music.yandex.ru/";
-    downloadPage = "https://music.yandex.ru/download/";
-    changelog = "https://github.com/cucumber-sp/yandex-music-linux/releases/tag/v5.13.2";
+    description = "Personal recommendations, selections for any occasion and new music";
+    homepage = "https://music.yandex.com/";
+    downloadPage = "https://music.yandex.com/download/";
     license = lib.licenses.unfree;
-    platforms = lib.platforms.linux;
     maintainers = with lib.maintainers; [ shved ];
+    # Do not inherit electron.meta.platforms:
+    # - Linux: source is amd64 deb; pure JS app.asar runs on x86_64/aarch64 host electron.
+    #   Remaining electron platforms (32-bit, riscv, mips, etc.) are unsupported.
+    # - Darwin: uses standalone dmg with bundled runtime, bypassing nixpkgs electron.
+    platforms = [
+      "x86_64-linux"
+      "aarch64-linux"
+      "aarch64-darwin"
+    ];
+    mainProgram = if stdenvNoCC.hostPlatform.isDarwin then "Yandex Music" else "yandex-music";
   };
 }

@@ -1,6 +1,10 @@
-{ lib, stdenv, fetchFromGitHub }:
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+}:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation {
   pname = "urxvt-theme-switch";
   version = "unstable-2014-12-21";
 
@@ -10,7 +14,7 @@ stdenv.mkDerivation rec {
     owner = "felixr";
     repo = "urxvt-theme-switch";
     rev = "cfcbcc3dd5a5b09a3fec0f6a1fea95f4a36a48c4";
-    sha256 = "0x27m1vdqprn3lqpwgxvffill7prmaj6j9rhgvkvi13mzl5wmlli";
+    hash = "sha256-kdLKC/11hLjnfjAnaaSq+R5Ko3O7P34xHTZf3HaoR3Q=";
   };
 
   installPhase = ''
@@ -19,11 +23,11 @@ stdenv.mkDerivation rec {
     cp color-themes $out/lib/urxvt/perl
   '';
 
-  meta = with lib; {
+  meta = {
     description = "urxvt plugin that allows to switch color themes during runtime";
     homepage = "https://github.com/felixr/urxvt-theme-switch";
-    license = "CCBYNC";
+    license = lib.licenses.cc-by-nc-30;
     maintainers = [ ];
-    platforms = platforms.unix;
+    platforms = lib.platforms.unix;
   };
 }

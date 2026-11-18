@@ -1,68 +1,66 @@
 /*
+  # Usage
 
-# Usage
+  `emacs.pkgs.withPackages` takes a single argument: a function from a package
+  set to a list of packages (the packages that will be available in
+  Emacs). For example,
+  ```
+  emacs.pkgs.withPackages (epkgs: [ epkgs.evil epkgs.magit ])
+  ```
+  All the packages in the list should come from the provided package
+  set. It is possible to add any package to the list, but the provided
+  set is guaranteed to have consistent dependencies and be built with
+  the correct version of Emacs.
 
-`emacs.pkgs.withPackages` takes a single argument: a function from a package
-set to a list of packages (the packages that will be available in
-Emacs). For example,
-```
-emacs.pkgs.withPackages (epkgs: [ epkgs.evil epkgs.magit ])
-```
-All the packages in the list should come from the provided package
-set. It is possible to add any package to the list, but the provided
-set is guaranteed to have consistent dependencies and be built with
-the correct version of Emacs.
+  # Overriding
 
-# Overriding
-
-`emacs.pkgs.withPackages` inherits the package set which contains it, so the
-correct way to override the provided package set is to override the
-set which contains `emacs.pkgs.withPackages`. For example, to override
-`emacs.pkgs.emacs.pkgs.withPackages`,
-```
-let customEmacsPackages =
-      emacs.pkgs.overrideScope (self: super: {
-        # use a custom version of emacs
-        emacs = ...;
-        # use the unstable MELPA version of magit
-        magit = self.melpaPackages.magit;
-      });
-in customEmacsPackages.withPackages (epkgs: [ epkgs.evil epkgs.magit ])
-```
-
+  `emacs.pkgs.withPackages` inherits the package set which contains it, so the
+  correct way to override the provided package set is to override the
+  set which contains `emacs.pkgs.withPackages`. For example, to override
+  `emacs.pkgs.emacs.pkgs.withPackages`,
+  ```
+  let customEmacsPackages =
+        emacs.pkgs.overrideScope (self: super: {
+          # use a custom version of emacs
+          emacs = ...;
+          # use the unstable MELPA version of magit
+          magit = self.melpaPackages.magit;
+        });
+  in customEmacsPackages.withPackages (epkgs: [ epkgs.evil epkgs.magit ])
+  ```
 */
 
-{ lib, lndir, makeBinaryWrapper, runCommand }:
+{
+  lib,
+  lndir,
+  writeText,
+  makeBinaryWrapper,
+  runCommand,
+  runtimeShell,
+}:
 self:
 let
   inherit (self) emacs;
   withNativeCompilation = emacs.withNativeCompilation or false;
   withTreeSitter = emacs.withTreeSitter or false;
+  inherit (emacs.stdenv.hostPlatform) isDarwin;
+  withFontconfig = !isDarwin;
 in
 packagesFun: # packages explicitly requested by the user
 let
-  explicitRequires =
-    if lib.isFunction packagesFun
-    then packagesFun self
-    else packagesFun;
-in
-runCommand
-  (lib.appendToName "with-packages" emacs).name
-  {
-    inherit emacs explicitRequires;
-    nativeBuildInputs = [ emacs lndir makeBinaryWrapper ];
-
-    preferLocalBuild = true;
-    allowSubstitutes = false;
-
-    # Store all paths we want to add to emacs here, so that we only need to add
-    # one path to the load lists
-    deps = runCommand "emacs-packages-deps"
-      ({
-        inherit explicitRequires lndir emacs;
-      } // lib.optionalAttrs withNativeCompilation {
-        inherit (emacs) LIBRARY_PATH;
-      })
+  explicitRequires = if lib.isFunction packagesFun then packagesFun self else packagesFun;
+  # Store all paths we want to add to emacs here, so that we only need to add
+  # one path to the load lists
+  deps =
+    runCommand "emacs-packages-deps"
+      (
+        {
+          inherit explicitRequires lndir emacs;
+        }
+        // lib.optionalAttrs withNativeCompilation {
+          inherit (emacs) LIBRARY_PATH;
+        }
+      )
       ''
         findInputsOld() {
           local pkg="$1"; shift
@@ -75,7 +73,7 @@ runCommand
           # well :D.
           local varSlice="$var[*]"
           # ''${..-} to hack around old bash empty array problem
-          case "''${!varSlice-}" in
+          case " ''${!varSlice-} " in
               *" $pkg "*) return 0 ;;
           esac
           unset -v varSlice
@@ -106,6 +104,7 @@ runCommand
         ${lib.optionalString withTreeSitter ''
           mkdir -p $out/lib
         ''}
+        mkdir -p $out/share/fonts
 
         local requires
         for pkg in $explicitRequires; do
@@ -118,9 +117,19 @@ runCommand
           local origin_path=$2
           local dest_path=$3
 
-          # Add the path to the search path list, but only if it exists
+          # Add the path to the search path list, but only if it exists.
+          # Executables in /bin are linked by their resolved paths in case they are
+          # relative symlinks (which break when 'lndir'ed as is);
+          # see https://github.com/NixOS/nixpkgs/issues/395442
           if [[ -d "$pkg/$origin_path" ]]; then
-            $lndir/bin/lndir -silent "$pkg/$origin_path" "$out/$dest_path"
+            case "$origin_path" in
+              bin)
+                for exe in $pkg/$origin_path/*; do
+                  ln -s "$(realpath "$exe")" "$out/$dest_path/$(basename "$exe")"
+                done
+                ;;
+              *) $lndir/bin/lndir -silent "$pkg/$origin_path" "$out/$dest_path";;
+            esac
           fi
         }
 
@@ -133,6 +142,7 @@ runCommand
           ${lib.optionalString withTreeSitter ''
             linkPath "$1" "lib" "lib"
           ''}
+          linkPath "$1" "share/fonts" "share/fonts"
         }
 
         # Iterate over the array of inputs (avoiding nix's own interpolation)
@@ -150,29 +160,65 @@ runCommand
         # Begin the new site-start.el by loading the original, which sets some
         # NixOS-specific paths. Paths are searched in the reverse of the order
         # they are specified in, so user and system profile paths are searched last.
-        #
-        # NOTE: Avoid displaying messages early at startup by binding
-        # inhibit-message to t. This would prevent the Emacs GUI from showing up
-        # prematurely. The messages would still be logged to the *Messages*
-        # buffer.
         rm -f $siteStart $siteStartByteCompiled $subdirs $subdirsByteCompiled
         cat >"$siteStart" <<EOF
-        (let ((inhibit-message t))
-          (load "$emacs/share/emacs/site-lisp/site-start"))
-        ;; "$out/share/emacs/site-lisp" is added to load-path in wrapper.sh
-        ;; "$out/share/emacs/native-lisp" is added to native-comp-eln-load-path in wrapper.sh
-        (add-to-list 'exec-path "$out/bin")
+        ;;; -*- lexical-binding: t -*-
+        (load "$emacs/share/emacs/site-lisp/site-start" nil t)
         ${lib.optionalString withTreeSitter ''
           (add-to-list 'treesit-extra-load-path "$out/lib/")
         ''}
+
+        ;; Remove wrapper-added dir from PATH-like environment variable
+        ;; so that the wrapper-added dir is not propagated to subprocesses.
+        (let ((restore-path
+               (lambda (path-env-var wrapper-dir-env-var)
+                 ;; Avoid when-let* to support older Emacs (for nix-emacs-ci).
+                 (let ((wrapper-dir (getenv wrapper-dir-env-var)))
+                   (when wrapper-dir
+                     (setenv wrapper-dir-env-var nil)
+                     (let ((env-path (getenv path-env-var)))
+                       (when env-path
+                         (let* ((env-path-list (split-string env-path path-separator))
+                                (restored-env-path-list (remove wrapper-dir env-path-list)))
+                           (setenv path-env-var
+                                   (when restored-env-path-list
+                                     ;; Inline string-join to support older Emacs
+                                     ;; (for nix-emacs-ci).
+                                     (mapconcat #'identity
+                                                restored-env-path-list
+                                                path-separator)))))))))))
+          (funcall restore-path
+                   "EMACSLOADPATH" "emacsWithPackages_siteLisp")
+          (funcall restore-path
+                   "EMACSNATIVELOADPATH" "emacsWithPackages_nativeLisp")
+          ;; Abuse restore-path for single-item PATH-like variable FONTCONFIG_FILE.
+          (funcall restore-path
+                   "FONTCONFIG_FILE" "emacsWithPackages_fontconfigFile")
+          (funcall restore-path
+                   "XDG_DATA_DIRS" "emacsWithPackages_xdgDataDir"))
+
+        (let ((set-from-env (lambda (symbol env-var &optional modify)
+                              ;; Avoid when-let* to support older Emacs (for nix-emacs-ci).
+                              (let ((value (getenv env-var)))
+                                (when value
+                                  (set symbol (funcall (or modify #'identity) value))
+                                  (setenv env-var nil))))))
+          (funcall set-from-env
+                   'invocation-directory "emacsWithPackages_invocationDirectory"
+                   #'file-name-as-directory)
+          (funcall set-from-env
+                   'invocation-name "emacsWithPackages_invocationName"))
         EOF
 
         # Generate a subdirs.el that statically adds all subdirectories to load-path.
+        cat >"$subdirs" <<EOF
+        ;;; -*- lexical-binding: t -*-
+        EOF
         $emacs/bin/emacs \
           --batch \
           --load ${./mk-wrapper-subdirs.el} \
           --eval "(prin1 (macroexpand-1 '(mk-subdirs-expr \"$out/share/emacs/site-lisp\")))" \
-          > "$subdirs"
+          >> "$subdirs"
 
         # Byte-compiling improves start-up time only slightly, but costs nothing.
         $emacs/bin/emacs --batch -f batch-byte-compile "$siteStart" "$subdirs"
@@ -183,6 +229,32 @@ runCommand
             -f batch-native-compile "$siteStart" "$subdirs"
         ''}
       '';
+
+  fontconfigFile =
+    if withFontconfig then
+      writeText "emacs-with-packages-fonts.conf" ''
+        <?xml version="1.0"?>
+        <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+        <fontconfig>
+          <description>Extend the standard config with fonts from the Emacs withPackages wrapper</description>
+          <dir>${deps}/share/fonts</dir>
+          <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+        </fontconfig>
+      ''
+    else
+      "notUsed";
+in
+runCommand (lib.appendToName "with-packages" emacs).name
+  {
+    inherit emacs explicitRequires deps;
+    nativeBuildInputs = [
+      emacs
+      lndir
+      makeBinaryWrapper
+    ];
+
+    preferLocalBuild = true;
+    allowSubstitutes = false;
 
     inherit (emacs) meta;
   }
@@ -195,9 +267,15 @@ runCommand
       rm -f "$out/bin/$progname"
 
       substitute ${./wrapper.sh} $out/bin/$progname \
-        --subst-var-by bash ${emacs.stdenv.shell} \
+        --subst-var-by bash ${runtimeShell} \
         --subst-var-by wrapperSiteLisp "$deps/share/emacs/site-lisp" \
-        --subst-var-by wrapperSiteLispNative "$deps/share/emacs/native-lisp" \
+        --subst-var-by wrapperNativeLisp "$deps/share/emacs/native-lisp" \
+        --subst-var-by wrapperBinDir "$deps/bin" \
+        --subst-var-by withFontconfig "${lib.boolToString withFontconfig}" \
+        --subst-var-by wrapperFontconfigFile "${fontconfigFile}" \
+        --subst-var-by wrapperXdgDataDir "$deps/share" \
+        --subst-var-by wrapperInvocationDirectory "$out/bin/" \
+        --subst-var-by wrapperInvocationName "$progname" \
         --subst-var prog
       chmod +x $out/bin/$progname
       # Create a “NOP” binary wrapper for the pure sake of it becoming a
@@ -219,9 +297,15 @@ runCommand
 
 
       substitute ${./wrapper.sh} $out/Applications/Emacs.app/Contents/MacOS/Emacs \
-        --subst-var-by bash ${emacs.stdenv.shell} \
+        --subst-var-by bash ${runtimeShell} \
         --subst-var-by wrapperSiteLisp "$deps/share/emacs/site-lisp" \
-        --subst-var-by wrapperSiteLispNative "$deps/share/emacs/native-lisp" \
+        --subst-var-by wrapperNativeLisp "$deps/share/emacs/native-lisp" \
+        --subst-var-by wrapperBinDir "$deps/bin" \
+        --subst-var-by withFontconfig "${lib.boolToString withFontconfig}" \
+        --subst-var-by wrapperFontconfigFile "${fontconfigFile}" \
+        --subst-var-by wrapperXdgDataDir "$deps/share" \
+        --subst-var-by wrapperInvocationDirectory "$out/Applications/Emacs.app/Contents/MacOS/" \
+        --subst-var-by wrapperInvocationName "Emacs" \
         --subst-var-by prog "$emacs/Applications/Emacs.app/Contents/MacOS/Emacs"
       chmod +x $out/Applications/Emacs.app/Contents/MacOS/Emacs
       wrapProgramBinary $out/Applications/Emacs.app/Contents/MacOS/Emacs

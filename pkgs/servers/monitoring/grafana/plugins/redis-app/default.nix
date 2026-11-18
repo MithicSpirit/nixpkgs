@@ -1,13 +1,11 @@
 { grafanaPlugin, lib }:
 
-grafanaPlugin rec {
+grafanaPlugin {
   pname = "redis-app";
-  version = "2.2.1";
-  zipHash = "sha256-1ZzJaGhlM6CaTecj69aqJ9fqN7wYSsiDCMTRVkZJUb0=";
-  meta = with lib; {
+  inherit (lib.importTOML ./sources.toml) version packages;
+  meta = {
     description = "Redis Application plugin for Grafana";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ azahi ];
-    platforms = platforms.unix;
+    license = lib.licenses.asl20;
+    maintainers = [ ];
   };
 }

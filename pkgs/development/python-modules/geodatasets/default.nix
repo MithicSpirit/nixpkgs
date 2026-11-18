@@ -2,45 +2,46 @@
   lib,
   buildPythonPackage,
   fetchFromGitHub,
-  pytestCheckHook,
-  pythonOlder,
 
-  geopandas,
-  pooch,
-  pyogrio,
+  # build-system
   setuptools-scm,
+
+  # dependencies
+  pooch,
+
+  # tests
+  geopandas,
+  pyogrio,
+  pytestCheckHook,
+  writableTmpDirAsHomeHook,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "geodatasets";
-  version = "2024.7.0";
+  version = "2026.11.0";
   pyproject = true;
-  disabled = pythonOlder "3.8";
 
   src = fetchFromGitHub {
     owner = "geopandas";
     repo = "geodatasets";
-    rev = "refs/tags/${version}";
-    hash = "sha256-DNM3DUtj+hfwiqjnCf3OSiSuuf1AbFnyCN9KPDBisyU=";
+    tag = finalAttrs.version;
+    hash = "sha256-TbDuFAJxaze/ehU3iuIPCRzlZsm6XwHokpawNtKU6EQ=";
   };
 
   build-system = [ setuptools-scm ];
 
-  propagatedBuildInputs = [ pooch ];
+  dependencies = [ pooch ];
 
   nativeCheckInputs = [
     geopandas
     pyogrio
     pytestCheckHook
+    writableTmpDirAsHomeHook
   ];
 
-  preCheck = ''
-    export HOME=$TMPDIR
-  '';
-
-  pytestFlagsArray = [
+  disabledTestMarks = [
     # disable tests which require network access
-    "-m 'not request'"
+    "request"
   ];
 
   pythonImportsCheck = [ "geodatasets" ];
@@ -49,6 +50,6 @@ buildPythonPackage rec {
     description = "Spatial data examples";
     homepage = "https://geodatasets.readthedocs.io/";
     license = lib.licenses.bsd3;
-    maintainers = lib.teams.geospatial.members;
+    teams = [ lib.teams.geospatial ];
   };
-}
+})

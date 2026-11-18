@@ -1,8 +1,18 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
-
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
+
+  attrsToExports = lib.concatMapAttrsStringSep "\n" (
+    exportPoint: clientsAndOptions:
+    exportPoint
+    + lib.concatMapAttrsStringSep "" (
+      client: options: " ${client}(${lib.concatStringsSep "," options})"
+    ) clientsAndOptions
+  );
 
   cfg = config.services.nfs.server;
 
@@ -12,8 +22,14 @@ in
 
 {
   imports = [
-    (mkRenamedOptionModule [ "services" "nfs" "lockdPort" ] [ "services" "nfs" "server" "lockdPort" ])
-    (mkRenamedOptionModule [ "services" "nfs" "statdPort" ] [ "services" "nfs" "server" "statdPort" ])
+    (lib.mkRenamedOptionModule
+      [ "services" "nfs" "lockdPort" ]
+      [ "services" "nfs" "server" "lockdPort" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "services" "nfs" "statdPort" ]
+      [ "services" "nfs" "server" "statdPort" ]
+    )
   ];
 
   ###### interface
@@ -23,33 +39,47 @@ in
     services.nfs = {
 
       server = {
-        enable = mkOption {
-          type = types.bool;
+        enable = lib.mkOption {
+          type = lib.types.bool;
           default = false;
           description = ''
             Whether to enable the kernel's NFS server.
           '';
         };
 
-        extraNfsdConfig = mkOption {
-          type = types.str;
+        extraNfsdConfig = lib.mkOption {
+          type = lib.types.str;
           default = "";
           description = ''
             Extra configuration options for the [nfsd] section of /etc/nfs.conf.
           '';
         };
 
-        exports = mkOption {
-          type = types.lines;
+        exports = lib.mkOption {
+          type = with lib.types; coercedTo (attrsOf (attrsOf (listOf str))) attrsToExports lines;
           default = "";
           description = ''
             Contents of the /etc/exports file.  See
             {manpage}`exports(5)` for the format.
           '';
+          example = {
+            "/usr" = {
+              "*.local.domain" = [ "ro" ];
+              "@trusted" = [ "rw" ];
+            };
+            "/home/joe" = {
+              "pc001" = [
+                "rw"
+                "all_squash"
+                "anonuid=150"
+                "anongid=100"
+              ];
+            };
+          };
         };
 
-        hostName = mkOption {
-          type = types.nullOr types.str;
+        hostName = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
           default = null;
           description = ''
             Hostname or address on which NFS requests will be accepted.
@@ -58,22 +88,22 @@ in
           '';
         };
 
-        nproc = mkOption {
-          type = types.int;
+        nproc = lib.mkOption {
+          type = lib.types.int;
           default = 8;
           description = ''
             Number of NFS server threads.  Defaults to the recommended value of 8.
           '';
         };
 
-        createMountPoints = mkOption {
-          type = types.bool;
+        createMountPoints = lib.mkOption {
+          type = lib.types.bool;
           default = false;
           description = "Whether to create the mount points in the exports file at startup time.";
         };
 
-        mountdPort = mkOption {
-          type = types.nullOr types.int;
+        mountdPort = lib.mkOption {
+          type = lib.types.nullOr lib.types.port;
           default = null;
           example = 4002;
           description = ''
@@ -81,8 +111,8 @@ in
           '';
         };
 
-        lockdPort = mkOption {
-          type = types.nullOr types.int;
+        lockdPort = lib.mkOption {
+          type = lib.types.nullOr lib.types.port;
           default = null;
           example = 4001;
           description = ''
@@ -92,8 +122,8 @@ in
           '';
         };
 
-        statdPort = mkOption {
-          type = types.nullOr types.int;
+        statdPort = lib.mkOption {
+          type = lib.types.nullOr lib.types.port;
           default = null;
           example = 4000;
           description = ''
@@ -108,10 +138,9 @@ in
 
   };
 
-
   ###### implementation
 
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable {
 
     services.rpcbind.enable = true;
 
@@ -119,35 +148,25 @@ in
 
     environment.etc.exports.source = exports;
 
-    systemd.services.nfs-server =
-      { enable = true;
-        wantedBy = [ "multi-user.target" ];
+    systemd.services.nfs-server = {
+      enable = true;
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig.StateDirectory = [ "nfs/v4recovery" ];
+    };
 
-        preStart =
-          ''
-            mkdir -p /var/lib/nfs/v4recovery
-          '';
-      };
+    systemd.services.nfs-mountd = {
+      enable = true;
+      restartTriggers = [ exports ];
+      serviceConfig.StateDirectory = [ "nfs" ];
 
-    systemd.services.nfs-mountd =
-      { enable = true;
-        restartTriggers = [ exports ];
-
-        preStart =
-          ''
-            mkdir -p /var/lib/nfs
-
-            ${optionalString cfg.createMountPoints
-              ''
-                # create export directories:
-                # skip comments, take first col which may either be a quoted
-                # "foo bar" or just foo (-> man export)
-                sed '/^#.*/d;s/^"\([^"]*\)".*/\1/;t;s/[ ].*//' ${exports} \
-                | xargs -d '\n' mkdir -p
-              ''
-            }
-          '';
-      };
+      preStart = lib.optionalString cfg.createMountPoints ''
+        # create export directories:
+        # skip comments, take first col which may either be a quoted
+        # "foo bar" or just foo (-> man export)
+        sed '/^#.*/d;s/^"\([^"]*\)".*/\1/;t;s/[ ].*//' ${exports} \
+        | xargs -d '\n' mkdir -p
+      '';
+    };
 
   };
 

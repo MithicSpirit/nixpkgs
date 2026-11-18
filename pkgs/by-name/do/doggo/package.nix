@@ -1,31 +1,33 @@
-{ buildGoModule
-, fetchFromGitHub
-, installShellFiles
-, nix-update-script
-, lib
+{
+  lib,
+  stdenv,
+  buildGoModule,
+  fetchFromGitHub,
+  installShellFiles,
+  nix-update-script,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "doggo";
-  version = "1.0.4";
+  version = "1.4.2";
 
   src = fetchFromGitHub {
     owner = "mr-karan";
     repo = "doggo";
-    rev = "v${version}";
-    hash = "sha256-SD/BcJxoc5Oi8+nAs+CWBEcbgtaohykNlZ14jJvEWew=";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-ar/0Q54PutWdtqqNDP2rS3zfqBT36UmfcFQM8AU1yu0=";
   };
 
-  vendorHash = "sha256-JIc6/G1hMf8+oIe4OMc+b0th5MCgi5Mwp3AxW4OD1lg=";
+  vendorHash = "sha256-syOzmcvAvcQ81emSMdYhDWajMnci4Hd/18s/I7rDNc8=";
   nativeBuildInputs = [ installShellFiles ];
   subPackages = [ "cmd/doggo" ];
 
   ldflags = [
     "-s"
-    "-X main.buildVersion=v${version}"
+    "-X main.buildVersion=v${finalAttrs.version}"
   ];
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd doggo \
       --bash <($out/bin/doggo completions bash) \
       --fish <($out/bin/doggo completions fish) \
@@ -34,7 +36,7 @@ buildGoModule rec {
 
   passthru.updateScript = nix-update-script { };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://github.com/mr-karan/doggo";
     description = "Command-line DNS Client for Humans. Written in Golang";
     mainProgram = "doggo";
@@ -42,7 +44,10 @@ buildGoModule rec {
       doggo is a modern command-line DNS client (like dig) written in Golang.
       It outputs information in a neat concise manner and supports protocols like DoH, DoT, DoQ, and DNSCrypt as well
     '';
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ georgesalkhouri ];
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [
+      georgesalkhouri
+      ma27
+    ];
   };
-}
+})

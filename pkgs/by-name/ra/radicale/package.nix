@@ -1,54 +1,66 @@
-{ lib
-, python3
-, fetchFromGitHub
-, nixosTests
+{
+  fetchFromGitHub,
+  lib,
+  nixosTests,
+  python3,
 }:
 
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication (finalAttrs: {
   pname = "radicale";
-  version = "3.2.3";
+  version = "3.9.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "Kozea";
     repo = "Radicale";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-1IlnXVetQQuKBt6+QVKNeMM6qBQAiUhqc+4x3xOnSdE=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-L47fNYeMwTj39baHE+eM6vQp5DFHU00eGsJ+L8qhaDU=";
   };
-
-  postPatch = ''
-    sed -i '/addopts/d' setup.cfg
-  '';
 
   build-system = with python3.pkgs; [
     setuptools
   ];
 
-  dependencies = with python3.pkgs; [
-    defusedxml
-    passlib
-    vobject
-    pika
-    python-dateutil
-    pytz # https://github.com/Kozea/Radicale/issues/816
-  ] ++ passlib.optional-dependencies.bcrypt;
+  dependencies =
+    with python3.pkgs;
+    [
+      defusedxml
+      libpass
+      vobject
+      pika
+      requests
+      ldap3
+      python-pam
+    ]
+    ++ libpass.optional-dependencies.argon2
+    ++ libpass.optional-dependencies.bcrypt;
+
+  optional-dependencies = {
+    h2 = [ python3.pkgs.hypercorn ];
+  };
 
   __darwinAllowLocalNetworking = true;
 
   nativeCheckInputs = with python3.pkgs; [
-    pytest7CheckHook
+    pytestCheckHook
     waitress
   ];
+
+  # skip tests which try to measure how long something takes; makes the build fail sometimes
+  disabledTests = [ "delay" ];
 
   passthru.tests = {
     inherit (nixosTests) radicale;
   };
 
-  meta = with lib; {
+  meta = {
     homepage = "https://radicale.org/v3.html";
-    changelog = "https://github.com/Kozea/Radicale/blob/${src.rev}/CHANGELOG.md";
+    changelog = "https://github.com/Kozea/Radicale/releases/tag/${finalAttrs.src.tag}";
     description = "CalDAV and CardDAV server";
-    license = licenses.gpl3Plus;
-    maintainers = with maintainers; [ dotlambda erictapen ];
+    license = lib.licenses.gpl3Plus;
+    maintainers = with lib.maintainers; [
+      dotlambda
+      erictapen
+    ];
   };
-}
+})

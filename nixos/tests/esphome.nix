@@ -1,15 +1,20 @@
-import ./make-test-python.nix ({ pkgs, lib, ... }:
+{ pkgs, lib, ... }:
 
 let
   testPort = 6052;
+  remoteBuildPort = 6055;
   unixSocket = "/run/esphome/esphome.sock";
 in
 {
   name = "esphome";
-  meta.maintainers = with lib.maintainers; [ oddlama ];
+  meta.maintainers = with lib.maintainers; [
+    oddlama
+    AAAAAASomeThingsFailToEvaluate
+  ];
 
   nodes = {
-    esphomeTcp = { ... }:
+    esphomeTcp =
+      { ... }:
       {
         services.esphome = {
           enable = true;
@@ -19,11 +24,23 @@ in
         };
       };
 
-    esphomeUnix = { ... }:
+    esphomeUnix =
+      { ... }:
       {
         services.esphome = {
           enable = true;
           enableUnixSocket = true;
+        };
+      };
+
+    esphomeRemoteBuild =
+      { ... }:
+      {
+        services.esphome = {
+          enable = true;
+          remoteBuildOnly = true;
+          inherit remoteBuildPort;
+          openFirewall = true;
         };
       };
   };
@@ -36,5 +53,8 @@ in
     esphomeUnix.wait_for_unit("esphome.service")
     esphomeUnix.wait_for_file("${unixSocket}")
     esphomeUnix.succeed("curl --fail --unix-socket ${unixSocket} http://localhost/")
+
+    esphomeRemoteBuild.wait_for_unit("esphome.service")
+    esphomeRemoteBuild.wait_for_open_port(${toString remoteBuildPort})
   '';
-})
+}

@@ -1,26 +1,24 @@
-{ lib, stdenv, rustPlatform, fetchFromGitHub }:
-
-rustPlatform.buildRustPackage rec {
+{
+  lib,
+  rustPlatform,
+  fetchFromGitHub,
+}:
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "xplr";
-  version = "0.21.9";
+  version = "1.2.2";
 
   src = fetchFromGitHub {
     owner = "sayanarijit";
-    repo = pname;
-    rev = "v${version}";
-    sha256 = "sha256-0c2QJUEQwKEzzDBDP5XdX7xe1rivazsoZtepB4Dxp/c=";
+    repo = "xplr";
+    rev = "v${finalAttrs.version}";
+    hash = "sha256-gW7+gaMSNZiSlZu45yNIXLrj8+wh9WTVnHs7hUFt4ps=";
   };
 
-  cargoHash = "sha256-RZgdWhVBZozYxbbNslCBLhN6EnogpyVXvht6GbzLnPs=";
-
-  # fixes `thread 'main' panicked at 'cannot find strip'` on x86_64-darwin
-  env = lib.optionalAttrs (stdenv.isx86_64 && stdenv.isDarwin) {
-    TARGET_STRIP = "${stdenv.cc.targetPrefix}strip";
-  };
+  cargoHash = "sha256-CmpiMRiif7fkJtcNHapWuY8p0QgIROzF4tXUQ8/1I7s=";
 
   # error: linker `aarch64-linux-gnu-gcc` not found
   postPatch = ''
-    rm .cargo/config
+    rm .cargo/config.toml
   '';
 
   postInstall = ''
@@ -37,12 +35,16 @@ rustPlatform.buildRustPackage rec {
     done
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Hackable, minimal, fast TUI file explorer";
     mainProgram = "xplr";
     homepage = "https://xplr.dev";
-    changelog = "https://github.com/sayanarijit/xplr/releases/tag/${src.rev}";
-    license = licenses.mit;
-    maintainers = with maintainers; [ sayanarijit suryasr007 pyrox0 mimame figsoda ];
+    changelog = "https://github.com/sayanarijit/xplr/releases/tag/${finalAttrs.src.rev}";
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [
+      sayanarijit
+      suryasr007
+      mimame
+    ];
   };
-}
+})

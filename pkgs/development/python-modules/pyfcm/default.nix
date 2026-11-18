@@ -16,9 +16,14 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "olucurious";
     repo = "pyfcm";
-    rev = "refs/tags/${version}";
+    tag = version;
     hash = "sha256-lpSbb0DDXLHne062s7g27zRpvTuOHiqQkqGOtWvuWdI=";
   };
+
+  postPatch = ''
+    substituteInPlace pyfcm/__meta__.py \
+      --replace-fail '__version__ = "2.0.0"' '__version__ = "${version}"'
+  '';
 
   build-system = [ setuptools ];
 
@@ -33,10 +38,10 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "pyfcm" ];
 
-  meta = with lib; {
+  meta = {
     description = "Python client for FCM - Firebase Cloud Messaging (Android, iOS and Web)";
     homepage = "https://github.com/olucurious/pyfcm";
-    license = licenses.mit;
-    maintainers = with maintainers; [ ldelelis ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ ldelelis ];
   };
 }

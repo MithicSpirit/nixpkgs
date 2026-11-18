@@ -10,15 +10,20 @@
 
 buildPythonPackage rec {
   pname = "pydigiham";
-  version = "0.6.0";
+  version = "0.6.2";
   format = "setuptools";
 
   src = fetchFromGitHub {
     owner = "jketterl";
     repo = "pydigiham";
     rev = version;
-    hash = "sha256-kiEvQl3SuDnHI4Fh97AarsszHGFt7tbWBvBRW84Qv18=";
+    hash = "sha256-QenoMyVFs8MEDPoMV6TT6XfzktfN/gAMIHR0Scq11wk=";
   };
+
+  postPatch = ''
+    substituteInPlace src/modules.cpp \
+      --replace-fail "PyModuleDef_HEAD_INIT," ".m_base = PyModuleDef_HEAD_INIT,"
+  '';
 
   propagatedBuildInputs = [ digiham ];
   buildInputs = [
@@ -36,8 +41,7 @@ buildPythonPackage rec {
 
   meta = {
     homepage = "https://github.com/jketterl/pydigiham";
-    description = "bindings for the csdr library";
+    description = "Bindings for the csdr library";
     license = lib.licenses.gpl3Only;
-    maintainers = lib.teams.c3d2.members;
   };
 }

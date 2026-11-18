@@ -1,34 +1,44 @@
-{ stdenv
-, lib
-, fetchFromGitLab
-, gitUpdater
-, testers
-, boost
-, cmake
-, cmake-extras
-, dbus
-, dbus-cpp
-, gtest
-, libapparmor
-, libelf
-, pkg-config
-, process-cpp
-, properties-cpp
-, qtbase
-, qtdeclarative
-, sqlite
-, validatePkgConfig
+{
+  stdenv,
+  lib,
+  fetchFromGitLab,
+  fetchpatch,
+  gitUpdater,
+  testers,
+  boost,
+  cmake,
+  cmake-extras,
+  dbus,
+  dbus-cpp,
+  gtest,
+  libapparmor,
+  libelf,
+  libgbinder,
+  libglibutil,
+  nlohmann_json,
+  pkg-config,
+  process-cpp,
+  properties-cpp,
+  qtbase,
+  qtdeclarative,
+  sqlite,
+  validatePkgConfig,
 }:
 
+let
+  withQt6 = lib.strings.versionAtLeast qtbase.version "6";
+  listToQtVar = suffix: lib.makeSearchPathOutput "bin" suffix;
+  qtQmlPaths = listToQtVar qtbase.qtQmlPrefix [ qtdeclarative ];
+in
 stdenv.mkDerivation (finalAttrs: {
   pname = "biometryd";
-  version = "0.3.1";
+  version = "0.4.1";
 
   src = fetchFromGitLab {
     owner = "ubports";
     repo = "development/core/biometryd";
     rev = finalAttrs.version;
-    hash = "sha256-derU7pKdNf6pwhskaW7gCLcU9ixBG3U0EI/qtANmmTs=";
+    hash = "sha256-TVv8uow52UcZzgAZa0+dn32FIjrw/m5LgvUJLfm+wbQ=";
   };
 
   outputs = [
@@ -36,22 +46,52 @@ stdenv.mkDerivation (finalAttrs: {
     "dev"
   ];
 
+  patches = [
+    # Remove when version > 0.4.1
+    (fetchpatch {
+      name = "0001-biometryd-tests-Fix-wrong-error-checking-with-aa_getcon.patch";
+      url = "https://gitlab.com/ubports/development/core/biometryd/-/commit/0a99a2187b9d8a2e0ebef251c13aacce49916a58.patch";
+      hash = "sha256-saO6ChhtTowfYnBCcOXg8B31llKFxNjWp+/mlT4PEDM=";
+    })
+  ];
+
   postPatch = ''
-    # Substitute systemd's prefix in pkg-config call
-    substituteInPlace data/CMakeLists.txt \
-      --replace-fail 'pkg_get_variable(SYSTEMD_SYSTEM_UNIT_DIR systemd systemdsystemunitdir)' 'pkg_get_variable(SYSTEMD_SYSTEM_UNIT_DIR systemd systemdsystemunitdir DEFINE_VARIABLES prefix=''${CMAKE_INSTALL_PREFIX})'
-
     substituteInPlace src/biometry/qml/Biometryd/CMakeLists.txt \
-      --replace-fail "\''${CMAKE_INSTALL_LIBDIR}/qt5/qml" "\''${CMAKE_INSTALL_PREFIX}/${qtbase.qtQmlPrefix}"
-
-    # For our automatic pkg-config output patcher to work, prefix must be used here
+      --replace-fail \
+        "\''${CMAKE_INSTALL_FULL_LIBDIR}/qt\''${QT_VERSION_MAJOR}/qml" \
+        "\''${CMAKE_INSTALL_PREFIX}/${qtbase.qtQmlPrefix}" \
+      --replace-fail \
+        "\''${CMAKE_INSTALL_LIBDIR}/qt\''${QT_VERSION_MAJOR}/qml" \
+        "\''${CMAKE_INSTALL_PREFIX}/${qtbase.qtQmlPrefix}"
+  ''
+  # Substitute systemd's prefix in pkg-config call
+  + ''
+    substituteInPlace data/CMakeLists.txt \
+      --replace-fail \
+        'pkg_get_variable(SYSTEMD_SYSTEM_UNIT_DIR systemd systemdsystemunitdir)' \
+        'pkg_get_variable(SYSTEMD_SYSTEM_UNIT_DIR systemd systemdsystemunitdir DEFINE_VARIABLES prefix=''${CMAKE_INSTALL_PREFIX})'
+  ''
+  # For our automatic pkg-config output patcher to work, prefix must be used here
+  + ''
     substituteInPlace data/biometryd.pc.in \
       --replace-fail 'libdir=''${exec_prefix}' 'libdir=''${prefix}' \
-      --replace-fail 'includedir=''${exec_prefix}' 'includedir=''${prefix}' \
-  '' + lib.optionalString (!finalAttrs.finalPackage.doCheck) ''
-    sed -i -e '/add_subdirectory(tests)/d' CMakeLists.txt
+      --replace-fail 'includedir=''${exec_prefix}' 'includedir=''${prefix}'
+  ''
+  # Suffix our QML2_IMPORT_PATH
+  + ''
+    substituteInPlace tests/CMakeLists.txt \
+      --replace-fail \
+        'QML2_IMPORT_PATH=''${CMAKE_BINARY_DIR}/src/biometry/qml;' \
+        'QML2_IMPORT_PATH=''${CMAKE_BINARY_DIR}/src/biometry/qml:${qtQmlPaths};'
+  ''
+  + lib.optionalString (!finalAttrs.finalPackage.doCheck) ''
+    substituteInPlace CMakeLists.txt \
+      --replace-fail \
+        'add_subdirectory(tests)' \
+        'message (STATUS "Skipping tests")'
   '';
 
+  __structuredAttrs = true;
   strictDeps = true;
 
   nativeBuildInputs = [
@@ -68,6 +108,9 @@ stdenv.mkDerivation (finalAttrs: {
     dbus-cpp
     libapparmor
     libelf
+    libgbinder
+    libglibutil
+    nlohmann_json
     process-cpp
     properties-cpp
     qtbase
@@ -82,15 +125,16 @@ stdenv.mkDerivation (finalAttrs: {
   dontWrapQtApps = true;
 
   cmakeFlags = [
-    # maybe-uninitialized warnings
-    (lib.cmakeBool "ENABLE_WERROR" false)
-    (lib.cmakeBool "WITH_HYBRIS" false)
+    (lib.strings.cmakeBool "ENABLE_QT6" withQt6)
+    (lib.strings.cmakeBool "ENABLE_WERROR" true)
+    (lib.strings.cmakeBool "WITH_GBINDER" true)
   ];
 
-  preBuild = ''
+  preBuild =
     # Generating plugins.qmltypes (also used in checkPhase?)
-    export QT_PLUGIN_PATH=${lib.getBin qtbase}/${qtbase.qtPluginPrefix}
-  '';
+    ''
+      export QT_PLUGIN_PATH=${listToQtVar qtbase.qtPluginPrefix [ qtbase ]}
+    '';
 
   doCheck = stdenv.buildPlatform.canExecute stdenv.hostPlatform;
 
@@ -99,7 +143,7 @@ stdenv.mkDerivation (finalAttrs: {
     updateScript = gitUpdater { };
   };
 
-  meta = with lib; {
+  meta = {
     description = "Mediates/multiplexes access to biometric devices";
     longDescription = ''
       biometryd mediates and multiplexes access to biometric devices present
@@ -107,11 +151,11 @@ stdenv.mkDerivation (finalAttrs: {
       them for identification and verification of users.
     '';
     homepage = "https://gitlab.com/ubports/development/core/biometryd";
-    changelog = "https://gitlab.com/ubports/development/core/biometryd/-/${finalAttrs.version}/ChangeLog";
-    license = licenses.lgpl3Only;
-    maintainers = teams.lomiri.members;
+    changelog = "https://gitlab.com/ubports/development/core/biometryd/-/blob/${finalAttrs.version}/ChangeLog";
+    license = lib.licenses.lgpl3Only;
+    teams = [ lib.teams.lomiri ];
     mainProgram = "biometryd";
-    platforms = platforms.linux;
+    platforms = lib.platforms.linux;
     pkgConfigModules = [
       "biometryd"
     ];

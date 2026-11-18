@@ -1,65 +1,110 @@
-{ buildNpmPackage
-, fetchFromGitHub
-, lib
-, esbuild
-, buildWebExtension ? false
+{
+  curl,
+  fetchFromGitHub,
+  git,
+  jq,
+  lib,
+  nix-update,
+  nodejs,
+  pnpm_12,
+  fetchPnpmDeps,
+  pnpmConfigHook,
+  stdenv,
+  writeShellScript,
+  discord,
+  discord-ptb,
+  discord-canary,
+  discord-development,
+  buildWebExtension ? false,
 }:
 let
-  version = "1.9.5";
-  gitHash = "5bd10c8";
+  pnpm = pnpm_12;
 in
-buildNpmPackage rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "vencord";
-  inherit version;
+  version = "1.15.17";
 
   src = fetchFromGitHub {
     owner = "Vendicated";
     repo = "Vencord";
-    rev = "v${version}";
-    hash = "sha256-7eJkdcZX4D6PUnnpY+iucWWZx9/ned8z/zA0M5TRcaY=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-+dN4wAFNmYVDiEe0QStqrFBRFHBBRkApqbmhuvsLZZM=";
   };
 
-  ESBUILD_BINARY_PATH = lib.getExe (esbuild.overrideAttrs (final: _: {
-    version = "0.15.18";
-    src = fetchFromGitHub {
-      owner = "evanw";
-      repo = "esbuild";
-      rev = "v${final.version}";
-      hash = "sha256-b9R1ML+pgRg9j2yrkQmBulPuLHYLUQvW+WTyR/Cq6zE=";
-    };
-    vendorHash = "sha256-+BfxCyg0KkDQpHt/wycy/8CTG6YBA/VJvJFhhzUnSiQ=";
-  }));
+  pnpmDeps = fetchPnpmDeps {
+    inherit (finalAttrs)
+      pname
+      src
+      ;
+    inherit pnpm;
+    fetcherVersion = 5;
+    hash = "sha256-/cnY+wj2/oHohUwf7zUHsE4aWI8YdhBNO8jSVuvQH+M=";
+  };
 
-  # Supresses an error about esbuild's version.
-  npmRebuildFlags = [ "|| true" ];
+  nativeBuildInputs = [
+    git
+    nodejs
+    pnpmConfigHook
+    pnpm
+  ];
 
-  makeCacheWritable = true;
-  npmDepsHash = "sha256-GTjL6cjYPoa1ohtqslxDskCN9tKuu1OP1ZWIWtFx+E0=";
-  npmFlags = [ "--legacy-peer-deps" ];
-  npmBuildScript = if buildWebExtension then "buildWeb" else "build";
-  npmBuildFlags = [ "--" "--standalone" "--disable-updater" ];
+  env = {
+    VENCORD_REMOTE = "${finalAttrs.src.owner}/${finalAttrs.src.repo}";
+    VENCORD_HASH = "${finalAttrs.version}";
+  };
 
-  prePatch = ''
-    cp ${./package-lock.json} ./package-lock.json
-    chmod +w ./package-lock.json
+  buildPhase = ''
+    runHook preBuild
+
+    pnpm run ${if buildWebExtension then "buildWeb" else "build"} \
+      -- --standalone --disable-updater
+
+    runHook postBuild
   '';
 
-  VENCORD_HASH = gitHash;
-  VENCORD_REMOTE = "${src.owner}/${src.repo}";
+  installPhase = ''
+    runHook preInstall
 
-  installPhase =
-    if buildWebExtension then ''
-      cp -r dist/chromium-unpacked/ $out
-    '' else ''
-      cp -r dist/ $out
+    cp -r dist/${lib.optionalString buildWebExtension "chromium-unpacked/"} $out
+    cp package.json $out # Presence is checked by Vesktop.
+
+    runHook postInstall
+  '';
+
+  passthru = {
+    # We need to fetch the latest *tag* ourselves, as nix-update can only fetch the latest *releases* from GitHub
+    # Vencord had a single "devbuild" release that we do not care about
+    updateScript = writeShellScript "update-vencord" ''
+      export PATH="${
+        lib.makeBinPath [
+          curl
+          jq
+          nix-update
+        ]
+      }:$PATH"
+      ghTags=$(curl ''${GITHUB_TOKEN:+" -u \":$GITHUB_TOKEN\""} "https://api.github.com/repos/Vendicated/Vencord/tags")
+      latestTag=$(echo "$ghTags" | jq -r .[0].name)
+
+      echo "Latest tag: $latestTag"
+
+      exec nix-update --version "$latestTag" "$@"
     '';
 
-  passthru.updateScript = ./update.sh;
-
-  meta = with lib; {
-    description = "Vencord web extension";
-    homepage = "https://github.com/Vendicated/Vencord";
-    license = licenses.gpl3Only;
-    maintainers = with maintainers; [ FlafyDev NotAShelf Scrumplex ];
+    tests = lib.genAttrs' [ discord discord-ptb discord-canary discord-development ] (
+      p: lib.nameValuePair p.pname p.tests.withVencord
+    );
   };
-}
+
+  meta = {
+    description = "Cutest Discord client mod";
+    homepage = "https://github.com/Vendicated/Vencord";
+    license = lib.licenses.gpl3Only;
+    maintainers = with lib.maintainers; [
+      _4evy
+      Gliczy
+      NotAShelf
+      Scrumplex
+      ryand56
+    ];
+  };
+})

@@ -1,114 +1,184 @@
 {
   lib,
-  stdenv,
-  ailment,
+  angr-data,
   archinfo,
   buildPythonPackage,
   cachetools,
+  callPackage,
   capstone,
+  cargo,
   cffi,
-  claripy,
   cle,
-  cppheaderparser,
-  dpkt,
+  cxxheaderparser,
+  fastmcp,
   fetchFromGitHub,
   gitpython,
-  itanium-demangler,
+  grpcio-tools,
+  keystone-engine,
+  lmdb,
+  mcp,
+  msgspec,
   mulpyplexer,
-  nampa,
   networkx,
-  progressbar2,
+  opentelemetry-api,
+  platformdirs,
   protobuf,
   psutil,
   pycparser,
-  pyformlang,
-  pythonOlder,
+  pydantic-ai-slim,
+  pydemumble,
+  pypcode,
   pyvex,
+  python,
+  pythonOlder,
   rich,
-  rpyc,
+  runCommandCC,
+  rustc,
+  rustPlatform,
   setuptools,
+  setuptools-rust,
   sortedcontainers,
   sqlalchemy,
   sympy,
+  typing-extensions,
   unicorn,
-  unique-log-filter,
+  z3-solver,
 }:
 
-buildPythonPackage rec {
+buildPythonPackage (finalAttrs: {
   pname = "angr";
-  version = "9.2.117";
+  # Keep angr-management, angr, archinfo, cle, and pyvex in sync.
+  version = "10.0.5";
   pyproject = true;
 
-  disabled = pythonOlder "3.11";
+  disabled = pythonOlder "3.12";
 
   src = fetchFromGitHub {
     owner = "angr";
     repo = "angr";
-    rev = "refs/tags/v${version}";
-    hash = "sha256-woIid0DdaZqn7BZJrQ3UoOfGC1cP8r+t+++Sw8ZtX80=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-memxffALYmcDNm1MgzgBom+5FNFKI4ympOJvY/NsHAg=";
   };
 
-  pythonRelaxDeps = [ "capstone" ];
+  cargoDeps = rustPlatform.fetchCargoVendor {
+    inherit (finalAttrs) src pname version;
+    hash = "sha256-rlztS1GC5GCBHdr9VaeGNOp5ni0qcA8ot1RSJlXFuMI=";
+  };
 
-  build-system = [
-    setuptools
+  pythonRelaxDeps = [
+    "cxxheaderparser"
+    "lmdb"
+    "pycparser"
+    "pypcode"
+    "z3-solver"
   ];
 
+  postPatch = ''
+    # Nix supplies the build dependency; keep the runtime requirement.
+    sed -i '/^\[build-system\]/,/^\[/{ /"z3-solver/d; }' pyproject.toml
+
+    # cxxheaderparser 1.x represents member-function pointers using Pointer.
+    substituteInPlace angr/sim_type.py \
+      --replace-fail 'cxxheaderparser.types.MemberPointer' \
+        'getattr(cxxheaderparser.types, "MemberPointer", cxxheaderparser.types.Pointer)'
+  '';
+
+  build-system = [
+    grpcio-tools
+    protobuf
+    pyvex
+    setuptools
+    setuptools-rust
+    z3-solver
+  ];
+
+  nativeBuildInputs = [
+    rustPlatform.cargoSetupHook
+    cargo
+    rustc
+  ];
+
+  env.Z3_SYS_Z3_VERSION = z3-solver.version;
+
   dependencies = [
-    ailment
+    angr-data
     archinfo
     cachetools
     capstone
     cffi
-    claripy
     cle
-    cppheaderparser
-    dpkt
+    cxxheaderparser
     gitpython
-    itanium-demangler
+    lmdb
+    msgspec
     mulpyplexer
-    nampa
     networkx
-    progressbar2
+    platformdirs
     protobuf
     psutil
     pycparser
-    pyformlang
+    pydemumble
+    pypcode
     pyvex
     rich
-    rpyc
     sortedcontainers
-    sqlalchemy
     sympy
-    unicorn
-    unique-log-filter
+    typing-extensions
+    z3-solver
   ];
 
-  passthru.optional-dependencies = {
-    AngrDB = [ sqlalchemy ];
+  optional-dependencies = {
+    angrdb = [ sqlalchemy ];
+    keystone = [ keystone-engine ];
+    llm = [
+      fastmcp
+      mcp
+      pydantic-ai-slim
+    ];
+    telemetry = [ opentelemetry-api ];
+    unicorn = [ unicorn ];
   };
 
-  setupPyBuildFlags = lib.optionals stdenv.isLinux [
-    "--plat-name"
-    "linux"
-  ];
-
-  # Tests have additional requirements, e.g., pypcode and angr binaries
-  # cle is executing the tests with the angr binaries
+  # The full upstream suite requires large external fixtures and optional dependencies.
   doCheck = false;
 
   pythonImportsCheck = [
     "angr"
-    "claripy"
-    "cle"
-    "pyvex"
     "archinfo"
+    "cle"
+    "pypcode"
+    "pyvex"
   ];
 
-  meta = with lib; {
+  passthru.updateScript = {
+    command = [ (lib.getExe (callPackage ./update.nix { })) ];
+    supportedFeatures = [ "commit" ];
+  };
+
+  passthru.tests.smoke =
+    runCommandCC "angr-smoke-test"
+      {
+        nativeBuildInputs = [
+          (python.withPackages (_: [
+            finalAttrs.finalPackage
+            sqlalchemy
+            unicorn
+          ]))
+        ];
+      }
+      ''
+        cc -O1 ${./tests/fixture.c} -o fixture
+        python ${./tests/smoke.py} "$PWD/fixture" ${finalAttrs.version}
+        touch "$out"
+      '';
+
+  meta = {
     description = "Powerful and user-friendly binary analysis platform";
     homepage = "https://angr.io/";
-    license = with licenses; [ bsd2 ];
-    maintainers = with maintainers; [ fab ];
+    license = lib.licenses.bsd2;
+    maintainers = with lib.maintainers; [
+      connornelson
+      fab
+    ];
   };
-}
+})

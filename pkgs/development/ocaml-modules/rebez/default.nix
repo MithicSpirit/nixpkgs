@@ -1,6 +1,11 @@
-{ buildDunePackage, fetchFromGitHub, lib, reason }:
+{
+  buildDunePackage,
+  fetchFromGitHub,
+  lib,
+  reason,
+}:
 
-buildDunePackage rec {
+buildDunePackage {
   pname = "rebez";
   version = "unstable-2019-06-20";
 
@@ -8,15 +13,15 @@ buildDunePackage rec {
     owner = "jchavarri";
     repo = "rebez";
     rev = "03fa3b707abb28fdd710eb9e57ba40d9cd6ae163";
-    sha256 = "sha256-khZSwtwW+mP/EvAvIZMQyOb6FgNR+gmzpBZoD9ZPkpY=";
+    hash = "sha256-khZSwtwW+mP/EvAvIZMQyOb6FgNR+gmzpBZoD9ZPkpY=";
   };
 
   nativeBuildInputs = [ reason ];
 
-  meta = with lib; {
+  meta = {
     description = "Cubic bezier implementation in Reason / OCaml";
     homepage = "https://github.com/jchavarri/rebez/";
-    license = licenses.mit;
+    license = lib.licenses.mit;
     maintainers = [ ];
     mainProgram = "RebezApp.exe";
   };

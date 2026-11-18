@@ -1,20 +1,24 @@
-{ build-idris-package
-, fetchFromGitHub
-, contrib
-, sdl2
-, lib
+{
+  build-idris-package,
+  fetchFromGitHub,
+  contrib,
+  sdl2,
+  lib,
 }:
-build-idris-package  {
+build-idris-package {
   pname = "pacman";
   version = "2017-11-10";
 
-  idrisDeps = [ contrib sdl2 ];
+  idrisDeps = [
+    contrib
+    sdl2
+  ];
 
   src = fetchFromGitHub {
     owner = "jdublu10";
     repo = "pacman";
     rev = "263ae58aeb5147e2af9cc76411970ccd90fa9121";
-    sha256 = "02m3ic2fk3a8j50xdpq70yx30hkxzjg6idsia482sm1nlkmxxin9";
+    hash = "sha256-ycbe66Q2VC0QUVG3aJ78fUIwugcH39ZBkUiN6QSLowo=";
   };
 
   postUnpack = ''

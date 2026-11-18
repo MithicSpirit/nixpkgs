@@ -2,32 +2,31 @@
   lib,
   buildPythonPackage,
   fetchPypi,
-  pytestCheckHook,
+  flit-core,
   sphinx,
+  pytestCheckHook,
+  lxml,
 }:
 
 buildPythonPackage rec {
   pname = "sphinx-argparse";
-  version = "0.4.0";
-  format = "setuptools";
+  version = "0.6.1";
+  pyproject = true;
 
   src = fetchPypi {
     pname = "sphinx_argparse";
     inherit version;
-    hash = "sha256-4PNBhOtW8S+s53T7yHuICr25AXoJmNHsVZsmfpaX5Ek=";
+    hash = "sha256-+L4Weu31ZwvXyBLvUVlo/0cXxjz8nLTfXzS1T9VknDc=";
   };
 
-  postPatch = ''
-    # Fix tests for python-3.10 and add 3.10 to CI matrix
-    # Should be fixed in versions > 0.3.1
-    # https://github.com/ashb/sphinx-argparse/pull/3
-    substituteInPlace sphinxarg/parser.py \
-      --replace "if action_group.title == 'optional arguments':" "if action_group.title == 'optional arguments' or action_group.title == 'options':"
-  '';
+  build-system = [ flit-core ];
 
-  propagatedBuildInputs = [ sphinx ];
+  dependencies = [ sphinx ];
 
-  nativeCheckInputs = [ pytestCheckHook ];
+  nativeCheckInputs = [
+    lxml
+    pytestCheckHook
+  ];
 
   pythonImportsCheck = [ "sphinxarg" ];
 

@@ -1,15 +1,16 @@
-{ lib
-, stdenv
-, fetchurl
-, qmake
+{
+  lib,
+  stdenv,
+  fetchurl,
+  qmake,
 }:
 
 stdenv.mkDerivation rec {
   version = "3.26.4";
   pname = "dxflib";
   src = fetchurl {
-    url = "https://qcad.org/archives/dxflib/${pname}-${version}-src.tar.gz";
-    sha256 = "0pwic33mj6bp4axai5jiyn4xqf31y0xmb1i0pcf55b2h9fav8zah";
+    url = "https://qcad.org/archives/dxflib/dxflib-${version}-src.tar.gz";
+    hash = "sha256-UH20lUtQrFIcuyCGVTvwYTjcifVRlqi6IncZWcdgkV8=";
   };
   nativeBuildInputs = [
     qmake

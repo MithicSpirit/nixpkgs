@@ -2,41 +2,49 @@
   lib,
   stdenv,
   buildPythonPackage,
-  fetchPypi,
+  fetchFromGitHub,
   pytestCheckHook,
-  pythonOlder,
+  pyprojectVersionPatchHook,
 
-  cython_0,
+  # build deps
+  cython,
+  meson-python,
+  pkg-config,
+
+  # runtime deps
   geos,
   numpy,
   oldest-supported-numpy,
-  setuptools,
-  wheel,
 }:
 
 buildPythonPackage rec {
   pname = "shapely";
-  version = "2.0.6";
+  version = "2.2.0";
   pyproject = true;
 
-  disabled = pythonOlder "3.7";
-
-  src = fetchPypi {
-    inherit pname version;
-    hash = "sha256-mX9hWbFIQFnsI5ysqlNGf9i1Vk2r4YbNhKwpRGY7C/Y=";
+  src = fetchFromGitHub {
+    owner = "shapely";
+    repo = "shapely";
+    tag = version;
+    hash = "sha256-ddBbNAahYK1/+VtCYVqjrhOfRAtZERv7axTHrYlYBfA=";
   };
 
   nativeBuildInputs = [
-    cython_0
-    geos # for geos-config
-    oldest-supported-numpy
-    setuptools
-    wheel
+    pyprojectVersionPatchHook
+    pkg-config
   ];
 
-  buildInputs = [ geos ];
+  build-system = [
+    meson-python
+    cython
+  ];
 
-  propagatedBuildInputs = [ numpy ];
+  buildInputs = [
+    oldest-supported-numpy
+    geos
+  ];
+
+  dependencies = [ numpy ];
 
   nativeCheckInputs = [ pytestCheckHook ];
 
@@ -46,7 +54,7 @@ buildPythonPackage rec {
     cd $out
   '';
 
-  disabledTests = lib.optionals (stdenv.isDarwin && stdenv.isAarch64) [
+  disabledTests = lib.optionals stdenv.hostPlatform.isDarwin [
     # FIXME(lf-): these logging tests are broken, which is definitely our
     # fault. I've tried figuring out the cause and failed.
     #
@@ -59,11 +67,11 @@ buildPythonPackage rec {
 
   pythonImportsCheck = [ "shapely" ];
 
-  meta = with lib; {
-    changelog = "https://github.com/shapely/shapely/blob/${version}/CHANGES.txt";
+  meta = {
+    changelog = "https://github.com/shapely/shapely/blob/${src.tag}/CHANGES.txt";
     description = "Manipulation and analysis of geometric objects";
     homepage = "https://github.com/shapely/shapely";
-    license = licenses.bsd3;
-    maintainers = teams.geospatial.members;
+    license = lib.licenses.bsd3;
+    teams = [ lib.teams.geospatial ];
   };
 }

@@ -15,8 +15,8 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "paradoxxxzero";
     repo = "pyls-isort";
-    rev = "refs/tags/v${version}";
-    sha256 = "0xba0aiyjfdi9swjzxk26l94dwlwvn17kkfjfscxl8gvspzsn057";
+    tag = "v${version}";
+    hash = "sha256-pwCr/9X7IdqZdtLNeYLdnPJGEjVi9i+5TrE56aMCanU=";
   };
 
   # no tests

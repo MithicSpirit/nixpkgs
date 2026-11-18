@@ -1,6 +1,7 @@
-{ lib
-, fetchFromGitHub
-, buildDunePackage
+{
+  lib,
+  fetchFromGitHub,
+  buildDunePackage,
 }:
 
 buildDunePackage rec {
@@ -13,15 +14,15 @@ buildDunePackage rec {
     owner = "rlepigre";
     repo = "ocaml-${pname}";
     rev = version;
-    sha256 = "sha256-wUoI9j/j0IGYW2NfJHmyR2XEYfYejyoYLWnKsuWdFas=";
+    hash = "sha256-wUoI9j/j0IGYW2NfJHmyR2XEYfYejyoYLWnKsuWdFas=";
   };
 
   doCheck = true;
 
-  meta = with lib; {
+  meta = {
     description = "Timed references for imperative state";
     homepage = "https://github.com/rlepigre/ocaml-timed";
-    license = licenses.mit;
-    maintainers = with maintainers; [ bcdarwin ];
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ bcdarwin ];
   };
 }

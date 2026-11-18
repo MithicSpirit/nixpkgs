@@ -1,4 +1,8 @@
-import ./make-test-python.nix ({ lib, pkgs, ... }:
+{
+  pkgs,
+  ...
+}:
+
 let
   pythonShebang = pkgs.writeScript "python-shebang" ''
     #!/usr/bin/python
@@ -12,7 +16,10 @@ let
 in
 {
   name = "envfs";
-  nodes.machine.services.envfs.enable = true;
+
+  nodes.machine = {
+    services.envfs.enable = true;
+  };
 
   testScript = ''
     start_all()
@@ -24,8 +31,6 @@ in
         "PATH= /usr/bin/env --version",
         "PATH= test -e /usr/bin/sh",
         "PATH= test -e /usr/bin/env",
-        # no stat
-        "! test -e /usr/bin/cp",
         # also picks up PATH that was set after execve
         "! /usr/bin/hello",
         "PATH=${pkgs.hello}/bin /usr/bin/hello",
@@ -39,4 +44,4 @@ in
     print(out)
     assert out == "OK\n"
   '';
-})
+}

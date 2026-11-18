@@ -1,22 +1,28 @@
-{ lib, buildNimPackage, fetchFromGitHub }:
+{
+  lib,
+  buildNimPackage,
+  fetchFromGitHub,
+  openssl,
+}:
 buildNimPackage (finalAttrs: {
   pname = "promexplorer";
-  version = "0.0.5";
+  version = "0.1.0";
   src = fetchFromGitHub {
     owner = "marcusramberg";
     repo = "promexplorer";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-a+9afqdgLgGf2hOWf/QsElq+CurDfE1qDmYCzodZIDU=";
+    hash = "sha256-j86NINqCNPuW8v5VcLbyvRUATN94d10xcQYAYSSPYBA=";
   };
+  buildInputs = [ openssl ];
 
   lockFile = ./lock.json;
 
-  meta = with lib; {
+  meta = {
     description = "Simple tool to explore prometheus exporter metrics";
     homepage = "https://github.com/marcusramberg/promexplorer";
-    license = licenses.mit;
-    platforms = platforms.unix;
-    maintainers = with maintainers; [ marcusramberg ];
+    license = lib.licenses.mit;
+    platforms = lib.platforms.unix;
+    maintainers = with lib.maintainers; [ marcusramberg ];
     mainProgram = "promexplorer";
   };
 })

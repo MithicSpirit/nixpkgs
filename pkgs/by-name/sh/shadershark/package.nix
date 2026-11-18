@@ -1,14 +1,17 @@
-{ stdenv
-, lib
-, fetchhg
-, libepoxy
-, xorg
-, libGLU
-, glm
-, pkg-config
-, imagemagick
-, makeWrapper
-, installShellFiles
+{
+  stdenv,
+  lib,
+  fetchhg,
+  libepoxy,
+  libx11,
+  libGLU,
+  glm,
+  pkg-config,
+  imagemagick,
+  makeWrapper,
+  installShellFiles,
+  genericUpdater,
+  writeShellScript,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -21,6 +24,12 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-AYZWfqMckPKgXNIX9kAAv1mvD3opLi5EUElFsigiF3c=";
   };
 
+  postPatch = ''
+    substituteInPlace x11.h \
+      --replace-fail "#include <cstring>" "#include <cstring>
+    #include <unistd.h>"
+  '';
+
   nativeBuildInputs = [
     pkg-config
     makeWrapper
@@ -29,7 +38,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildInputs = [
     libepoxy
-    xorg.libX11
+    libx11
     libGLU
     glm
     imagemagick
@@ -50,14 +59,20 @@ stdenv.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
-  passthru.updateScript = [ ./update.sh finalAttrs.src.url ];
+  passthru.updateScript = genericUpdater {
+    inherit (finalAttrs) pname version;
+    versionLister = writeShellScript "shadershark-tags" ''
+      repo_url=${finalAttrs.src.url}
+      curl "$repo_url/tags" | grep '/rev/v' | sed 's;.*/rev/v\([^"]*\)[^$]*;\1; #'
+    '';
+  };
 
-  meta = with lib; {
+  meta = {
     mainProgram = "shader-shark";
     description = "OpenGL/X11 application for GNU/Linux consisting of a single window that shows simple 3D scene of a textured rectangle with applied vertex and fragment shaders (GLSL)";
     homepage = "https://graphics.globalcode.info/v_0/shader-shark.xhtml";
-    license = licenses.gpl3;
-    maintainers = [ maintainers.lucasew ];
-    platforms = platforms.linux;
+    license = lib.licenses.gpl3;
+    maintainers = [ ];
+    platforms = lib.platforms.linux;
   };
 })
